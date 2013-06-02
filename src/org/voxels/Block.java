@@ -5450,6 +5450,9 @@ public class Block implements GameObject
 	public void write(DataOutput o) throws IOException
 	{
 		this.type.write(o);
+		o.writeByte(this.light);
+		o.writeByte(this.scatteredSunlight);
+		o.writeByte(this.sunlight);
 		switch(this.type)
 		{
 		case BTSun:
@@ -5639,6 +5642,7 @@ public class Block implements GameObject
 			return;
 		case BTChest:
 		{
+			this.data.BlockCounts = new int[BlockType.Count];
 			int count = i.readUnsignedShort();
 			if(count > BlockType.Count)
 				throw new IOException("Chest block count is too big");
@@ -5786,6 +5790,15 @@ public class Block implements GameObject
 	public static Block read(DataInput i) throws IOException
 	{
 		Block retval = new Block(BlockType.read(i));
+		retval.light = i.readUnsignedByte();
+		if(retval.light < 0 || retval.light > 15)
+			throw new IOException("light is out of range");
+		retval.scatteredSunlight = i.readUnsignedByte();
+		if(retval.scatteredSunlight < 0 || retval.scatteredSunlight > 15)
+			throw new IOException("scatteredSunlight is out of range");
+		retval.sunlight = i.readUnsignedByte();
+		if(retval.sunlight < 0 || retval.sunlight > 15)
+			throw new IOException("sunlight is out of range");
 		retval.internalRead(i);
 		return retval;
 	}

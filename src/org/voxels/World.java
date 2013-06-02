@@ -367,6 +367,39 @@ public class World
 
 	private EvalNode[][] evalNodeHashTable = genEvalNodeHashTable();
 
+	private void insertEvalNode(EvalType et, EvalNode newnode)
+	{
+		int x = newnode.x;
+		int y = newnode.y;
+		int z = newnode.z;
+		int hash = hashPos(x, y, z);
+		EvalNode lastNode = null;
+		int eti = et.ordinal();
+		EvalNode node = this.evalNodeHashTable[eti][hash];
+		while(node != null)
+		{
+			if(node.x == x
+			        && node.y == y
+			        && node.z == z
+			        && ((node.b == null && newnode.b == null) || (node.b != null && newnode.b != null)))
+			{
+				if(lastNode != null)
+				{
+					lastNode.next = node.next;
+					node.next = this.evalNodeHashTable[eti][hash];
+					this.evalNodeHashTable[eti][hash] = node;
+				}
+				node.b = newnode.b;
+				return;
+			}
+			lastNode = node;
+			node = node.next;
+		}
+		node = newnode;
+		node.next = this.evalNodeHashTable[eti][hash];
+		this.evalNodeHashTable[eti][hash] = node;
+	}
+
 	private void insertEvalNode(EvalType et, int x, int y, int z, Block b)
 	{
 		int hash = hashPos(x, y, z);
@@ -1929,7 +1962,7 @@ public class World
 		                                                     this.treeGenerateListHead);
 	}
 
-	private static final int fileVersion = 0;
+	private static final int fileVersion = 1;
 
 	/**
 	 * write to a <code>DataOutput</code>
@@ -1981,7 +2014,42 @@ public class World
 		{
 			node.e.write(o);
 		}
-		// TODO finish
+		o.writeShort(EvalTypeCount);
+		for(int evalTypei = 0; evalTypei < EvalTypeCount; evalTypei++)
+		{
+			EvalType evalType = EvalType.values()[evalTypei];
+			EvalNode head = world.removeAllEvalNodes(evalType);
+			int evalNodeCount = 0;
+			for(EvalNode n = head; n != null; n = n.next)
+			{
+				evalNodeCount++;
+			}
+			o.writeInt(evalNodeCount);
+			for(EvalNode n = head, nextNode = (head != null ? head.next : null); n != null; n = nextNode, nextNode = (n != null ? n.next
+			        : null))
+			{
+				o.writeInt(n.x);
+				o.writeInt(n.y);
+				o.writeInt(n.z);
+				o.writeBoolean(n.b != null);
+				if(n.b != null)
+					n.b.write(o);
+				world.insertEvalNode(evalType, n);
+			}
+		}
+		int timedInvaldateCount = 0;
+		for(TimedInvalidate ti = world.timedInvalidateHead; ti != null; ti = ti.next)
+		{
+			timedInvaldateCount++;
+		}
+		o.writeInt(timedInvaldateCount);
+		for(TimedInvalidate ti = world.timedInvalidateHead; ti != null; ti = ti.next)
+		{
+			o.writeInt(ti.x);
+			o.writeInt(ti.y);
+			o.writeInt(ti.z);
+			o.writeDouble(ti.timeLeft);
+		}
 	}
 
 	/**
@@ -1996,6 +2064,87 @@ public class World
 	{
 		int v = i.readInt();
 		if(v != fileVersion)
+		{
+			readVer0(i, v);
+			return;
+		}
+		int seed = i.readInt();
+		clear(seed);
+		randSeed = i.readLong();
+		float timeOfDay = i.readFloat();
+		if(Float.isInfinite(timeOfDay) || Float.isNaN(timeOfDay)
+		        || timeOfDay < 0 || timeOfDay >= 1)
+			throw new IOException("time of day is out of range");
+		world.setTimeOfDay(timeOfDay);
+		int chunkcount = i.readInt();
+		if(chunkcount < 0)
+			throw new IOException("chunk count out of range");
+		while(chunkcount-- > 0)
+		{
+			int cx = i.readInt();
+			int cy = i.readInt();
+			int cz = i.readInt();
+			if(cx != getChunkX(cx) || cy != getChunkY(cy)
+			        || cz != getChunkZ(cz))
+				throw new IOException("chunk origin not valid");
+			for(int x = cx; x < cx + Chunk.size; x++)
+			{
+				for(int y = cy; y < cy + Chunk.size; y++)
+				{
+					for(int z = cz; z < cz + Chunk.size; z++)
+					{
+						world.internalSetBlock(x, y, z, Block.read(i));
+					}
+				}
+			}
+			world.setGenerated(cx, cy, cz, true);
+		}
+		int entitycount = i.readInt();
+		if(entitycount < 0)
+			throw new IOException("entity count out of range");
+		while(entitycount-- > 0)
+		{
+			world.insertEntity(Entity.read(i));
+		}
+		if(i.readUnsignedShort() != EvalTypeCount)
+			throw new IOException("EvalTypeCount doesn't match");
+		for(int evalTypei = 0; evalTypei < EvalTypeCount; evalTypei++)
+		{
+			EvalType evalType = EvalType.values()[evalTypei];
+			int evalNodeCount = i.readInt();
+			if(evalNodeCount < 0)
+				throw new IOException("invalid eval node count");
+			while(evalNodeCount-- > 0)
+			{
+				int x = i.readInt();
+				int y = i.readInt();
+				int z = i.readInt();
+				boolean hasBlock = i.readBoolean();
+				if(hasBlock)
+					world.insertEvalNode(evalType, x, y, z, Block.read(i));
+				else
+					world.insertEvalNode(evalType, x, y, z);
+			}
+		}
+		int timedInvalidateCount = i.readInt();
+		if(timedInvalidateCount < 0)
+			throw new IOException("invalid timed invalidate count");
+		while(timedInvalidateCount-- > 0)
+		{
+			int x = i.readInt();
+			int y = i.readInt();
+			int z = i.readInt();
+			double timeLeft = i.readDouble();
+			if(Double.isNaN(timeLeft) || Double.isInfinite(timeLeft)
+			        || timeLeft < 0)
+				throw new IOException("invalid timed invalidate time left");
+			world.addTimedInvalidate(x, y, z, timeLeft);
+		}
+	}
+
+	private static void readVer0(DataInput i, int v) throws IOException
+	{
+		if(v != 0)
 			throw new IOException("file version doesn't match");
 		int seed = i.readInt();
 		clear(seed);
@@ -2035,7 +2184,6 @@ public class World
 		{
 			world.insertEntity(Entity.read(i));
 		}
-		// TODO finish
 	}
 
 	/**

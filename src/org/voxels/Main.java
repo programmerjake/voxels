@@ -769,6 +769,7 @@ public final class Main
 
 	private static boolean getLoadFile()
 	{
+		saveFile = null;
 		fileChooser.setFileFilter(new FileFilter()
 		{
 			@Override
@@ -832,6 +833,13 @@ public final class Main
 			{
 				JOptionPane.showMessageDialog(null,
 				                              "Can't load : " + e.getMessage(),
+				                              "Voxels",
+				                              JOptionPane.ERROR_MESSAGE);
+			}
+			catch(Exception e)
+			{
+				JOptionPane.showMessageDialog(null,
+				                              "Can't load : " + e.toString(),
 				                              "Voxels",
 				                              JOptionPane.ERROR_MESSAGE);
 			}
