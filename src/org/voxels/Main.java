@@ -706,7 +706,9 @@ public final class Main
 			{
 				if(f.exists())
 				{
-					if(!f.isFile() || !f.canWrite() || !f.canRead())
+					if(f.isDirectory())
+						return true;
+					if(!f.isFile() || !f.canRead())
 						return false;
 				}
 				if(f.getName().toLowerCase().endsWith(".vw"))
@@ -714,6 +716,7 @@ public final class Main
 				return false;
 			}
 		});
+		fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 		if(JFileChooser.APPROVE_OPTION == fileChooser.showSaveDialog(null))
 		{
 			saveFile = fileChooser.getSelectedFile();
@@ -779,6 +782,8 @@ public final class Main
 			{
 				if(f.exists())
 				{
+					if(f.isDirectory())
+						return true;
 					if(!f.isFile() || !f.canRead())
 						return false;
 				}
@@ -787,6 +792,7 @@ public final class Main
 				return false;
 			}
 		});
+		fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 		if(JFileChooser.APPROVE_OPTION == fileChooser.showOpenDialog(null))
 		{
 			saveFile = fileChooser.getSelectedFile();

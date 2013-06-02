@@ -1673,8 +1673,7 @@ public class Player implements GameObject
 	{
 		if(event.isDown)
 		{
-			if(event.key == Main.KEY_S && Main.isKeyDown(Main.KEY_CTRL)
-			        && this.state == State.Normal)
+			if(event.key == Main.KEY_F2)
 			{
 				Main.saveAll();
 				return;
