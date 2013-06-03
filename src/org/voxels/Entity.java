@@ -424,7 +424,7 @@ public class Entity implements GameObject
 		Entity retval = new Entity(new Vector(position), EntityType.Particle);
 		retval.data.velocity = new Vector(velocity);
 		retval.data.particletype = pt;
-		retval.data.phi = World.fRand(-(float)Math.PI, (float)Math.PI);
+		retval.data.phi = World.fRand(-(float)Math.PI / 2, (float)Math.PI / 2);
 		retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
 		switch(pt)
 		{
