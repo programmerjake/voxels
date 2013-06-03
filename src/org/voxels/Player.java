@@ -45,6 +45,7 @@ public class Player implements GameObject
 	private boolean isShiftDown = false;
 	private int lastMouseX = -1, lastMouseY = -1;
 	private static final float distLimit = 0.2f;
+	private int furnaceSelection = -1;
 
 	private enum State
 	{
@@ -218,6 +219,11 @@ public class Player implements GameObject
 	private static final float workbenchZDist = -10.0f;
 	private static final float workbenchScale = 2.0f;
 	private static final float workbenchResultX = 6.5f;
+	private static final float furnaceZDist = -10.0f;
+	private static final float furnaceScale = 2.0f;
+	private static final float furnaceFireX = 0.0f, furnaceFireY = 0.0f;
+	private static final float furnaceDestX = 5.0f, furnaceDestY = 0.0f;
+	private static final float furnaceSrcX = 0, furnaceSrcY = 3;
 
 	/**
 	 * draw everything from this player's perspective
@@ -458,24 +464,19 @@ public class Player implements GameObject
 		}
 		case Furnace:
 		{
-			final float zdist = -9.9f;
-			final float scalefactor = 2.0f;
-			final float destx = 5, desty = 0;
-			final float srcx = 0, srcy = 3;
-			final float firex = 0, firey = 0;
 			glMatrixMode(GL_MODELVIEW);
 			glLoadIdentity();
 			furnaceImg.selectTexture();
 			glColor3f(1, 1, 1);
 			glBegin(GL_QUADS);
 			glTexCoord2f(0, 0);
-			glVertex3f(-8, -8, zdist - 0.01f);
+			glVertex3f(-8, -8, furnaceZDist - 0.01f);
 			glTexCoord2f(1, 0);
-			glVertex3f(8, -8, zdist - 0.01f);
+			glVertex3f(8, -8, furnaceZDist - 0.01f);
 			glTexCoord2f(1, 1);
-			glVertex3f(8, 8, zdist - 0.01f);
+			glVertex3f(8, 8, furnaceZDist - 0.01f);
 			glTexCoord2f(0, 1);
-			glVertex3f(-8, 8, zdist - 0.01f);
+			glVertex3f(-8, 8, furnaceZDist - 0.01f);
 			glEnd();
 			Block furnace = world.getBlock(this.blockX,
 			                               this.blockY,
@@ -487,14 +488,25 @@ public class Player implements GameObject
 			if(b != null)
 			{
 				Matrix blockTransform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-				                              .concat(Matrix.scale(scalefactor))
-				                              .concat(Matrix.translate(destx,
-				                                                       desty,
-				                                                       zdist));
+				                              .concat(Matrix.scale(furnaceScale))
+				                              .concat(Matrix.translate(furnaceDestX,
+				                                                       furnaceDestY,
+				                                                       furnaceZDist));
+				if(this.furnaceSelection == 2)
+				{
+					Vector minv = blockTransform.apply(new Vector(0));
+					Vector maxv = blockTransform.apply(new Vector(1));
+					internalDrawSelectedBlock(minv.x,
+					                          maxv.x,
+					                          minv.y,
+					                          maxv.y,
+					                          minv.z,
+					                          maxv.z);
+				}
 				b.drawAsItem(blockTransform);
 				blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
 				                       .concat(blockTransform);
-				blockTransform = Matrix.scale(0.5f / scalefactor)
+				blockTransform = Matrix.scale(0.5f / furnaceScale)
 				                       .concat(blockTransform);
 				blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
 				                                          / Text.sizeW("A")
@@ -506,36 +518,60 @@ public class Player implements GameObject
 			}
 			count = furnace.furnaceGetSrcBlockCount();
 			b = Block.make(furnace.furnaceGetSrcBlockType());
-			if(b != null)
 			{
 				Matrix blockTransform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-				                              .concat(Matrix.scale(scalefactor))
-				                              .concat(Matrix.translate(srcx,
-				                                                       srcy,
-				                                                       zdist));
-				b.drawAsItem(blockTransform);
-				blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
-				                       .concat(blockTransform);
-				blockTransform = Matrix.scale(0.5f / scalefactor)
-				                       .concat(blockTransform);
-				blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
-				                                          / Text.sizeW("A")
-				                                          / 2.0f,
-				                                  0.0f,
-				                                  0.0f)
-				                       .concat(blockTransform);
-				Text.draw(blockTransform, Integer.toString(count));
+				                              .concat(Matrix.scale(furnaceScale))
+				                              .concat(Matrix.translate(furnaceSrcX,
+				                                                       furnaceSrcY,
+				                                                       furnaceZDist));
+				if(this.furnaceSelection == 1)
+				{
+					Vector minv = blockTransform.apply(new Vector(0));
+					Vector maxv = blockTransform.apply(new Vector(1));
+					internalDrawSelectedBlock(minv.x,
+					                          maxv.x,
+					                          minv.y,
+					                          maxv.y,
+					                          minv.z,
+					                          maxv.z);
+				}
+				if(b != null)
+				{
+					b.drawAsItem(blockTransform);
+					blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
+					                       .concat(blockTransform);
+					blockTransform = Matrix.scale(0.5f / furnaceScale)
+					                       .concat(blockTransform);
+					blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
+					                                          / Text.sizeW("A")
+					                                          / 2.0f,
+					                                  0.0f,
+					                                  0.0f)
+					                       .concat(blockTransform);
+					Text.draw(blockTransform, Integer.toString(count));
+				}
 			}
 			count = furnace.furnaceGetFuelLeft();
 			{
 				Matrix blockTransform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-				                              .concat(Matrix.scale(scalefactor))
-				                              .concat(Matrix.translate(firex,
-				                                                       firey,
-				                                                       zdist));
+				                              .concat(Matrix.scale(furnaceScale))
+				                              .concat(Matrix.translate(furnaceFireX,
+				                                                       furnaceFireY,
+				                                                       furnaceZDist));
+				if(this.furnaceSelection == 0)
+				{
+					Vector minv = blockTransform.apply(new Vector(0));
+					Vector maxv = blockTransform.apply(new Vector(1));
+					internalDrawSelectedBlock(minv.x,
+					                          maxv.x,
+					                          minv.y,
+					                          maxv.y,
+					                          minv.z,
+					                          maxv.z);
+				}
 				blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
 				                       .concat(blockTransform);
-				blockTransform = Matrix.scale(0.5f / scalefactor)
+				blockTransform = Matrix.scale(0.5f / furnaceScale)
 				                       .concat(blockTransform);
 				blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
 				                                          / Text.sizeW("A")
@@ -690,6 +726,51 @@ public class Player implements GameObject
 		return true;
 	}
 
+	private boolean mouseIsInResultFurnace(int mouseX, int mouseY)
+	{
+		float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
+		float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
+		x *= -furnaceZDist;
+		y *= -furnaceZDist;
+		x -= furnaceDestX;
+		y -= furnaceDestY;
+		x /= furnaceScale;
+		y /= furnaceScale;
+		if(x < -0.5 || x > 0.5 || y < -0.5 || y > 0.5)
+			return false;
+		return true;
+	}
+
+	private boolean mouseIsInFireFurnace(int mouseX, int mouseY)
+	{
+		float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
+		float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
+		x *= -furnaceZDist;
+		y *= -furnaceZDist;
+		x -= furnaceFireX;
+		y -= furnaceFireY;
+		x /= furnaceScale;
+		y /= furnaceScale;
+		if(x < -0.5 || x > 0.5 || y < -0.5 || y > 0.5)
+			return false;
+		return true;
+	}
+
+	private boolean mouseIsInSourceFurnace(int mouseX, int mouseY)
+	{
+		float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
+		float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
+		x *= -furnaceZDist;
+		y *= -furnaceZDist;
+		x -= furnaceSrcX;
+		y -= furnaceSrcY;
+		x /= furnaceScale;
+		y /= furnaceScale;
+		if(x < -0.5 || x > 0.5 || y < -0.5 || y > 0.5)
+			return false;
+		return true;
+	}
+
 	/**
 	 * 
 	 * @param mouseX
@@ -797,6 +878,19 @@ public class Player implements GameObject
 		{
 			this.wasPaused = true;
 			this.deleteAnimTime = -1;
+			this.furnaceSelection = -1;
+			if(mouseIsInFireFurnace(mouseX, mouseY))
+			{
+				this.furnaceSelection = 0;
+			}
+			else if(mouseIsInSourceFurnace(mouseX, mouseY))
+			{
+				this.furnaceSelection = 1;
+			}
+			else if(mouseIsInResultFurnace(mouseX, mouseY))
+			{
+				this.furnaceSelection = 2;
+			}
 			return false;
 		}
 		}
@@ -1439,44 +1533,69 @@ public class Player implements GameObject
 			}
 			else if(event.isDown && event.button == Main.MouseEvent.LEFT)
 			{
-				Block b = world.getBlock(this.blockX, this.blockY, this.blockZ);
-				if(b != null && b.getType() == BlockType.BTFurnace)
-					b = new Block(b);
-				else
-					b = Block.NewFurnace();
-				BlockType bt = b.furnaceRemoveBlock();
-				if(bt != BlockType.BTEmpty)
+				if(mouseIsInFireFurnace(event.mouseX, event.mouseY))
 				{
-					giveBlock(bt, true);
-				}
-				// world.addModNode(blockX, blockY, blockZ, b);
-				// TODO finish
-				world.setBlock(this.blockX, this.blockY, this.blockZ, b);
-			}
-			else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
-			{
-				Block b = world.getBlock(this.blockX, this.blockY, this.blockZ);
-				if(b != null && b.getType() == BlockType.BTFurnace)
-					b = new Block(b);
-				else
-					b = Block.NewFurnace();
-				BlockType bt = takeBlock();
-				if(bt.isSmeltable())
-				{
-					if(!b.furnaceAddBlock(bt))
+					Block b = world.getBlock(this.blockX,
+					                         this.blockY,
+					                         this.blockZ);
+					if(b != null && b.getType() == BlockType.BTFurnace)
+						b = new Block(b);
+					else
+						b = Block.NewFurnace();
+					BlockType bt = takeBlock();
+					if(bt.getBurnTime() > 0)
+					{
+						b.furnaceAddFire(bt);
+					}
+					else
+					{
 						giveBlock(bt, true);
+					}
+					// world.addModNode(blockX, blockY, blockZ, b);
+					// TODO finish
+					world.setBlock(this.blockX, this.blockY, this.blockZ, b);
 				}
-				else if(bt.getBurnTime() > 0)
+				else if(mouseIsInSourceFurnace(event.mouseX, event.mouseY))
 				{
-					b.furnaceAddFire(bt);
+					Block b = world.getBlock(this.blockX,
+					                         this.blockY,
+					                         this.blockZ);
+					if(b != null && b.getType() == BlockType.BTFurnace)
+						b = new Block(b);
+					else
+						b = Block.NewFurnace();
+					BlockType bt = takeBlock();
+					if(bt.isSmeltable())
+					{
+						if(!b.furnaceAddBlock(bt))
+							giveBlock(bt, true);
+					}
+					else
+					{
+						giveBlock(bt, true);
+					}
+					// world.addModNode(blockX, blockY, blockZ, b);
+					// TODO finish
+					world.setBlock(this.blockX, this.blockY, this.blockZ, b);
 				}
-				else
+				else if(mouseIsInResultFurnace(event.mouseX, event.mouseY))
 				{
-					giveBlock(bt, true);
+					Block b = world.getBlock(this.blockX,
+					                         this.blockY,
+					                         this.blockZ);
+					if(b != null && b.getType() == BlockType.BTFurnace)
+						b = new Block(b);
+					else
+						b = Block.NewFurnace();
+					BlockType bt = b.furnaceRemoveBlock();
+					if(bt != BlockType.BTEmpty)
+					{
+						giveBlock(bt, true);
+					}
+					// world.addModNode(blockX, blockY, blockZ, b);
+					// TODO finish
+					world.setBlock(this.blockX, this.blockY, this.blockZ, b);
 				}
-				// world.addModNode(blockX, blockY, blockZ, b);
-				// TODO finish
-				world.setBlock(this.blockX, this.blockY, this.blockZ, b);
 			}
 			break;
 		}
@@ -1786,51 +1905,6 @@ public class Player implements GameObject
 				else if(event.key == Main.KEY_RIGHT || event.key == Main.KEY_D)
 				{
 					nextCurBlockType();
-				}
-				else if(event.key == Main.KEY_SPACE)
-				{
-					Block b = world.getBlock(this.blockX,
-					                         this.blockY,
-					                         this.blockZ);
-					if(b != null && b.getType() == BlockType.BTFurnace)
-						b = new Block(b);
-					else
-						b = Block.NewFurnace();
-					BlockType bt = takeBlock();
-					if(bt.isSmeltable())
-					{
-						if(!b.furnaceAddBlock(bt))
-							giveBlock(bt, true);
-					}
-					else if(bt.getBurnTime() > 0)
-					{
-						b.furnaceAddFire(bt);
-					}
-					else
-					{
-						giveBlock(bt, true);
-					}
-					// world.addModNode(blockX, blockY, blockZ, b);
-					// TODO finish
-					world.setBlock(this.blockX, this.blockY, this.blockZ, b);
-				}
-				else if(event.key == Main.KEY_DELETE)
-				{
-					Block b = world.getBlock(this.blockX,
-					                         this.blockY,
-					                         this.blockZ);
-					if(b != null && b.getType() == BlockType.BTFurnace)
-						b = new Block(b);
-					else
-						b = Block.NewFurnace();
-					BlockType bt = b.furnaceRemoveBlock();
-					if(bt != BlockType.BTEmpty)
-					{
-						giveBlock(bt, true);
-					}
-					// world.addModNode(blockX, blockY, blockZ, b);
-					// TODO finish
-					world.setBlock(this.blockX, this.blockY, this.blockZ, b);
 				}
 				break;
 			}

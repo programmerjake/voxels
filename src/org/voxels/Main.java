@@ -130,7 +130,6 @@ public final class Main
 
 	private static float fps = 30.0f;
 
-	@SuppressWarnings("unused")
 	private static void renderFrame()
 	{
 		players.draw();
@@ -140,17 +139,26 @@ public final class Main
 		          Color.RGB(1.0f, 1.0f, 1.0f),
 		          frameText);
 		frameText = "";
-		if(DEBUG && getFrameDuration() > 0)
+		if(DEBUG)
 		{
-			fps = fps * (1.0f - (float)getFrameDuration()) + 1.0f;
-			String fpsStr = "0000000" + Integer.toString((int)(fps * 100.0f));
-			fpsStr = fpsStr.substring(0, fpsStr.length() - 2) + "."
-			        + fpsStr.substring(fpsStr.length() - 2);
-			while(fpsStr.charAt(0) == '0' && fpsStr.charAt(1) != '.')
+			String fpsStr = "?";
+			if(getFrameDuration() > 0)
 			{
-				fpsStr = fpsStr.substring(1);
+				fps = fps * (1.0f - (float)getFrameDuration()) + 1.0f;
+				fpsStr = "0000000" + Integer.toString((int)(fps * 100.0f));
+				fpsStr = fpsStr.substring(0, fpsStr.length() - 2) + "."
+				        + fpsStr.substring(fpsStr.length() - 2);
+				while(fpsStr.charAt(0) == '0' && fpsStr.charAt(1) != '.')
+				{
+					fpsStr = fpsStr.substring(1);
+				}
 			}
-			addToFrameText("FPS : " + fpsStr + "\n");
+			addToFrameText("Voxels " + Version + "\n" + "FPS : " + fpsStr
+			        + "\n");
+		}
+		else
+		{
+			addToFrameText("Voxels " + Version + "\n");
 		}
 	}
 
@@ -575,6 +583,7 @@ public final class Main
 				players.front().giveBlock(BlockType.BTStone);
 				players.front().giveBlock(BlockType.BTRedstoneRepeaterOff);
 				players.front().giveBlock(BlockType.BTDiamondPick);
+				players.front().giveBlock(BlockType.BTGoldPick);
 			}
 		}
 	}

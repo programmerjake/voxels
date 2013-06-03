@@ -378,46 +378,121 @@ public class Rand
 		return false;
 	}
 
+	private class LavaNode
+	{
+		public static final int size = 16;
+		public static final int minLakeSize = 10;
+		public static final int maxLakeSize = 20;
+		public static final int maxHeight = 10 - World.Depth;
+		public static final int minHeight = 1 - World.Depth;
+		private int lakeSize[] = new int[size * size];
+		public int cx, cz;
+
+		public void setLakeSize(int x, int z, int v)
+		{
+			this.lakeSize[x + size * z] = v;
+		}
+
+		public int getLakeSize(int x, int z)
+		{
+			return this.lakeSize[x + size * z];
+		}
+
+		public LavaNode(int cx, int cz)
+		{
+			this.cx = cx;
+			this.cz = cz;
+		}
+	}
+
+	private LavaNode makeLavaNode(int cx, int cz)
+	{
+		LavaNode retval = new LavaNode(cx, cz);
+		final float lakeProbability = 0.05f
+		        / (LavaNode.maxLakeSize * LavaNode.maxLakeSize) * 16f
+		        / (float)Math.PI;
+		for(int x = 0; x < LavaNode.size; x++)
+		{
+			for(int z = 0; z < LavaNode.size; z++)
+			{
+				int v = 0;
+				if(genRand(cx + x, 0, cz + z, RandClass.Lava) < lakeProbability)
+					v = (int)Math.floor(genRand(cx + x,
+					                            1,
+					                            cz + z,
+					                            RandClass.Lava)
+					        * (LavaNode.maxLakeSize - LavaNode.minLakeSize)
+					        + LavaNode.minLakeSize);
+				retval.setLakeSize(x, z, v);
+			}
+		}
+		return retval;
+	}
+
+	private LavaNode[] lavaNodeHashTable = new LavaNode[hashPrime];
+
+	private synchronized LavaNode getLavaNode(int cx, int cz)
+	{
+		int hash = getChunkHash(cx, cz);
+		LavaNode node = this.lavaNodeHashTable[hash];
+		if(node == null || node.cx != cx || node.cz != cz)
+		{
+			node = makeLavaNode(cx, cz);
+			this.lavaNodeHashTable[hash] = node;
+		}
+		return node;
+	}
+
+	private int getLavaLakeSize(int x, int z)
+	{
+		int cx = x - (x % LavaNode.size + LavaNode.size) % LavaNode.size;
+		int cz = z - (z % LavaNode.size + LavaNode.size) % LavaNode.size;
+		return getLavaNode(cx, cz).getLakeSize(x - cx, z - cz);
+	}
+
+	private int getLavaLakeHeight(int x, int z)
+	{
+		float t = genRand(x, 2, z, RandClass.Lava);
+		float v = LavaNode.minHeight + t
+		        * (LavaNode.maxHeight - LavaNode.minHeight);
+		return (int)Math.floor(v);
+	}
+
 	private boolean isLava(int x, int y, int z)
 	{
-		if(y > 10 + -World.Depth)
+		if(y < LavaNode.minHeight || y > LavaNode.maxHeight)
 			return false;
-		final int size = 4;
-		int xmin = x - x % size;
-		if(xmin > x)
-			xmin -= size;
-		int xmax = xmin + size;
-		int ymin = y - y % size;
-		if(ymin > y)
-			ymin -= size;
-		int ymax = ymin + size;
-		int zmin = z - z % size;
-		if(zmin > z)
-			zmin -= size;
-		int zmax = zmin + size;
-		float v000, v100, v010, v110, v001, v101, v011, v111;
-		v000 = genRand(xmin, ymin, zmin, RandClass.Lava);
-		v100 = genRand(xmax, ymin, zmin, RandClass.Lava);
-		v010 = genRand(xmin, ymax, zmin, RandClass.Lava);
-		v110 = genRand(xmax, ymax, zmin, RandClass.Lava);
-		v001 = genRand(xmin, ymin, zmax, RandClass.Lava);
-		v101 = genRand(xmax, ymin, zmax, RandClass.Lava);
-		v011 = genRand(xmin, ymax, zmax, RandClass.Lava);
-		v111 = genRand(xmax, ymax, zmax, RandClass.Lava);
-		float fx = (float)(x - xmin) / size;
-		float fy = (float)(y - ymin) / size;
-		float fz = (float)(z - zmin) / size;
-		float nfx = 1 - fx;
-		float nfy = 1 - fy;
-		float nfz = 1 - fz;
-		float v00 = v000 * nfz + v001 * fz;
-		float v10 = v100 * nfz + v101 * fz;
-		float v01 = v010 * nfz + v011 * fz;
-		float v11 = v110 * nfz + v111 * fz;
-		float v0 = v00 * nfy + v01 * fy;
-		float v1 = v10 * nfy + v11 * fy;
-		float v = v0 * nfx + v1 * fx;
-		return v <= 0.5;
+		for(int dx = -LavaNode.maxLakeSize; dx <= LavaNode.maxLakeSize; dx++)
+		{
+			for(int dz = -LavaNode.maxLakeSize; dz <= LavaNode.maxLakeSize; dz++)
+			{
+				int lakeSize = getLavaLakeSize(x + dx, z + dz);
+				if(lakeSize <= 0)
+					continue;
+				int dy = y - getLavaLakeHeight(x + dx, z + dz);
+				if(dy > 0)
+					continue;
+				if(dx * dx + dy * dy * 3 * 3 + dz * dz < lakeSize * lakeSize)
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isOverLava(int x, int z)
+	{
+		for(int dx = -LavaNode.maxLakeSize; dx <= LavaNode.maxLakeSize; dx++)
+		{
+			for(int dz = -LavaNode.maxLakeSize; dz <= LavaNode.maxLakeSize; dz++)
+			{
+				int lakeSize = getLavaLakeSize(x + dx, z + dz);
+				if(lakeSize <= 0)
+					continue;
+				if(dx * dx + dz * dz < lakeSize * lakeSize)
+					return true;
+			}
+		}
+		return false;
 	}
 
 	private enum CaveType
@@ -980,8 +1055,10 @@ public class Rand
 							break;
 						}
 					}
-					else if(y <= rockHeight - 15 && y < -30 && isLava(x, y, z))
+					else if(isLava(x, y, z))
 						block = Block.NewStationaryLava();
+					else if(isOverLava(x, z) && y <= 5 + LavaNode.maxHeight)
+						block = new Block();
 					else if(y <= rockHeight && waterInArea(x, y, z))
 					{
 						if(isInCave(x, y - 1, z))

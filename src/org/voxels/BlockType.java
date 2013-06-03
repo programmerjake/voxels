@@ -602,7 +602,7 @@ public enum BlockType
 	/**
 	 * glass block
 	 */
-	BTGlass(13, true, BlockDrawType.BDTSolid, new Image[]
+	BTGlass(13, false, BlockDrawType.BDTSolid, new Image[]
 	{
 		new Image("glass.png")
 	})
@@ -810,7 +810,7 @@ public enum BlockType
 		@Override
 		public BlockType getSmeltResult()
 		{
-			return BTEmpty;
+			return BTCoal;
 		}
 
 		@Override

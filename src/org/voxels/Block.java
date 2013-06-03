@@ -4693,6 +4693,33 @@ public class Block implements GameObject
 		case BTEmpty:
 		case BTBedrock:
 			return;
+		case BTFurnace:
+			world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+			                                              y + 0.5f,
+			                                              z + 0.5f),
+			                                   this.type,
+			                                   World.vRand(0.1f)));
+			if(this.data.blockdata == BlockType.BTEmpty)
+				return;
+			for(int i = 0; i < this.data.srccount; i++)
+			{
+				world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+				                                              y + 0.5f,
+				                                              z + 0.5f),
+				                                   this.data.blockdata,
+				                                   World.vRand(0.1f)));
+			}
+			if(this.data.blockdata.getSmeltResult() == BlockType.BTEmpty)
+				return;
+			for(int i = 0; i < this.data.destcount; i++)
+			{
+				world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+				                                              y + 0.5f,
+				                                              z + 0.5f),
+				                                   this.data.blockdata.getSmeltResult(),
+				                                   World.vRand(0.1f)));
+			}
+			return;
 		case BTChest:
 			world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
 			                                              y + 0.5f,
@@ -4721,7 +4748,6 @@ public class Block implements GameObject
 		case BTDiamondShovel:
 		case BTDirt:
 		case BTEmerald:
-		case BTFurnace:
 		case BTGlass:
 		case BTGoldIngot:
 		case BTGoldPick:
@@ -5450,9 +5476,9 @@ public class Block implements GameObject
 	public void write(DataOutput o) throws IOException
 	{
 		this.type.write(o);
-		o.writeByte(this.light);
-		o.writeByte(this.scatteredSunlight);
-		o.writeByte(this.sunlight);
+		o.writeByte(Math.max(0, Math.min(15, this.light)));
+		o.writeByte(Math.max(0, Math.min(15, this.scatteredSunlight)));
+		o.writeByte(Math.max(0, Math.min(15, this.sunlight)));
 		switch(this.type)
 		{
 		case BTSun:
