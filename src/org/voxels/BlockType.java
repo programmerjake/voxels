@@ -2467,9 +2467,53 @@ public enum BlockType
 		}
 	},
 	/**
+	 * obsidian block
+	 */
+	BTObsidian(54, true, BlockDrawType.BDTSolid, new Image[]
+	{
+		new Image("obsidian.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewObsidian();
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
 	 * last block value, used to get <code>BlockType.Count</code>
 	 */
-	BTLast(54, false, BlockDrawType.BDTNone, null)
+	BTLast(55, false, BlockDrawType.BDTNone, null)
 	{
 		@Override
 		public Block make(int orientation)
@@ -2858,6 +2902,7 @@ public enum BlockType
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTObsidian:
 			return -1;
 		}
 		return -1;
@@ -2952,6 +2997,7 @@ public enum BlockType
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTObsidian:
 			return false;
 		}
 		return false;
@@ -3058,6 +3104,8 @@ public enum BlockType
 			return 20;
 		case BTLever:
 			return 15;
+		case BTObsidian:
+			return 200;
 		}
 		return -1;
 	}
@@ -3159,6 +3207,7 @@ public enum BlockType
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTObsidian:
 			return 0;
 		}
 		return 0;
@@ -3246,6 +3295,7 @@ public enum BlockType
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTObsidian:
 			return false;
 		}
 		return false;
@@ -3339,6 +3389,8 @@ public enum BlockType
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 			return false;
+		case BTObsidian:
+			return true;
 		}
 		return false;
 	}
@@ -3418,6 +3470,7 @@ public enum BlockType
 		case BTWorkbench:
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
+		case BTObsidian:
 			return false;
 		}
 		return false;

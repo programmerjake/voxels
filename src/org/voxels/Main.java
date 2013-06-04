@@ -20,10 +20,11 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.voxels.PlayerList.players;
 import static org.voxels.World.world;
 
+import java.awt.GridLayout;
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 
-import javax.swing.JFileChooser;
-import javax.swing.JOptionPane;
+import javax.swing.*;
 import javax.swing.filechooser.FileFilter;
 
 import org.lwjgl.LWJGLException;
@@ -674,11 +675,13 @@ public final class Main
 			Display.sync(60);
 			curTime = Timer();
 			frameDuration = curTime - lastFrameStartTime;
+			internalSaveAll();
 			lastFrameStartTime = curTime;
 			if(Display.isCloseRequested())
 				done = true;
 		}
-		saveAll();
+		saveAll(); // signal to save
+		internalSaveAll(); // run save
 		AL.destroy();
 		Display.destroy();
 		System.exit(0);
@@ -686,6 +689,138 @@ public final class Main
 
 	private static File saveFile = null;
 	private static JFileChooser fileChooser = new JFileChooser();
+	private static JProgressBar progressBar = new JProgressBar(0, 10000);
+	static JLabel progressLabel = new JLabel("");
+
+	private static JDialog genProgressDialog()
+	{
+		progressLabel.setHorizontalAlignment(SwingConstants.CENTER);
+		JDialog progressDialog = new JDialog((JWindow)null, "Voxels " + Version);
+		progressDialog.setLayout(new GridLayout(2, 1));
+		progressDialog.add(progressLabel);
+		progressDialog.add(progressBar);
+		progressDialog.setSize(300, 75);
+		return progressDialog;
+	}
+
+	static JDialog progressDialog = genProgressDialog();
+	static String progressLabelText = "";
+
+	private static void showProgressDialog(String labelText)
+	{
+		topOfProgressStack = null;
+		progressLabelText = labelText;
+		SwingUtilities.invokeLater(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				progressLabel.setText(progressLabelText);
+				progressDialog.setVisible(true);
+			}
+		});
+	}
+
+	private static void hideProgressDialog()
+	{
+		topOfProgressStack = null;
+		SwingUtilities.invokeLater(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				progressDialog.setVisible(false);
+			}
+		});
+	}
+
+	private static class SetProgressRunnable implements Runnable
+	{
+		private float progress;
+		private JProgressBar progressBar;
+
+		public SetProgressRunnable(float progress, JProgressBar progressBar)
+		{
+			this.progress = progress;
+			this.progressBar = progressBar;
+		}
+
+		@Override
+		public void run()
+		{
+			this.progressBar.setValue(Math.round(10000 * this.progress));
+		}
+	}
+
+	private static void internalSetProgress(float progress)
+	{
+		try
+		{
+			SwingUtilities.invokeAndWait(new SetProgressRunnable(progress,
+			                                                     progressBar));
+		}
+		catch(InterruptedException e)
+		{
+		}
+		catch(InvocationTargetException e)
+		{
+		}
+	}
+
+	private static class ProgressStackNode
+	{
+		public float scale, offset;
+		public ProgressStackNode next;
+
+		public ProgressStackNode()
+		{
+		}
+	}
+
+	private static ProgressStackNode topOfProgressStack = null;
+
+	private static float getProgressOffset()
+	{
+		if(topOfProgressStack != null)
+			return topOfProgressStack.offset;
+		return 0.0f;
+	}
+
+	private static float getProgressScale()
+	{
+		if(topOfProgressStack != null)
+			return topOfProgressStack.scale;
+		return 1.0f;
+	}
+
+	static void pushProgress(float offset, float scale)
+	{
+		ProgressStackNode n = new ProgressStackNode();
+		n.next = topOfProgressStack;
+		n.scale = scale * getProgressScale();
+		n.offset = getProgressOffset() + offset * getProgressScale();
+		topOfProgressStack = n;
+	}
+
+	private static double lastSetProgressTime = -1;
+
+	static void setProgress(float progress)
+	{
+		final double updatePeriod = 0.1;
+		final double curTime = Timer();
+		if(curTime - lastSetProgressTime < updatePeriod)
+			return;
+		lastSetProgressTime = curTime;
+		float finalProgress = progress * getProgressScale()
+		        + getProgressOffset();
+		internalSetProgress(Math.max(0, Math.min(1, finalProgress)));
+	}
+
+	static void popProgress()
+	{
+		if(topOfProgressStack != null)
+			topOfProgressStack = topOfProgressStack.next;
+	}
 
 	private static boolean getSaveFile()
 	{
@@ -734,17 +869,30 @@ public final class Main
 		return false;
 	}
 
+	private static boolean needSave = false; // true if saveAll() has been
+	                                         // called
+
 	/**
 	 * saves everything
 	 */
 	public static void saveAll()
 	{
+		needSave = true;
+	}
+
+	private static void internalSaveAll()
+	{
+		if(!needSave)
+			return;
+		needSave = false;
 		if(saveFile == null)
 		{
 			if(!getSaveFile())
 				return;
 		}
+		showProgressDialog("Saving...");
 		FileOutputStream fos = null;
+		boolean needHide = true;
 		try
 		{
 			fos = new FileOutputStream(saveFile);
@@ -752,9 +900,13 @@ public final class Main
 			World.write(dos);
 			players.write(dos);
 			dos.close();
+			hideProgressDialog();
+			needHide = false;
 		}
 		catch(IOException e)
 		{
+			hideProgressDialog();
+			needHide = false;
 			JOptionPane.showMessageDialog(null,
 			                              "Can't save : " + e.getMessage(),
 			                              "Voxels",
@@ -773,6 +925,8 @@ public final class Main
 					System.err.println(e.getMessage());
 				}
 			}
+			if(needHide)
+				hideProgressDialog();
 		}
 	}
 
@@ -820,7 +974,9 @@ public final class Main
 		{
 			if(!getLoadFile())
 				return;
+			showProgressDialog("Loading...");
 			FileInputStream fis = null;
+			boolean needHide = true;
 			try
 			{
 				fis = new FileInputStream(saveFile);
@@ -828,11 +984,15 @@ public final class Main
 				World.read(dis);
 				PlayerList.read(dis);
 				dis.close();
-				didLoad = true;
+				hideProgressDialog();
+				needHide = false;
 				done = true;
+				didLoad = true;
 			}
 			catch(EOFException e)
 			{
+				hideProgressDialog();
+				needHide = false;
 				JOptionPane.showMessageDialog(null,
 				                              "Can't load : unexpected EOF",
 				                              "Voxels",
@@ -840,15 +1000,10 @@ public final class Main
 			}
 			catch(IOException e)
 			{
+				hideProgressDialog();
+				needHide = false;
 				JOptionPane.showMessageDialog(null,
 				                              "Can't load : " + e.getMessage(),
-				                              "Voxels",
-				                              JOptionPane.ERROR_MESSAGE);
-			}
-			catch(Exception e)
-			{
-				JOptionPane.showMessageDialog(null,
-				                              "Can't load : " + e.toString(),
 				                              "Voxels",
 				                              JOptionPane.ERROR_MESSAGE);
 			}
@@ -865,6 +1020,8 @@ public final class Main
 						System.err.println(e.getMessage());
 					}
 				}
+				if(needHide)
+					hideProgressDialog();
 			}
 		}
 	}

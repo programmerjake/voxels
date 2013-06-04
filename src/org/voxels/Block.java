@@ -733,6 +733,14 @@ public class Block implements GameObject
 		return retval;
 	}
 
+	/**
+	 * @return new obsidian block
+	 */
+	public static Block NewObsidian()
+	{
+		return new Block(BlockType.BTObsidian);
+	}
+
 	private static void drawFace(Vector p1,
 	                             Vector p2,
 	                             Vector p3,
@@ -2446,6 +2454,7 @@ public class Block implements GameObject
 			return;
 		}
 		case BTLever:
+		case BTObsidian:
 			return;
 		}
 	}
@@ -2603,6 +2612,8 @@ public class Block implements GameObject
 			if(this.type == BlockType.BTWater
 			        && Math.abs(this.data.intdata) >= 8)
 			{
+				if(py != null && py.getType() == BlockType.BTLava)
+					return NewStone();
 				int value = 8 * newSign;
 				if(value != this.data.intdata)
 					return NewWater(value);
@@ -2611,13 +2622,73 @@ public class Block implements GameObject
 			if(this.type == BlockType.BTLava
 			        && Math.abs(this.data.intdata) >= 8)
 			{
+				if(py != null && py.getType() == BlockType.BTWater)
+					return NewObsidian();
+				if(px != null && px.getType() == BlockType.BTWater
+				        && px.getHeight() >= 1.0f)
+					return NewObsidian();
+				if(nx != null && nx.getType() == BlockType.BTWater
+				        && nx.getHeight() >= 1.0f)
+					return NewObsidian();
+				if(pz != null && pz.getType() == BlockType.BTWater
+				        && pz.getHeight() >= 1.0f)
+					return NewObsidian();
+				if(nz != null && nz.getType() == BlockType.BTWater
+				        && nz.getHeight() >= 1.0f)
+					return NewObsidian();
 				int value = 8 * newSign;
 				if(value != this.data.intdata)
 					return NewLava(value);
 				return null;
 			}
+			if(this.type == BlockType.BTLava
+			        && Math.abs(this.data.intdata) == 7)
+			{
+				if(nx != null && nx.getType() == BlockType.BTWater)
+					return NewCobblestone();
+				if(px != null && px.getType() == BlockType.BTWater)
+					return NewCobblestone();
+				if(nz != null && nz.getType() == BlockType.BTWater)
+					return NewCobblestone();
+				if(pz != null && pz.getType() == BlockType.BTWater)
+					return NewCobblestone();
+			}
+			else if(this.type == BlockType.BTLava)
+			{
+				if(nx != null && nx.getType() == BlockType.BTWater
+				        && nx.getHeight() > getHeight())
+					return NewCobblestone();
+				if(px != null && px.getType() == BlockType.BTWater
+				        && px.getHeight() > getHeight())
+					return NewCobblestone();
+				if(nz != null && nz.getType() == BlockType.BTWater
+				        && nz.getHeight() > getHeight())
+					return NewCobblestone();
+				if(pz != null && pz.getType() == BlockType.BTWater
+				        && pz.getHeight() > getHeight())
+					return NewCobblestone();
+			}
+			else if(this.type == BlockType.BTWater)
+			{
+				if(nx != null && nx.getType() == BlockType.BTLava
+				        && nx.getHeight() > getHeight())
+					return NewStone();
+				if(px != null && px.getType() == BlockType.BTLava
+				        && px.getHeight() > getHeight())
+					return NewStone();
+				if(nz != null && nz.getType() == BlockType.BTLava
+				        && nz.getHeight() > getHeight())
+					return NewStone();
+				if(pz != null && pz.getType() == BlockType.BTLava
+				        && pz.getHeight() > getHeight())
+					return NewStone();
+			}
 			if(py != null && py.getType() == BlockType.BTWater)
 			{
+				if(this.type == BlockType.BTLava)
+				{
+					return NewCobblestone();
+				}
 				if(this.type == py.getType()
 				        && this.data.intdata == 7 * newSign)
 					return null;
@@ -2625,6 +2696,10 @@ public class Block implements GameObject
 			}
 			if(py != null && py.getType() == BlockType.BTLava)
 			{
+				if(this.type == BlockType.BTWater)
+				{
+					return NewStone();
+				}
 				if(this.type == py.getType()
 				        && this.data.intdata == 7 * newSign)
 					return null;
@@ -2666,6 +2741,14 @@ public class Block implements GameObject
 			if(height <= 0)
 				bt = BlockType.BTEmpty;
 			int value = height * newSign;
+			if(this.type == BlockType.BTLava && bt == BlockType.BTWater)
+			{
+				return NewCobblestone();
+			}
+			if(this.type == BlockType.BTWater && bt == BlockType.BTStone)
+			{
+				return NewStone();
+			}
 			if(value == this.data.intdata && this.type == bt)
 				return null;
 			switch(bt)
@@ -2754,6 +2837,7 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTObsidian:
 			break;
 		}
 		return null;
@@ -2925,6 +3009,7 @@ public class Block implements GameObject
 			                           this.data.orientation);
 		}
 		case BTLever:
+		case BTObsidian:
 			return null;
 		}
 		return null;
@@ -3184,6 +3269,8 @@ public class Block implements GameObject
 				                       World.vRand(0.1f));
 			return null;
 		}
+		case BTObsidian:
+			return null;
 		}
 		return retval;
 	}
@@ -3411,6 +3498,7 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOn:
 			return 1.0f / 8;
 		case BTLever:
+		case BTObsidian:
 			return 1;
 		}
 		return 0;
@@ -3561,6 +3649,8 @@ public class Block implements GameObject
 			return rayIntersectsBlock(hitpos,
 			                          dir,
 			                          getLeverTransform(this.data.orientation));
+		case BTObsidian:
+			return true;
 		}
 		return false;
 	}
@@ -3739,6 +3829,9 @@ public class Block implements GameObject
 			b.draw(blockToWorld, true, false);
 			return;
 		}
+		case BTObsidian:
+			draw(blockToWorld, true, false);
+			return;
 		}
 	}
 
@@ -3889,6 +3982,13 @@ public class Block implements GameObject
 		case BTLever:
 		{
 			Block b = NewLever(false, 1);
+			b.setLighting(0, 0, 15);
+			b.draw(blockToWorld, false, true);
+			return;
+		}
+		case BTObsidian:
+		{
+			Block b = new Block(this);
 			b.setLighting(0, 0, 15);
 			b.draw(blockToWorld, false, true);
 			return;
@@ -4569,6 +4669,8 @@ public class Block implements GameObject
 			return solidAdjustPlayerPosition(position, getHeight(), distLimit);
 		case BTLever:
 			return position;
+		case BTObsidian:
+			return solidAdjustPlayerPosition(position, getHeight(), distLimit);
 		}
 		return null;
 	}
@@ -4666,6 +4768,7 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTObsidian:
 			return true;
 		}
 		return false;
@@ -4778,6 +4881,7 @@ public class Block implements GameObject
 		case BTLadder:
 		case BTRedstoneRepeaterOff:
 		case BTLever:
+		case BTObsidian:
 			world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
 			                                              y + 0.5f,
 			                                              z + 0.5f),
@@ -4995,6 +5099,8 @@ public class Block implements GameObject
 			if(this.data.intdata != 0)
 				return REDSTONE_POWER_STRONG;
 			return REDSTONE_POWER_STRONG_OFF;
+		case BTObsidian:
+			return REDSTONE_POWER_NONE;
 		}
 		return REDSTONE_POWER_NONE;
 	}
@@ -5114,6 +5220,7 @@ public class Block implements GameObject
 		case BTStone:
 		case BTWood:
 		case BTWorkbench:
+		case BTObsidian:
 			return true;
 		}
 		return false;
@@ -5394,6 +5501,7 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTObsidian:
 			return true;
 		}
 		return true;
@@ -5524,6 +5632,7 @@ public class Block implements GameObject
 		case BTWoodPick:
 		case BTWoodShovel:
 		case BTWorkbench:
+		case BTObsidian:
 			return;
 		case BTChest:
 		{
@@ -5665,6 +5774,7 @@ public class Block implements GameObject
 		case BTWoodPick:
 		case BTWoodShovel:
 		case BTWorkbench:
+		case BTObsidian:
 			return;
 		case BTChest:
 		{

@@ -1112,7 +1112,7 @@ public class World
 
 	private void drawChunk(int cx, int cy, int cz, int drawPhase)
 	{
-		final boolean USE_DISPLAY_LIST = false;
+		final boolean USE_DISPLAY_LIST = true;
 		Chunk pnode = find(cx, cy, cz);
 		if(pnode == null)
 			return;
@@ -1986,35 +1986,57 @@ public class World
 			chunkcount++;
 		}
 		o.writeInt(chunkcount);
-		for(Chunk c = world.chunksHead; c != null; c = c.listnext)
+		Main.pushProgress(0.0f, 0.9f);
+		if(chunkcount > 0)
 		{
-			if(!world.isGenerated(c.orgx, c.orgy, c.orgz))
-				continue;
-			o.writeInt(c.orgx);
-			o.writeInt(c.orgy);
-			o.writeInt(c.orgz);
-			for(int x = 0; x < Chunk.size; x++)
+			Main.pushProgress(0, 1.0f / chunkcount);
+			int curChunkCount = 0;
+			for(Chunk c = world.chunksHead; c != null; c = c.listnext, curChunkCount++)
 			{
-				for(int y = 0; y < Chunk.size; y++)
+				if(!world.isGenerated(c.orgx, c.orgy, c.orgz))
+					continue;
+				Main.pushProgress(curChunkCount, 1.0f / Chunk.size);
+				o.writeInt(c.orgx);
+				o.writeInt(c.orgy);
+				o.writeInt(c.orgz);
+				for(int x = 0; x < Chunk.size; x++)
 				{
-					for(int z = 0; z < Chunk.size; z++)
+					Main.setProgress(x);
+					for(int y = 0; y < Chunk.size; y++)
 					{
-						c.getBlock(x, y, z).write(o);
+						for(int z = 0; z < Chunk.size; z++)
+						{
+							c.getBlock(x, y, z).write(o);
+						}
 					}
 				}
+				Main.popProgress();
 			}
+			Main.popProgress();
 		}
+		Main.popProgress();
+		Main.pushProgress(0.9f, 0.05f);
 		int entitycount = 0;
 		for(EntityNode node = world.entityHead; node != null; node = node.next)
 		{
 			entitycount++;
 		}
 		o.writeInt(entitycount);
-		for(EntityNode node = world.entityHead; node != null; node = node.next)
+		if(world.entityHead != null)
 		{
-			node.e.write(o);
+			Main.pushProgress(0, 1.0f / entitycount);
+			int progress = 0;
+			for(EntityNode node = world.entityHead; node != null; node = node.next)
+			{
+				node.e.write(o);
+				Main.setProgress(progress++);
+			}
+			Main.popProgress();
 		}
+		Main.popProgress();
+		Main.pushProgress(0.95f, 0.05f);
 		o.writeShort(EvalTypeCount);
+		Main.pushProgress(0, 1.0f / (EvalTypeCount + 1));
 		for(int evalTypei = 0; evalTypei < EvalTypeCount; evalTypei++)
 		{
 			EvalType evalType = EvalType.values()[evalTypei];
@@ -2025,31 +2047,48 @@ public class World
 				evalNodeCount++;
 			}
 			o.writeInt(evalNodeCount);
-			for(EvalNode n = head, nextNode = (head != null ? head.next : null); n != null; n = nextNode, nextNode = (n != null ? n.next
-			        : null))
+			if(evalNodeCount > 0)
 			{
-				o.writeInt(n.x);
-				o.writeInt(n.y);
-				o.writeInt(n.z);
-				o.writeBoolean(n.b != null);
-				if(n.b != null)
-					n.b.write(o);
-				world.insertEvalNode(evalType, n);
+				Main.pushProgress(evalTypei, 1.0f / evalNodeCount);
+				int progress = 0;
+				for(EvalNode n = head, nextNode = (head != null ? head.next
+				        : null); n != null; n = nextNode, nextNode = (n != null ? n.next
+				        : null))
+				{
+					o.writeInt(n.x);
+					o.writeInt(n.y);
+					o.writeInt(n.z);
+					o.writeBoolean(n.b != null);
+					if(n.b != null)
+						n.b.write(o);
+					world.insertEvalNode(evalType, n);
+					Main.setProgress(progress++);
+				}
+				Main.popProgress();
 			}
 		}
-		int timedInvaldateCount = 0;
+		int timedInvalidateCount = 0;
 		for(TimedInvalidate ti = world.timedInvalidateHead; ti != null; ti = ti.next)
 		{
-			timedInvaldateCount++;
+			timedInvalidateCount++;
 		}
-		o.writeInt(timedInvaldateCount);
-		for(TimedInvalidate ti = world.timedInvalidateHead; ti != null; ti = ti.next)
+		o.writeInt(timedInvalidateCount);
+		if(timedInvalidateCount > 0)
 		{
-			o.writeInt(ti.x);
-			o.writeInt(ti.y);
-			o.writeInt(ti.z);
-			o.writeDouble(ti.timeLeft);
+			Main.pushProgress(EvalTypeCount, 1.0f / timedInvalidateCount);
+			int progress = 0;
+			for(TimedInvalidate ti = world.timedInvalidateHead; ti != null; ti = ti.next)
+			{
+				o.writeInt(ti.x);
+				o.writeInt(ti.y);
+				o.writeInt(ti.z);
+				o.writeDouble(ti.timeLeft);
+				Main.setProgress(progress++);
+			}
+			Main.popProgress();
 		}
+		Main.popProgress();
+		Main.popProgress();
 	}
 
 	/**
@@ -2079,67 +2118,103 @@ public class World
 		int chunkcount = i.readInt();
 		if(chunkcount < 0)
 			throw new IOException("chunk count out of range");
-		while(chunkcount-- > 0)
+		if(chunkcount > 0)
 		{
-			int cx = i.readInt();
-			int cy = i.readInt();
-			int cz = i.readInt();
-			if(cx != getChunkX(cx) || cy != getChunkY(cy)
-			        || cz != getChunkZ(cz))
-				throw new IOException("chunk origin not valid");
-			for(int x = cx; x < cx + Chunk.size; x++)
+			Main.pushProgress(0, 0.9f);
+			Main.pushProgress(0, 1.0f / chunkcount);
+			int progress = 0;
+			while(chunkcount-- > 0)
 			{
-				for(int y = cy; y < cy + Chunk.size; y++)
+				int cx = i.readInt();
+				int cy = i.readInt();
+				int cz = i.readInt();
+				if(cx != getChunkX(cx) || cy != getChunkY(cy)
+				        || cz != getChunkZ(cz))
+					throw new IOException("chunk origin not valid");
+				Main.pushProgress(progress++, 1.0f / Chunk.size);
+				for(int x = cx; x < cx + Chunk.size; x++)
 				{
-					for(int z = cz; z < cz + Chunk.size; z++)
+					for(int y = cy; y < cy + Chunk.size; y++)
 					{
-						world.internalSetBlock(x, y, z, Block.read(i));
+						for(int z = cz; z < cz + Chunk.size; z++)
+						{
+							world.internalSetBlock(x, y, z, Block.read(i));
+						}
 					}
+					Main.setProgress(x);
 				}
+				world.setGenerated(cx, cy, cz, true);
+				Main.popProgress();
 			}
-			world.setGenerated(cx, cy, cz, true);
+			Main.popProgress();
+			Main.popProgress();
 		}
 		int entitycount = i.readInt();
 		if(entitycount < 0)
 			throw new IOException("entity count out of range");
-		while(entitycount-- > 0)
+		if(entitycount > 0)
 		{
-			world.insertEntity(Entity.read(i));
+			Main.pushProgress(0.9f, 0.05f);
+			int progress = 0;
+			while(entitycount-- > 0)
+			{
+				world.insertEntity(Entity.read(i));
+				Main.setProgress(progress++);
+			}
+			Main.popProgress();
 		}
 		if(i.readUnsignedShort() != EvalTypeCount)
 			throw new IOException("EvalTypeCount doesn't match");
+		Main.pushProgress(0.95f, 0.05f);
+		Main.pushProgress(0, 1.0f / (EvalTypeCount + 1));
 		for(int evalTypei = 0; evalTypei < EvalTypeCount; evalTypei++)
 		{
 			EvalType evalType = EvalType.values()[evalTypei];
 			int evalNodeCount = i.readInt();
 			if(evalNodeCount < 0)
 				throw new IOException("invalid eval node count");
-			while(evalNodeCount-- > 0)
+			if(evalNodeCount > 0)
 			{
-				int x = i.readInt();
-				int y = i.readInt();
-				int z = i.readInt();
-				boolean hasBlock = i.readBoolean();
-				if(hasBlock)
-					world.insertEvalNode(evalType, x, y, z, Block.read(i));
-				else
-					world.insertEvalNode(evalType, x, y, z);
+				Main.pushProgress(evalTypei, 1.0f / evalNodeCount);
+				int progress = 0;
+				while(evalNodeCount-- > 0)
+				{
+					int x = i.readInt();
+					int y = i.readInt();
+					int z = i.readInt();
+					boolean hasBlock = i.readBoolean();
+					if(hasBlock)
+						world.insertEvalNode(evalType, x, y, z, Block.read(i));
+					else
+						world.insertEvalNode(evalType, x, y, z);
+					Main.setProgress(progress++);
+				}
+				Main.popProgress();
 			}
 		}
 		int timedInvalidateCount = i.readInt();
 		if(timedInvalidateCount < 0)
 			throw new IOException("invalid timed invalidate count");
-		while(timedInvalidateCount-- > 0)
+		if(timedInvalidateCount > 0)
 		{
-			int x = i.readInt();
-			int y = i.readInt();
-			int z = i.readInt();
-			double timeLeft = i.readDouble();
-			if(Double.isNaN(timeLeft) || Double.isInfinite(timeLeft)
-			        || timeLeft < 0)
-				throw new IOException("invalid timed invalidate time left");
-			world.addTimedInvalidate(x, y, z, timeLeft);
+			Main.pushProgress(EvalTypeCount, 1.0f / timedInvalidateCount);
+			int progress = 0;
+			while(timedInvalidateCount-- > 0)
+			{
+				int x = i.readInt();
+				int y = i.readInt();
+				int z = i.readInt();
+				double timeLeft = i.readDouble();
+				if(Double.isNaN(timeLeft) || Double.isInfinite(timeLeft)
+				        || timeLeft < 0)
+					throw new IOException("invalid timed invalidate time left");
+				world.addTimedInvalidate(x, y, z, timeLeft);
+				Main.setProgress(progress++);
+			}
+			Main.popProgress();
 		}
+		Main.popProgress();
+		Main.popProgress();
 	}
 
 	private static void readVer0(DataInput i, int v) throws IOException

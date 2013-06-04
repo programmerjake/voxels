@@ -397,6 +397,8 @@ public class Player implements GameObject
 			if(chest == null || chest.getType() != BlockType.BTChest)
 				chest = Block.NewChest();
 			int blocktypecount = 0, blocktypeindex = -1;
+			Main.addToFrameText("chestCurBlockType = " + this.chestCurBlockType
+			        + "\n");
 			for(int i = 1; i < BlockType.Count; i++)
 			{
 				if(chest.chestGetBlockTypeCount(BlockType.toBlockType(i)) > 0)
@@ -1281,12 +1283,14 @@ public class Player implements GameObject
 		else
 			chest = new Block(chest);
 		BlockType retval = BlockType.BTEmpty;
-		if(this.chestCurBlockType <= 0)
+		retval = BlockType.toBlockType(this.chestCurBlockType);
+		if(this.chestCurBlockType <= 0
+		        || chest.chestRemoveBlock(retval) == BlockType.BTEmpty)
 		{
+			this.chestCurBlockType = -1;
 			return BlockType.BTEmpty;
 		}
-		retval = BlockType.toBlockType(this.chestCurBlockType);
-		if(chest.chestRemoveBlock(retval) != BlockType.BTEmpty)
+		if(chest.chestGetBlockTypeCount(retval) > 0)
 		{
 			// world.addModNode(blockX, blockY, blockZ, chest);
 			// TODO finish
