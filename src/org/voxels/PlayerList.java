@@ -375,4 +375,32 @@ public final class PlayerList
 		players.clear();
 		players.insertPlayer(Player.read(i), null, "", "");
 	}
+
+	/**
+	 * push all players inside of &lt;<code>bx</code>, <code>by</code>,
+	 * <code>bz</code>&gt; out in the direction &lt;<code>dx</code>,
+	 * <code>dy</code>, <code>dz</code>&gt;
+	 * 
+	 * @param bx
+	 *            x coordinate of the block to push out of
+	 * @param by
+	 *            y coordinate of the block to push out of
+	 * @param bz
+	 *            z coordinate of the block to push out of
+	 * @param dx
+	 *            x coordinate of the direction to push
+	 * @param dy
+	 *            y coordinate of the direction to push
+	 * @param dz
+	 *            z coordinate of the direction to push
+	 */
+	public void push(int bx, int by, int bz, int dx, int dy, int dz)
+	{
+		if(PlayerCount > 0 && !Main.isServer)
+			return;
+		for(Node pnode = this.head; pnode != null; pnode = pnode.next)
+		{
+			pnode.p.push(bx, by, bz, dx, dy, dz);
+		}
+	}
 }

@@ -62,7 +62,7 @@ public final class Main
 	/**
 	 * true if this program is the debug version
 	 */
-	public static final boolean DEBUG = false;
+	public static boolean DEBUG = false;
 
 	/**
 	 * @author jacob
@@ -583,6 +583,9 @@ public final class Main
 				players.front().giveBlock(BlockType.BTLava);
 				players.front().giveBlock(BlockType.BTStone);
 				players.front().giveBlock(BlockType.BTRedstoneRepeaterOff);
+				players.front().giveBlock(BlockType.BTStickyPiston);
+				players.front().giveBlock(BlockType.BTPiston);
+				players.front().giveBlock(BlockType.BTSlime);
 				players.front().giveBlock(BlockType.BTDiamondPick);
 				players.front().giveBlock(BlockType.BTGoldPick);
 			}
@@ -595,6 +598,11 @@ public final class Main
 	 */
 	public static void main(String[] args)
 	{
+		for(int i = 0; i < args.length; i++)
+		{
+			if(args[i].equals("--debug"))
+				DEBUG = true;
+		}
 		loadAll();
 		if(!didLoad)
 			generateGame();

@@ -2511,9 +2511,254 @@ public enum BlockType
 		}
 	},
 	/**
+	 * piston
+	 */
+	BTPiston(55, false, BlockDrawType.BDTCustom, new Image[]
+	{
+	    new Image("piston.png"), new Image("extendedpistonbase.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewPiston(Block.getNegOrientation(orientation), false);
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+
+		@Override
+		public Block make(int orientation, int vieworientation)
+		{
+			return make(vieworientation);
+		}
+
+		@Override
+		public boolean use3DOrientation()
+		{
+			return true;
+		}
+	},
+	/**
+	 * sticky piston
+	 */
+	BTStickyPiston(56, false, BlockDrawType.BDTCustom, new Image[]
+	{
+	    new Image("stickypiston.png"), new Image("extendedpistonbase.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewStickyPiston(Block.getNegOrientation(orientation),
+			                             false);
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+
+		@Override
+		public Block make(int orientation, int vieworientation)
+		{
+			return make(vieworientation);
+		}
+
+		@Override
+		public boolean use3DOrientation()
+		{
+			return true;
+		}
+	},
+	/**
+	 * piston head
+	 */
+	BTPistonHead(57, false, BlockDrawType.BDTCustom, new Image[]
+	{
+	    new Image("extendedpistonhead.png"), new Image("pistonshaft.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewPistonHead(orientation);
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
+	 * sticky piston
+	 */
+	BTStickyPistonHead(58, false, BlockDrawType.BDTCustom, new Image[]
+	{
+	    new Image("extendedstickypistonhead.png"), new Image("pistonshaft.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewStickyPistonHead(orientation);
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
+	 * slime
+	 */
+	BTSlime(59, false, BlockDrawType.BDTItem, new Image[]
+	{
+		new Image("slime.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewSlime();
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
 	 * last block value, used to get <code>BlockType.Count</code>
 	 */
-	BTLast(55, false, BlockDrawType.BDTNone, null)
+	BTLast(60, false, BlockDrawType.BDTNone, null)
 	{
 		@Override
 		public Block make(int orientation)
@@ -2903,6 +3148,11 @@ public enum BlockType
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			return -1;
 		}
 		return -1;
@@ -2998,6 +3248,11 @@ public enum BlockType
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			return false;
 		}
 		return false;
@@ -3106,6 +3361,13 @@ public enum BlockType
 			return 15;
 		case BTObsidian:
 			return 200;
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+			return 20;
+		case BTSlime:
+			return 5;
 		}
 		return -1;
 	}
@@ -3208,7 +3470,13 @@ public enum BlockType
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
 			return 0;
+		case BTSlime:
+			return 5;
 		}
 		return 0;
 	}
@@ -3296,7 +3564,13 @@ public enum BlockType
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
 			return false;
+		case BTSlime:
+			return true;
 		}
 		return false;
 	}
@@ -3390,7 +3664,13 @@ public enum BlockType
 		case BTLever:
 			return false;
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
 			return true;
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
+			return false;
 		}
 		return false;
 	}
@@ -3446,6 +3726,7 @@ public enum BlockType
 		case BTWoodShovel:
 		case BTLadder:
 		case BTLever:
+		case BTSlime:
 			return true;
 		case BTLeaves:
 		case BTLava:
@@ -3471,6 +3752,10 @@ public enum BlockType
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
 			return false;
 		}
 		return false;
@@ -3506,5 +3791,14 @@ public enum BlockType
 		if(value < 0 || value >= Count)
 			throw new IOException("BlockType.value out of range");
 		return toBlockType(value);
+	}
+
+	/**
+	 * @return true if when making this block, you should use height to get the
+	 *         view orientation
+	 */
+	public boolean use3DOrientation()
+	{
+		return false;
 	}
 }

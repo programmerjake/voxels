@@ -291,7 +291,7 @@ public class World
 
 	private enum EvalType
 	{
-		General, Redstone, RedstoneFirst, Lighting, Particles, Last
+		General, Redstone, RedstoneFirst, Lighting, Particles, Pistons, Last
 	}
 
 	private static final int EvalTypeCount = EvalType.Last.ordinal();
@@ -760,6 +760,16 @@ public class World
 						continue;
 					invalidate(x + dx, y + dy, z + dz);
 				}
+			}
+		}
+		for(int orientation = 0; orientation < 6; orientation++)
+		{
+			int dx = Block.getOrientationDX(orientation);
+			int dy = Block.getOrientationDY(orientation);
+			int dz = Block.getOrientationDZ(orientation);
+			for(int i = 3; i < 13; i++)
+			{
+				invalidate(x + dx * i, y + dy * i, z + dz * i);
 			}
 		}
 	}
@@ -1615,6 +1625,18 @@ public class World
 		}
 	}
 
+	private void movePistons()
+	{
+		EvalNode node = removeAllEvalNodes(EvalType.Pistons);
+		while(node != null)
+		{
+			Block b = getBlockEval(node.x, node.y, node.z);
+			if(b != null)
+				b.pistonMove(node.x, node.y, node.z);
+			node = node.next;
+		}
+	}
+
 	private static final float redstoneMovePeriod = 0.1f;
 	private static final float generalMovePeriod = 0.25f;
 	private float redstoneMoveTimeLeft = redstoneMovePeriod;
@@ -1633,6 +1655,7 @@ public class World
 		{
 			this.redstoneMoveTimeLeft += redstoneMovePeriod;
 			moveRedstone();
+			movePistons();
 		}
 	}
 
@@ -2163,11 +2186,12 @@ public class World
 			}
 			Main.popProgress();
 		}
-		if(i.readUnsignedShort() != EvalTypeCount)
-			throw new IOException("EvalTypeCount doesn't match");
+		int evalTypeCount = i.readUnsignedShort();
+		if(evalTypeCount > EvalTypeCount)
+			throw new IOException("EvalTypeCount is too big");
 		Main.pushProgress(0.95f, 0.05f);
-		Main.pushProgress(0, 1.0f / (EvalTypeCount + 1));
-		for(int evalTypei = 0; evalTypei < EvalTypeCount; evalTypei++)
+		Main.pushProgress(0, 1.0f / (evalTypeCount + 1));
+		for(int evalTypei = 0; evalTypei < evalTypeCount; evalTypei++)
 		{
 			EvalType evalType = EvalType.values()[evalTypei];
 			int evalNodeCount = i.readInt();
@@ -2197,7 +2221,7 @@ public class World
 			throw new IOException("invalid timed invalidate count");
 		if(timedInvalidateCount > 0)
 		{
-			Main.pushProgress(EvalTypeCount, 1.0f / timedInvalidateCount);
+			Main.pushProgress(evalTypeCount, 1.0f / timedInvalidateCount);
 			int progress = 0;
 			while(timedInvalidateCount-- > 0)
 			{

@@ -1360,9 +1360,11 @@ public class Player implements GameObject
 				Block oldb = getSelectedBlock();
 				if(canPlaceBlock(oldb, this.blockX, this.blockY, this.blockZ))
 				{
-					Block newb = Block.make(takeBlock(),
+					BlockType bt = takeBlock();
+					Block newb = Block.make(bt,
 					                        this.blockOrientation,
-					                        Block.getOrientationFromVector(getMoveForwardVector()));
+					                        Block.getOrientationFromVector(bt.use3DOrientation() ? getForwardVector()
+					                                : getMoveForwardVector()));
 					if(newb != null)
 					{
 						// world.AddModNode(blockX, blockY, blockZ, newb);
@@ -2017,5 +2019,43 @@ public class Player implements GameObject
 			retval.blockCount[index] = value;
 		}
 		return retval;
+	}
+
+	/**
+	 * push this player if it's inside of &lt;<code>bx</code>, <code>by</code>,
+	 * <code>bz</code>&gt; out in the direction &lt;<code>dx</code>,
+	 * <code>dy</code>, <code>dz</code>&gt;
+	 * 
+	 * @param bx
+	 *            x coordinate of the block to push out of
+	 * @param by
+	 *            y coordinate of the block to push out of
+	 * @param bz
+	 *            z coordinate of the block to push out of
+	 * @param dx
+	 *            x coordinate of the direction to push
+	 * @param dy
+	 *            y coordinate of the direction to push
+	 * @param dz
+	 *            z coordinate of the direction to push
+	 */
+	public void push(int bx, int by, int bz, int dx, int dy, int dz)
+	{
+		boolean doPush = false;
+		for(int pdy = -1; pdy <= 0; pdy++)
+		{
+			Vector p = this.position.add(new Vector(0, pdy, 0));
+			int x = (int)Math.floor(p.x);
+			int y = (int)Math.floor(p.y);
+			int z = (int)Math.floor(p.z);
+			if(x == bx && y == by && z == bz)
+			{
+				doPush = true;
+				break;
+			}
+		}
+		if(!doPush)
+			return;
+		internalSetPosition(this.position.add(new Vector(dx, dy, dz)));
 	}
 }

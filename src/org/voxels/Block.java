@@ -17,6 +17,7 @@
 package org.voxels;
 
 import static org.lwjgl.opengl.GL11.*;
+import static org.voxels.PlayerList.players;
 import static org.voxels.Vector.glVertex;
 import static org.voxels.World.world;
 
@@ -739,6 +740,70 @@ public class Block implements GameObject
 	public static Block NewObsidian()
 	{
 		return new Block(BlockType.BTObsidian);
+	}
+
+	/**
+	 * @param orientation
+	 *            the new piston's orientation
+	 * @param extended
+	 *            if the new piston is extended
+	 * @return new piston
+	 */
+	public static Block NewPiston(int orientation, boolean extended)
+	{
+		Block retval = new Block(BlockType.BTPiston);
+		retval.data.orientation = Math.max(0, Math.min(5, orientation));
+		retval.data.intdata = (extended ? 1 : 0);
+		retval.data.step = (extended ? 1 : 0);
+		return retval;
+	}
+
+	/**
+	 * @param orientation
+	 *            the new sticky piston's orientation
+	 * @param extended
+	 *            if the new sticky piston is extended
+	 * @return new sticky piston
+	 */
+	public static Block NewStickyPiston(int orientation, boolean extended)
+	{
+		Block retval = new Block(BlockType.BTStickyPiston);
+		retval.data.orientation = Math.max(0, Math.min(5, orientation));
+		retval.data.intdata = (extended ? 1 : 0);
+		retval.data.step = (extended ? 1 : 0);
+		return retval;
+	}
+
+	/**
+	 * @param orientation
+	 *            the new piston's head's orientation
+	 * @return new piston's head
+	 */
+	public static Block NewPistonHead(int orientation)
+	{
+		Block retval = new Block(BlockType.BTPistonHead);
+		retval.data.orientation = Math.max(0, Math.min(5, orientation));
+		return retval;
+	}
+
+	/**
+	 * @param orientation
+	 *            the new sticky piston's head's orientation
+	 * @return new sticky piston's head
+	 */
+	public static Block NewStickyPistonHead(int orientation)
+	{
+		Block retval = new Block(BlockType.BTStickyPistonHead);
+		retval.data.orientation = Math.max(0, Math.min(5, orientation));
+		return retval;
+	}
+
+	/**
+	 * @return new slime
+	 */
+	public static Block NewSlime()
+	{
+		return new Block(BlockType.BTSlime);
 	}
 
 	private static void drawFace(Vector p1,
@@ -1967,6 +2032,117 @@ public class Block implements GameObject
 				             isAsItem);
 				break;
 			}
+			case BTPiston:
+			case BTStickyPiston:
+			{
+				Matrix rotateMat, tform = Matrix.translate(-0.5f, -0.5f, -0.5f);
+				switch(getNegOrientation(this.data.orientation))
+				{
+				case 0: // -X
+					tform = tform.concat(Matrix.rotatez(-Math.PI / 2));
+					break;
+				case 1: // -Z
+					tform = tform.concat(Matrix.rotatex(Math.PI / 2));
+					break;
+				case 2: // +X
+					tform = tform.concat(Matrix.rotatez(Math.PI / 2));
+					break;
+				case 3: // +Z
+					tform = tform.concat(Matrix.rotatex(-Math.PI / 2));
+					break;
+				case 5: // +Y
+					tform = tform.concat(Matrix.rotatex(-Math.PI));
+					break;
+				// case 4: // -Y
+				default:
+					break;
+				}
+				rotateMat = tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
+				if(this.data.intdata == 0)
+				{
+					internalDraw(0x3F,
+					             rotateMat,
+					             blockToWorld,
+					             bx,
+					             by,
+					             bz,
+					             this.type.textures[0],
+					             false,
+					             isEntity,
+					             isAsItem);
+				}
+				else
+				{
+					tform = Matrix.scale(1.0f, 0.75f, 1.0f).concat(rotateMat);
+					internalDraw(0x3F,
+					             tform,
+					             blockToWorld,
+					             bx,
+					             by,
+					             bz,
+					             this.type.textures[1],
+					             false,
+					             isEntity,
+					             isAsItem);
+				}
+				break;
+			}
+			case BTPistonHead:
+			case BTStickyPistonHead:
+			{
+				Matrix rotateMat, tform = Matrix.translate(-0.5f, -0.5f, -0.5f);
+				switch(getNegOrientation(this.data.orientation))
+				{
+				case 0: // -X
+					tform = tform.concat(Matrix.rotatez(-Math.PI / 2));
+					break;
+				case 1: // -Z
+					tform = tform.concat(Matrix.rotatex(Math.PI / 2));
+					break;
+				case 2: // +X
+					tform = tform.concat(Matrix.rotatez(Math.PI / 2));
+					break;
+				case 3: // +Z
+					tform = tform.concat(Matrix.rotatex(-Math.PI / 2));
+					break;
+				case 5: // +Y
+					tform = tform.concat(Matrix.rotatex(-Math.PI));
+					break;
+				// case 4: // -Y
+				default:
+					break;
+				}
+				rotateMat = tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
+				tform = Matrix.scale(1.0f, 0.25f, 1.0f)
+				              .concat(Matrix.translate(0, 0.75f, 0))
+				              .concat(rotateMat);
+				internalDraw(0x3F,
+				             tform,
+				             blockToWorld,
+				             bx,
+				             by,
+				             bz,
+				             this.type.textures[0],
+				             false,
+				             isEntity,
+				             isAsItem);
+				tform = Matrix.scale(2.0f / 16, 1.0f, 2.0f / 16)
+				              .concat(Matrix.translate(-1.0f / 16 + 0.5f,
+				                                       -0.25f,
+				                                       -1.0f / 16 + 0.5f))
+				              .concat(rotateMat);
+				internalDraw(0x3F,
+				             tform,
+				             blockToWorld,
+				             bx,
+				             by,
+				             bz,
+				             this.type.textures[1],
+				             false,
+				             isEntity,
+				             isAsItem);
+				break;
+			}
 			default:
 				break;
 			}
@@ -2455,6 +2631,11 @@ public class Block implements GameObject
 		}
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			return;
 		}
 	}
@@ -2838,6 +3019,11 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			break;
 		}
 		return null;
@@ -3011,6 +3197,47 @@ public class Block implements GameObject
 		case BTLever:
 		case BTObsidian:
 			return null;
+		case BTPiston:
+		case BTStickyPiston:
+		{
+			boolean isOn = false;
+			for(int orientation = 0; orientation < 6; orientation++)
+			{
+				if(orientation == this.data.orientation)
+					continue;
+				int dx = getOrientationDX(orientation);
+				int dy = getOrientationDY(orientation);
+				int dz = getOrientationDZ(orientation);
+				int x = bx + dx, y = by + dy, z = bz + dz;
+				int curPower = getEvalRedstoneIOValue(x,
+				                                      y,
+				                                      z,
+				                                      getNegOrientation(orientation));
+				if(curPower == REDSTONE_POWER_STRONG)
+				{
+					isOn = true;
+					break;
+				}
+				if(curPower >= REDSTONE_POWER_WEAK_MIN
+				        && curPower <= REDSTONE_POWER_WEAK_MAX)
+				{
+					isOn = true;
+					break;
+				}
+			}
+			if(isOn == (this.data.step != 0))
+				return null;
+			Block b = new Block(this);
+			if(isOn)
+				b.data.step = 1;
+			else
+				b.data.step = 0;
+			return b;
+		}
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
+			return null;
 		}
 		return null;
 	}
@@ -3095,6 +3322,215 @@ public class Block implements GameObject
 		if(power == this.data.intdata && this.data.orientation == borientation)
 			return null;
 		return NewRedstoneDust(power, borientation);
+	}
+
+	/**
+	 * called to evaluate piston dust moves
+	 * 
+	 * @param bx
+	 *            block x coordinate
+	 * @param by
+	 *            block y coordinate
+	 * @param bz
+	 *            block z coordinate
+	 */
+	public void pistonMove(int bx, int by, int bz)
+	{
+		if(this.type != BlockType.BTPiston
+		        && this.type != BlockType.BTStickyPiston
+		        && this.type != BlockType.BTPistonHead
+		        && this.type != BlockType.BTStickyPistonHead)
+			return;
+		boolean isOn = this.data.step != 0;
+		if(isOn && this.data.intdata != 0)
+			return;
+		if(!isOn && this.data.intdata == 0)
+			return;
+		Block newBlock = new Block(this);
+		newBlock.data.intdata = isOn ? 1 : 0;
+		int dx = getOrientationDX(this.data.orientation);
+		int dy = getOrientationDY(this.data.orientation);
+		int dz = getOrientationDZ(this.data.orientation);
+		int x = bx + dx, y = by + dy, z = bz + dz;
+		if(!isOn) // if turning off
+		{
+			world.setBlock(bx, by, bz, newBlock);
+			Block head = world.getBlockEval(x, y, z);
+			if(head == null)
+				return;
+			Block pulledBlock = null;
+			if(this.type == BlockType.BTStickyPiston)
+			{
+				pulledBlock = world.getBlockEval(x + dx, y + dy, z + dz);
+				if(pulledBlock != null)
+				{
+					PushType p = pulledBlock.getPushType();
+					if(p == PushType.Pushed)
+					{
+						world.setBlock(x + dx, y + dy, z + dz, new Block());
+					}
+					else
+					{
+						pulledBlock = null;
+					}
+				}
+			}
+			if(pulledBlock == null)
+				pulledBlock = new Block();
+			world.setBlock(x, y, z, pulledBlock);
+			return;
+		}
+		final int maxDist = 12;
+		int pushDist = 0;
+		while(true)
+		{
+			Block b = world.getBlockEval(x + dx * pushDist,
+			                             y + dy * pushDist,
+			                             z + dz * pushDist);
+			PushType p = PushType.NonPushable;
+			if(b != null)
+				p = b.getPushType();
+			if(p == PushType.DropAsEntity || p == PushType.Remove)
+			{
+				break;
+			}
+			else if(p != PushType.Pushed)
+			{
+				return;
+			}
+			if(++pushDist > maxDist)
+				return;
+		}
+		world.setBlock(bx, by, bz, newBlock);
+		Block nextBlock;
+		if(this.type == BlockType.BTStickyPiston)
+			nextBlock = NewStickyPistonHead(this.data.orientation);
+		else
+			nextBlock = NewPistonHead(this.data.orientation);
+		for(int i = 0; i <= pushDist; i++, x += dx, y += dy, z += dz)
+		{
+			Block thisBlock = nextBlock;
+			nextBlock = world.getBlockEval(x, y, z);
+			if(i == pushDist)
+			{
+				PushType p = nextBlock.getPushType();
+				if(p == PushType.DropAsEntity)
+					nextBlock.digBlock(x, y, z);
+				players.push(x, y, z, dx, dy, dz);
+			}
+			world.setBlock(x, y, z, thisBlock);
+		}
+	}
+
+	/**
+	 * @author jacob how a pushed block responds
+	 */
+	public static enum PushType
+	{
+		/**
+		 * block can't be pushed
+		 */
+		NonPushable, /**
+		 * block is removed
+		 */
+		Remove, /**
+		 * block is dropped as entity (as if it had been dug)
+		 */
+		DropAsEntity, /**
+		 * block is pushed
+		 */
+		Pushed;
+	}
+
+	/**
+	 * @return what happens when this block is pushed
+	 */
+	public PushType getPushType()
+	{
+		switch(this.type)
+		{
+		case BTDeleteBlock:
+		case BTSun:
+		case BTMoon:
+		case BTLast:
+			return PushType.NonPushable;
+		case BTEmpty:
+			return PushType.Remove;
+		case BTStone:
+		case BTCobblestone:
+		case BTGrass:
+		case BTDirt:
+			return PushType.Pushed;
+		case BTBedrock:
+			return PushType.NonPushable;
+		case BTSapling:
+			return PushType.DropAsEntity;
+		case BTWater:
+		case BTLava:
+		case BTLeaves:
+			return PushType.Remove;
+		case BTSand:
+		case BTGravel:
+		case BTWood:
+		case BTGlass:
+		case BTChest:
+		case BTWorkbench:
+		case BTFurnace:
+			return PushType.Pushed;
+		case BTPlank:
+		case BTStick:
+		case BTWoodPick:
+		case BTStonePick:
+		case BTWoodShovel:
+		case BTStoneShovel:
+		case BTRedstoneDustOff:
+		case BTRedstoneDustOn:
+			return PushType.DropAsEntity;
+		case BTRedstoneOre:
+		case BTRedstoneBlock:
+		case BTCoalOre:
+		case BTIronOre:
+		case BTLapisLazuliOre:
+		case BTGoldOre:
+		case BTDiamondOre:
+		case BTEmeraldOre:
+			return PushType.Pushed;
+		case BTRedstoneTorchOff:
+		case BTRedstoneTorchOn:
+		case BTStoneButton:
+		case BTWoodButton:
+		case BTTorch:
+		case BTCoal:
+		case BTIronIngot:
+		case BTLapisLazuli:
+		case BTGoldIngot:
+		case BTDiamond:
+		case BTEmerald:
+		case BTIronPick:
+		case BTIronShovel:
+		case BTGoldPick:
+		case BTGoldShovel:
+		case BTDiamondPick:
+		case BTDiamondShovel:
+		case BTLadder:
+		case BTRedstoneRepeaterOff:
+		case BTRedstoneRepeaterOn:
+		case BTLever:
+			return PushType.DropAsEntity;
+		case BTObsidian:
+			return PushType.NonPushable;
+		case BTPiston:
+		case BTStickyPiston:
+			if(this.data.intdata != 0)
+				return PushType.NonPushable;
+			return PushType.Pushed;
+		case BTPistonHead:
+		case BTStickyPistonHead:
+			return PushType.NonPushable;
+		case BTSlime:
+			return PushType.DropAsEntity;
+		}
+		return PushType.NonPushable;
 	}
 
 	private boolean isBlockSupported(int bx, int by, int bz, int orientation)
@@ -3237,6 +3673,7 @@ public class Block implements GameObject
 		case BTGoldShovel:
 		case BTDiamondPick:
 		case BTDiamondShovel:
+		case BTSlime:
 			return null;
 		case BTLadder:
 		{
@@ -3270,6 +3707,10 @@ public class Block implements GameObject
 			return null;
 		}
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
 			return null;
 		}
 		return retval;
@@ -3499,6 +3940,11 @@ public class Block implements GameObject
 			return 1.0f / 8;
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			return 1;
 		}
 		return 0;
@@ -3650,6 +4096,11 @@ public class Block implements GameObject
 			                          dir,
 			                          getLeverTransform(this.data.orientation));
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			return true;
 		}
 		return false;
@@ -3812,6 +4263,7 @@ public class Block implements GameObject
 		case BTDiamondPick:
 		case BTDiamondShovel:
 		case BTLadder:
+		case BTSlime:
 		{
 			drawImgAsEntity(blockToWorld, this.type.textures[this.data.intdata]);
 			return;
@@ -3830,6 +4282,10 @@ public class Block implements GameObject
 			return;
 		}
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
 			draw(blockToWorld, true, false);
 			return;
 		}
@@ -3987,6 +4443,11 @@ public class Block implements GameObject
 			return;
 		}
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 		{
 			Block b = new Block(this);
 			b.setLighting(0, 0, 15);
@@ -4286,11 +4747,30 @@ public class Block implements GameObject
 	    }, 3, BlockType.BTRedstoneRepeaterOff, 1),
 	    new ReduceStruct(new BlockType[]
 	    {
+	        BlockType.BTPlank,
+	        BlockType.BTPlank,
+	        BlockType.BTPlank,
+	        BlockType.BTCobblestone,
+	        BlockType.BTIronIngot,
+	        BlockType.BTCobblestone,
+	        BlockType.BTCobblestone,
+	        BlockType.BTRedstoneDustOff,
+	        BlockType.BTCobblestone
+	    }, 3, BlockType.BTPiston, 1),
+	    new ReduceStruct(new BlockType[]
+	    {
 	        BlockType.BTStick,
 	        BlockType.BTEmpty,
 	        BlockType.BTCobblestone,
 	        BlockType.BTEmpty
 	    }, 2, BlockType.BTLever, 1),
+	    new ReduceStruct(new BlockType[]
+	    {
+	        BlockType.BTSlime,
+	        BlockType.BTEmpty,
+	        BlockType.BTPiston,
+	        BlockType.BTEmpty
+	    }, 2, BlockType.BTStickyPiston, 1),
 	};
 	private static final int reduceCount = reduceArray.length;
 
@@ -4670,7 +5150,13 @@ public class Block implements GameObject
 		case BTLever:
 			return position;
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
 			return solidAdjustPlayerPosition(position, getHeight(), distLimit);
+		case BTSlime:
+			return position;
 		}
 		return null;
 	}
@@ -4769,6 +5255,11 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			return true;
 		}
 		return false;
@@ -4882,6 +5373,7 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOff:
 		case BTLever:
 		case BTObsidian:
+		case BTSlime:
 			world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
 			                                              y + 0.5f,
 			                                              z + 0.5f),
@@ -4987,6 +5479,49 @@ public class Block implements GameObject
 				                                   BlockType.BTSapling,
 				                                   World.vRand(0.1f)));
 			}
+			return;
+		}
+		case BTPiston:
+		case BTStickyPiston:
+		{
+			world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+			                                              y + 0.5f,
+			                                              z + 0.5f),
+			                                   this.type,
+			                                   World.vRand(0.1f)));
+			if(this.data.intdata == 0)
+				return;
+			int hx = getOrientationDX(this.data.orientation) + x;
+			int hy = getOrientationDY(this.data.orientation) + y;
+			int hz = getOrientationDZ(this.data.orientation) + z;
+			Block head = world.getBlockEval(hx, hy, hz);
+			if(head == null)
+				return;
+			if(head.getType() != BlockType.BTPistonHead
+			        && head.getType() != BlockType.BTStickyPistonHead)
+				return;
+			world.setBlock(hx, hy, hz, new Block());
+			return;
+		}
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		{
+			int bx = x - getOrientationDX(this.data.orientation);
+			int by = y - getOrientationDY(this.data.orientation);
+			int bz = z - getOrientationDZ(this.data.orientation);
+			world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+			                                              y + 0.5f,
+			                                              z + 0.5f),
+			                                   (this.type == BlockType.BTStickyPistonHead) ? BlockType.BTStickyPiston
+			                                           : BlockType.BTPiston,
+			                                   World.vRand(0.1f)));
+			Block body = world.getBlockEval(bx, by, bz);
+			if(body == null)
+				return;
+			if(body.getType() != BlockType.BTPiston
+			        && body.getType() != BlockType.BTStickyPiston)
+				return;
+			world.setBlock(bx, by, bz, new Block());
 			return;
 		}
 		}
@@ -5101,6 +5636,13 @@ public class Block implements GameObject
 			return REDSTONE_POWER_STRONG_OFF;
 		case BTObsidian:
 			return REDSTONE_POWER_NONE;
+		case BTPiston:
+		case BTStickyPiston:
+			return REDSTONE_POWER_INPUT;
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
+			return REDSTONE_POWER_NONE;
 		}
 		return REDSTONE_POWER_NONE;
 	}
@@ -5201,6 +5743,11 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOff:
 		case BTRedstoneRepeaterOn:
 		case BTLever:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTSlime:
 			return false;
 		case BTBedrock:
 		case BTChest:
@@ -5472,6 +6019,7 @@ public class Block implements GameObject
 		case BTWoodPick:
 		case BTWoodShovel:
 		case BTLadder:
+		case BTSlime:
 			return false;
 		case BTRedstoneBlock:
 		case BTRedstoneDustOff:
@@ -5502,6 +6050,10 @@ public class Block implements GameObject
 		case BTRedstoneRepeaterOn:
 		case BTLever:
 		case BTObsidian:
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
 			return true;
 		}
 		return true;
@@ -5724,6 +6276,22 @@ public class Block implements GameObject
 			o.writeByte(this.data.orientation);
 			return;
 		}
+		case BTPiston:
+		case BTStickyPiston:
+		{
+			o.writeBoolean(this.data.intdata != 0);
+			o.writeBoolean(this.data.step != 0);
+			o.writeByte(this.data.orientation);
+			return;
+		}
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		{
+			o.writeByte(this.data.orientation);
+			return;
+		}
+		case BTSlime:
+			return;
 		}
 	}
 
@@ -5911,6 +6479,26 @@ public class Block implements GameObject
 				throw new IOException("Button orientation is out of range");
 			return;
 		}
+		case BTPiston:
+		case BTStickyPiston:
+		{
+			this.data.intdata = i.readBoolean() ? 1 : 0;
+			this.data.step = i.readBoolean() ? 1 : 0;
+			this.data.orientation = i.readUnsignedByte();
+			if(this.data.orientation < 0 || this.data.orientation > 5)
+				throw new IOException("Piston orientation is out of range");
+			return;
+		}
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		{
+			this.data.orientation = i.readUnsignedByte();
+			if(this.data.orientation < 0 || this.data.orientation > 5)
+				throw new IOException("Piston Head orientation is out of range");
+			return;
+		}
+		case BTSlime:
+			return;
 		}
 	}
 
