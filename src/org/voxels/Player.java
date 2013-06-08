@@ -395,7 +395,10 @@ public class Player implements GameObject
 			          title);
 			Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
 			if(chest == null || chest.getType() != BlockType.BTChest)
+			{
 				chest = Block.NewChest();
+				this.state = State.Normal;
+			}
 			int blocktypecount = 0, blocktypeindex = -1;
 			Main.addToFrameText("chestCurBlockType = " + this.chestCurBlockType
 			        + "\n");
@@ -1201,7 +1204,11 @@ public class Player implements GameObject
 	{
 		Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
 		if(chest == null || chest.getType() != BlockType.BTChest)
+		{
 			chest = Block.NewChest();
+			this.state = State.Normal;
+			return;
+		}
 		if(this.chestCurBlockType > 0)
 		{
 			for(int i = this.chestCurBlockType + 1; i < BlockType.Count; i++)
@@ -1229,7 +1236,11 @@ public class Player implements GameObject
 	{
 		Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
 		if(chest == null || chest.getType() != BlockType.BTChest)
+		{
 			chest = Block.NewChest();
+			this.state = State.Normal;
+			return;
+		}
 		if(this.chestCurBlockType > 0)
 		{
 			for(int i = this.chestCurBlockType - 1; i > 0; i--)
@@ -1253,19 +1264,22 @@ public class Player implements GameObject
 		}
 	}
 
-	private void chestGiveBlock(BlockType bt, boolean setCurrentBlock)
+	private boolean chestGiveBlock(BlockType bt, boolean setCurrentBlock)
 	{
 		if(bt == BlockType.BTEmpty)
 		{
 			if(setCurrentBlock)
 				this.chestCurBlockType = 0;
-			return;
+			return true;
 		}
 		Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
 		if(chest == null || chest.getType() != BlockType.BTChest)
+		{
 			chest = Block.NewChest();
-		else
-			chest = new Block(chest);
+			this.state = State.Normal;
+			return false;
+		}
+		chest = new Block(chest);
 		chest.chestAddBlock(bt);
 		// world.addModNode(blockX, blockY, blockZ, chest);
 		// TODO finish
@@ -1273,15 +1287,19 @@ public class Player implements GameObject
 		int index = bt.ordinal();
 		if(setCurrentBlock)
 			this.chestCurBlockType = index;
+		return true;
 	}
 
 	private BlockType chestTakeBlock()
 	{
 		Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
 		if(chest == null || chest.getType() != BlockType.BTChest)
+		{
 			chest = Block.NewChest();
-		else
-			chest = new Block(chest);
+			this.state = State.Normal;
+			return BlockType.BTEmpty;
+		}
+		chest = new Block(chest);
 		BlockType retval = BlockType.BTEmpty;
 		retval = BlockType.toBlockType(this.chestCurBlockType);
 		if(this.chestCurBlockType <= 0
@@ -1327,9 +1345,12 @@ public class Player implements GameObject
 			return chestTakeBlock();
 		Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
 		if(chest == null || chest.getType() != BlockType.BTChest)
+		{
 			chest = Block.NewChest();
-		else
-			chest = new Block(chest);
+			this.state = State.Normal;
+			return BlockType.BTEmpty;
+		}
+		chest = new Block(chest);
 		BlockType retval = chest.chestRemoveBlock(bt);
 		// world.addModNode(blockX, blockY, blockZ, chest);
 		// TODO finish
@@ -1522,7 +1543,8 @@ public class Player implements GameObject
 				/*if(event.keysym.mod & KMOD_CTRL)
 				    moveCount = 5;*/
 				for(int i = 0; i < moveCount; i++)
-					chestGiveBlock(takeBlock(), true);
+					if(!chestGiveBlock(takeBlock(), true))
+						return;
 			}
 			break;
 		}
@@ -1547,7 +1569,11 @@ public class Player implements GameObject
 					if(b != null && b.getType() == BlockType.BTFurnace)
 						b = new Block(b);
 					else
+					{
 						b = Block.NewFurnace();
+						this.state = State.Normal;
+						return;
+					}
 					BlockType bt = takeBlock();
 					if(bt.getBurnTime() > 0)
 					{
@@ -1569,7 +1595,11 @@ public class Player implements GameObject
 					if(b != null && b.getType() == BlockType.BTFurnace)
 						b = new Block(b);
 					else
+					{
 						b = Block.NewFurnace();
+						this.state = State.Normal;
+						return;
+					}
 					BlockType bt = takeBlock();
 					if(bt.isSmeltable())
 					{
@@ -1592,7 +1622,11 @@ public class Player implements GameObject
 					if(b != null && b.getType() == BlockType.BTFurnace)
 						b = new Block(b);
 					else
+					{
 						b = Block.NewFurnace();
+						this.state = State.Normal;
+						return;
+					}
 					BlockType bt = b.furnaceRemoveBlock();
 					if(bt != BlockType.BTEmpty)
 					{
