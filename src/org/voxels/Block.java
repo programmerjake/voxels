@@ -216,6 +216,8 @@ public class Block implements GameObject
 		retval.data.blockdata = sourceblock;
 		retval.data.destcount = destcount;
 		retval.data.srccount = srccount;
+		retval.data.runTime = world.getCurTime() + 10.0f; // time when furnace
+		                                                  // is done smelting
 		return retval;
 	}
 
@@ -979,6 +981,48 @@ public class Block implements GameObject
 		img.selectTexture();
 		glBegin(GL_QUADS);
 		final float minu = 0, maxu = 1, minv = 0, maxv = 1;
+		drawFace(p1,
+		         p2,
+		         p4,
+		         p3,
+		         minu,
+		         minv,
+		         maxu,
+		         minv,
+		         maxu,
+		         maxv,
+		         minu,
+		         maxv,
+		         bx,
+		         by,
+		         bz,
+		         true,
+		         isEntity,
+		         isAsItem,
+		         false);
+		glEnd();
+	}
+
+	private static void drawItem(Matrix localToBlock,
+	                             Matrix blockToWorld,
+	                             int bx,
+	                             int by,
+	                             int bz,
+	                             Image img,
+	                             boolean isEntity,
+	                             boolean isAsItem,
+	                             float minu,
+	                             float minv,
+	                             float maxu,
+	                             float maxv)
+	{
+		Matrix localToWorld = localToBlock.concat(blockToWorld);
+		Vector p1 = localToWorld.apply(new Vector(0, 0, 0));
+		Vector p2 = localToWorld.apply(new Vector(1, 0, 0));
+		Vector p3 = localToWorld.apply(new Vector(0, 1, 0));
+		Vector p4 = localToWorld.apply(new Vector(1, 1, 0));
+		img.selectTexture();
+		glBegin(GL_QUADS);
 		drawFace(p1,
 		         p2,
 		         p4,
@@ -2464,14 +2508,17 @@ public class Block implements GameObject
 				return;
 			if(this.data.intdata <= 0)
 				return;
-			Vector pos = blockOrigin.add(new Vector(0.5f));
-			final float ParticlesPerSecond = 350;
+			final float ParticlesPerSecond = 30;
 			int count = (int)(Math.floor(curTime * ParticlesPerSecond) - Math.floor(lastTime
 			        * ParticlesPerSecond));
 			for(int i = 0; i < count; i++)
 			{
-				Entity p = Entity.NewParticle(pos,
-				                              ParticleType.Smoke,
+				Entity p = Entity.NewParticle(blockOrigin.add(new Vector(World.fRand(0,
+				                                                                     1),
+				                                                         1.0f,
+				                                                         World.fRand(0,
+				                                                                     1))),
+				                              ParticleType.SmokeAnim,
 				                              World.vRand(1.0f));
 				world.insertEntity(p);
 			}
@@ -2510,18 +2557,18 @@ public class Block implements GameObject
 			                                                                       1.0f,
 			                                                                       0.5f))
 			                                                     .add(blockOrigin);
-			final float ParticlesPerSecond = 5;
+			final float ParticlesPerSecond = 3;
 			int count = (int)(Math.floor(curTime * ParticlesPerSecond) - Math.floor(lastTime
 			        * ParticlesPerSecond));
 			for(int i = 0; i < count; i++)
 			{
 				Entity p;
 				p = Entity.NewParticle(pos,
-				                       ParticleType.RedstoneFire,
+				                       ParticleType.RedstoneFireAnim,
 				                       World.vRand(0.1f));
 				world.insertEntity(p);
 				p = Entity.NewParticle(pos,
-				                       ParticleType.Smoke,
+				                       ParticleType.SmokeAnim,
 				                       World.vRand(0.1f));
 				world.insertEntity(p);
 			}
@@ -2548,18 +2595,18 @@ public class Block implements GameObject
 			                                                                       1.0f,
 			                                                                       0.5f))
 			                                                     .add(blockOrigin);
-			final float ParticlesPerSecond = 15;
+			final float ParticlesPerSecond = 5;
 			int count = (int)(Math.floor(curTime * ParticlesPerSecond) - Math.floor(lastTime
 			        * ParticlesPerSecond));
 			for(int i = 0; i < count; i++)
 			{
 				Entity p;
 				p = Entity.NewParticle(pos,
-				                       ParticleType.Fire,
+				                       ParticleType.FireAnim,
 				                       World.vRand(0.1f));
 				world.insertEntity(p);
 				p = Entity.NewParticle(pos,
-				                       ParticleType.Smoke,
+				                       ParticleType.SmokeAnim,
 				                       World.vRand(0.1f));
 				world.insertEntity(p);
 			}
@@ -2580,7 +2627,7 @@ public class Block implements GameObject
 			                         .concat(Matrix.rotatey(Math.PI / 2.0
 			                                 * (1 - this.data.orientation)))
 			                         .concat(Matrix.translate(0.5f, 0.5f, 0.5f));
-			final float ParticlesPerSecond = 5;
+			final float ParticlesPerSecond = 2;
 			int count = (int)(Math.floor(curTime * ParticlesPerSecond) - Math.floor(lastTime
 			        * ParticlesPerSecond));
 			{
@@ -2595,11 +2642,11 @@ public class Block implements GameObject
 				{
 					Entity p;
 					p = Entity.NewParticle(pos,
-					                       ParticleType.RedstoneFire,
+					                       ParticleType.RedstoneFireAnim,
 					                       World.vRand(0.1f));
 					world.insertEntity(p);
 					p = Entity.NewParticle(pos,
-					                       ParticleType.Smoke,
+					                       ParticleType.SmokeAnim,
 					                       World.vRand(0.1f));
 					world.insertEntity(p);
 				}
@@ -2618,11 +2665,11 @@ public class Block implements GameObject
 				{
 					Entity p;
 					p = Entity.NewParticle(pos,
-					                       ParticleType.RedstoneFire,
+					                       ParticleType.RedstoneFireAnim,
 					                       World.vRand(0.1f));
 					world.insertEntity(p);
 					p = Entity.NewParticle(pos,
-					                       ParticleType.Smoke,
+					                       ParticleType.SmokeAnim,
 					                       World.vRand(0.1f));
 					world.insertEntity(p);
 				}
@@ -2759,6 +2806,14 @@ public class Block implements GameObject
 			if(fuelleft <= 0 || sourceblock == BlockType.BTEmpty
 			        || srccount <= 0)
 				return null;
+			if(world.getCurTime() < this.data.runTime)
+			{
+				world.addTimedInvalidate(bx,
+				                         by,
+				                         bz,
+				                         this.data.runTime - world.getCurTime());
+				return null;
+			}
 			srccount--;
 			destcount++;
 			fuelleft--;
@@ -4148,6 +4203,41 @@ public class Block implements GameObject
 		         img,
 		         true,
 		         false);
+	}
+
+	/**
+	 * @param blockToWorld
+	 *            matrix to transform block coordinates to world coordinates
+	 * @param img
+	 *            image to draw
+	 * @param minu
+	 *            the minimum u texture coordinate
+	 * @param minv
+	 *            the minimum v texture coordinate
+	 * @param maxu
+	 *            the maximum u texture coordinate
+	 * @param maxv
+	 *            the maximum v texture coordinate
+	 */
+	public static void drawImgAsEntity(Matrix blockToWorld,
+	                                   Image img,
+	                                   float minu,
+	                                   float minv,
+	                                   float maxu,
+	                                   float maxv)
+	{
+		drawItem(Matrix.translate(0.0f, 0.0f, 0.5f),
+		         blockToWorld,
+		         0,
+		         0,
+		         0,
+		         img,
+		         true,
+		         false,
+		         minu,
+		         minv,
+		         maxu,
+		         maxv);
 	}
 
 	/**
@@ -6211,6 +6301,12 @@ public class Block implements GameObject
 			o.writeInt(this.data.srccount);
 			o.writeInt(this.data.destcount);
 			this.data.blockdata.write(o);
+			if(this.data.intdata > 0 && this.data.srccount > 0
+			        && this.data.blockdata != BlockType.BTEmpty)
+			{
+				double reltime = this.data.runTime - world.getCurTime();
+				o.writeDouble(reltime);
+			}
 			return;
 		}
 		case BTLadder:
@@ -6373,6 +6469,9 @@ public class Block implements GameObject
 			int destcount = i.readInt();
 			if(destcount < 0 || destcount >= 1000000000)
 				throw new IOException("Furnace destination count is out of range");
+			this.data.intdata = fuel;
+			this.data.srccount = srccount;
+			this.data.destcount = destcount;
 			this.data.blockdata = BlockType.read(i);
 			if(this.data.blockdata == BlockType.BTEmpty)
 			{
@@ -6385,6 +6484,15 @@ public class Block implements GameObject
 			{
 				if(srccount == 0 && destcount == 0)
 					throw new IOException("Furnace has block count of zero when the block type is non-empty");
+			}
+			if(this.data.intdata > 0 && this.data.srccount > 0
+			        && this.data.blockdata != BlockType.BTEmpty)
+			{
+				double value = i.readDouble();
+				if(Double.isInfinite(value) || Double.isNaN(value)
+				        || value <= 0 || value > 10.0)
+					throw new IOException("furnace left to smelt is out of range");
+				this.data.runTime = value + world.getCurTime();
 			}
 			return;
 		}

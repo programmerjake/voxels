@@ -31,7 +31,7 @@ import de.matthiasmann.twl.utils.PNGDecoder.Format;
  * @author jacob
  * 
  */
-public final class Image
+public class Image
 {
 	private byte[] data;
 	private int w, h;
@@ -178,6 +178,30 @@ public final class Image
 	}
 
 	/**
+	 * create a copy of <code>rt</code>
+	 * 
+	 * @param rt
+	 *            the image to copy
+	 */
+	public Image(Image rt)
+	{
+		this.texture = 0;
+		this.validTexture = false;
+		this.topToBottom = rt.topToBottom;
+		this.alphaInvert = rt.alphaInvert;
+		this.w = rt.w;
+		this.h = rt.h;
+		if(rt.data != null)
+		{
+			this.data = new byte[this.w * this.h * BytesPerPixel];
+			for(int i = 0; i < this.w * this.h * BytesPerPixel; i++)
+				this.data[i] = rt.data[i];
+		}
+		else
+			this.data = null;
+	}
+
+	/**
 	 * @return true if this image is valid
 	 */
 	public boolean isValid()
@@ -262,6 +286,16 @@ public final class Image
 			glBindTexture(GL_TEXTURE_2D, this.texture);
 			CurrentTexture = this.texture;
 		}
+	}
+
+	/**
+	 * @return true if this is selected as the current texture
+	 */
+	public boolean isSelected()
+	{
+		if(!this.validTexture)
+			return false;
+		return this.texture == CurrentTexture;
 	}
 
 	/**

@@ -57,7 +57,7 @@ public class World
 	 */
 	public static final float GravityAcceleration = 9.8f;
 	private static long randSeed = new Random().nextLong();
-	private static final int viewDist = 10;
+	private static final int viewDist = 8;
 	private long displayListValidTag = 0;
 	private Rand landGenerator = Rand.create();
 	private static final int generatedChunkScale = 1 << 0; // must be power of 2

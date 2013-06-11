@@ -36,6 +36,15 @@ public enum ParticleType
 	Smoke, /**
 	 * 
 	 */
+	FireAnim, /**
+	 * 
+	 */
+	RedstoneFireAnim, /**
+	 * 
+	 */
+	SmokeAnim, /**
+	 * 
+	 */
 	Last;
 	/**
 	 * 

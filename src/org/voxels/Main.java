@@ -63,6 +63,7 @@ public final class Main
 	 * true if this program is the debug version
 	 */
 	public static boolean DEBUG = false;
+	static boolean lastEventWasLeftButtonDown = false;
 
 	/**
 	 * @author jacob
@@ -110,9 +111,17 @@ public final class Main
 		{
 			this.mouseX = Mouse.getEventX();
 			this.mouseY = Display.getHeight() - Mouse.getEventY() - 1;
-			this.button = Mouse.getEventButton();
-			this.dWheel = Mouse.getEventDWheel();
+			int button = Mouse.getEventButton();
 			this.isDown = Mouse.getEventButtonState();
+			boolean eventWasLeftButtonDown = false;
+			if(button == LEFT && Main.isKeyDown(Main.KEY_ALT)
+			        && (!lastEventWasLeftButtonDown || this.isDown))
+				button = RIGHT;
+			else if(button == LEFT && this.isDown)
+				eventWasLeftButtonDown = true;
+			lastEventWasLeftButtonDown = eventWasLeftButtonDown;
+			this.button = button;
+			this.dWheel = Mouse.getEventDWheel();
 		}
 	}
 
@@ -603,6 +612,7 @@ public final class Main
 			if(args[i].equals("--debug"))
 				DEBUG = true;
 		}
+		init();
 		loadAll();
 		if(!didLoad)
 			generateGame();
@@ -695,8 +705,43 @@ public final class Main
 		System.exit(0);
 	}
 
+	static boolean isLoading = false;
+
+	private static JFileChooser makeFileChooser()
+	{
+		JFileChooser fileChooser = new JFileChooser();
+		fileChooser.setFileFilter(new FileFilter()
+		{
+			@Override
+			public String getDescription()
+			{
+				return "Voxels World";
+			}
+
+			@Override
+			public boolean accept(File f)
+			{
+				if(f.exists())
+				{
+					if(f.isDirectory())
+						return true;
+					if(!f.isFile() || !f.canRead())
+						return false;
+					if(!isLoading && !f.canWrite())
+						return false;
+				}
+				if(f.getName().toLowerCase().endsWith(".vw"))
+					return true;
+				return false;
+			}
+		});
+		fileChooser.removeChoosableFileFilter(fileChooser.getAcceptAllFileFilter());
+		fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		return fileChooser;
+	}
+
 	private static File saveFile = null;
-	private static JFileChooser fileChooser = new JFileChooser();
+	private static JFileChooser fileChooser = makeFileChooser();
 	private static JProgressBar progressBar = new JProgressBar(0, 10000);
 	static JLabel progressLabel = new JLabel("");
 
@@ -845,33 +890,13 @@ public final class Main
 		}
 		if(Mouse.isGrabbed())
 			Mouse.setGrabbed(false);
-		fileChooser.setFileFilter(new FileFilter()
-		{
-			@Override
-			public String getDescription()
-			{
-				return "Voxels World";
-			}
-
-			@Override
-			public boolean accept(File f)
-			{
-				if(f.exists())
-				{
-					if(f.isDirectory())
-						return true;
-					if(!f.isFile() || !f.canRead())
-						return false;
-				}
-				if(f.getName().toLowerCase().endsWith(".vw"))
-					return true;
-				return false;
-			}
-		});
-		fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		isLoading = false;
 		if(JFileChooser.APPROVE_OPTION == fileChooser.showSaveDialog(null))
 		{
 			saveFile = fileChooser.getSelectedFile();
+			if(!saveFile.getName().toLowerCase().endsWith(".vw"))
+				saveFile = new File(saveFile.getParentFile(),
+				                    saveFile.getName() + ".vw");
 			return true;
 		}
 		return false;
@@ -941,36 +966,20 @@ public final class Main
 	private static boolean getLoadFile()
 	{
 		saveFile = null;
-		fileChooser.setFileFilter(new FileFilter()
-		{
-			@Override
-			public String getDescription()
-			{
-				return "Voxels World";
-			}
-
-			@Override
-			public boolean accept(File f)
-			{
-				if(f.exists())
-				{
-					if(f.isDirectory())
-						return true;
-					if(!f.isFile() || !f.canRead())
-						return false;
-				}
-				if(f.getName().toLowerCase().endsWith(".vw"))
-					return true;
-				return false;
-			}
-		});
-		fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		isLoading = true;
 		if(JFileChooser.APPROVE_OPTION == fileChooser.showOpenDialog(null))
 		{
 			saveFile = fileChooser.getSelectedFile();
 			return true;
 		}
 		return false;
+	}
+
+	private static void init()
+	{
+		showProgressDialog("Initializing...");
+		Entity.init();
+		hideProgressDialog();
 	}
 
 	private static boolean didLoad = false;

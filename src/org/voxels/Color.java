@@ -49,7 +49,7 @@ public final class Color
 	 * @param nb
 	 *            blue intensity
 	 * @param na
-	 *            opacity
+	 *            transparency
 	 */
 	public Color(byte nr, byte ng, byte nb, byte na)
 	{
@@ -80,7 +80,7 @@ public final class Color
 	 * @param nb
 	 *            blue intensity
 	 * @param na
-	 *            opacity
+	 *            transparency
 	 */
 	public Color(int nr, int ng, int nb, int na)
 	{
@@ -128,12 +128,12 @@ public final class Color
 	 * @param b
 	 *            blue intensity
 	 * @param a
-	 *            opacity
+	 *            transparency
 	 * @return the created <code>Color</code>
 	 */
 	public static Color RGBA(int r, int g, int b, int a)
 	{
-		return new Color(r, g, b);
+		return new Color(r, g, b, a);
 	}
 
 	/**
@@ -160,7 +160,7 @@ public final class Color
 	 * @param b
 	 *            blue intensity
 	 * @param a
-	 *            opacity
+	 *            transparency
 	 * @return the created <code>Color</code>
 	 */
 	public static Color RGBA(float r, float g, float b, float a)
@@ -185,7 +185,7 @@ public final class Color
 	 * @param v
 	 *            intensity
 	 * @param a
-	 *            opacity
+	 *            transparency
 	 * @return the created <code>Color</code>
 	 */
 	public static Color VA(float v, float a)
@@ -226,7 +226,7 @@ public final class Color
 	/**
 	 * @param c
 	 *            color
-	 * @return opacity
+	 * @return transparency
 	 */
 	public static int GetAValue(Color c)
 	{
@@ -235,7 +235,7 @@ public final class Color
 
 	/**
 	 * call glColor3* <BR/>
-	 * ignores <code>c</code>'s opacity
+	 * ignores <code>c</code>'s transparency
 	 * 
 	 * @param c
 	 *            color
@@ -250,7 +250,7 @@ public final class Color
 
 	/**
 	 * call glClearColor <BR/>
-	 * ignores <code>c</code>'s opacity
+	 * ignores <code>c</code>'s transparency
 	 * 
 	 * @param c
 	 *            color

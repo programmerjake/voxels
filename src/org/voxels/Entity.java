@@ -34,6 +34,39 @@ public class Entity implements GameObject
 	private static Image imgFire = new Image("particlefire.png");
 	private static Image imgRedstoneFire = new Image("particleredstonefire.png");
 	private static Image imgSmoke = new Image("particlesmoke.png");
+	private static final int SimulationAnimationFrameCount = 128;
+	private static final float SimulationAnimationFrameRate = 30.0f;
+	private static Image[] imgSmokeAnimation = null;
+	private static Image[] imgFireAnimation = null;
+	private static Image[] imgRedstoneFireAnimation = null;
+
+	private static Image[] genAnimation(FireSimulation sim, int stepCount)
+	{
+		Image[] retval = new Image[SimulationAnimationFrameCount];
+		Main.pushProgress(0, 1.0f / SimulationAnimationFrameCount);
+		for(int frame = 0; frame < SimulationAnimationFrameCount; frame++)
+		{
+			for(int i = 0; i < stepCount; i++)
+				sim.step();
+			retval[frame] = new Image(sim.getImage());
+			Main.setProgress(frame);
+		}
+		Main.popProgress();
+		return retval;
+	}
+
+	static void init()
+	{
+		Main.pushProgress(0.0f / 3, 1.0f / 3);
+		imgSmokeAnimation = genAnimation(new SmokeSimulation(), 1);
+		Main.popProgress();
+		Main.pushProgress(1.0f / 3, 1.0f / 3);
+		imgFireAnimation = genAnimation(new FireSimulation(), 2);
+		Main.popProgress();
+		Main.pushProgress(2.0f / 3, 1.0f / 3);
+		imgRedstoneFireAnimation = genAnimation(new RedstoneFireSimulation(), 2);
+		Main.popProgress();
+	}
 
 	private static class Data
 	{
@@ -47,6 +80,7 @@ public class Entity implements GameObject
 		public double existduration;
 		public boolean nearperson;
 		public ParticleType particletype;
+		public float frame;
 	}
 
 	Data data;
@@ -98,6 +132,7 @@ public class Entity implements GameObject
 			this.data.theta = rt.data.theta;
 			this.data.phi = rt.data.phi;
 			this.data.existduration = rt.data.existduration;
+			this.data.frame = rt.data.frame;
 			break;
 		case FallingBlock:
 			this.data.blocktype = rt.data.blocktype;
@@ -142,6 +177,7 @@ public class Entity implements GameObject
 		case Particle:
 		{
 			Image img = null;
+			boolean isAnim = false;
 			switch(this.data.particletype)
 			{
 			case Last:
@@ -155,13 +191,46 @@ public class Entity implements GameObject
 			case Smoke:
 				img = imgSmoke;
 				break;
+			case FireAnim:
+			{
+				isAnim = true;
+				int frame = (int)Math.floor(this.data.frame)
+				        % SimulationAnimationFrameCount;
+				if(frame < 0)
+					frame += SimulationAnimationFrameCount;
+				img = imgFireAnimation[frame];
+				break;
+			}
+			case RedstoneFireAnim:
+			{
+				isAnim = true;
+				int frame = (int)Math.floor(this.data.frame)
+				        % SimulationAnimationFrameCount;
+				if(frame < 0)
+					frame += SimulationAnimationFrameCount;
+				img = imgRedstoneFireAnimation[frame];
+				break;
+			}
+			case SmokeAnim:
+			{
+				isAnim = true;
+				int frame = (int)Math.floor(this.data.frame)
+				        % SimulationAnimationFrameCount;
+				if(frame < 0)
+					frame += SimulationAnimationFrameCount;
+				img = imgSmokeAnimation[frame];
+				break;
+			}
 			}
 			if(img != null)
 			{
-				Matrix tform = Matrix.translate(-0.5f, -0.5f, -0.5f);
+				Matrix tform = Matrix.translate(-0.5f,
+				                                isAnim ? 0.0f : -0.5f,
+				                                -0.5f);
 				tform = tform.concat(Matrix.rotatex(this.data.phi));
 				tform = tform.concat(Matrix.rotatey(this.data.theta));
-				tform = tform.concat(Matrix.scale(0.125f));
+				if(!isAnim)
+					tform = tform.concat(Matrix.scale(0.125f));
 				tform = tform.concat(Matrix.translate(this.position));
 				glMatrixMode(GL_MODELVIEW);
 				glPushMatrix();
@@ -286,6 +355,14 @@ public class Entity implements GameObject
 				                                                       0))
 				                                       .mul((float)Math.pow(0.3f,
 				                                                            (float)Main.getFrameDuration()));
+				break;
+			case FireAnim:
+			case RedstoneFireAnim:
+			case SmokeAnim:
+				this.data.velocity = new Vector(0);
+				this.data.frame += SimulationAnimationFrameRate
+				        * (float)Main.getFrameDuration();
+				this.data.frame %= SimulationAnimationFrameCount;
 				break;
 			}
 			this.position = this.position.add(this.data.velocity.mul((float)Main.getFrameDuration()));
@@ -426,6 +503,7 @@ public class Entity implements GameObject
 		retval.data.particletype = pt;
 		retval.data.phi = World.fRand(-(float)Math.PI / 2, (float)Math.PI / 2);
 		retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
+		retval.data.frame = 0;
 		switch(pt)
 		{
 		case Last:
@@ -436,6 +514,15 @@ public class Entity implements GameObject
 			break;
 		case Smoke:
 			retval.data.existduration = Math.pow(World.fRand(0.0f, 1.0f), 4.0) * 5.0;
+			break;
+		case FireAnim:
+		case RedstoneFireAnim:
+			retval.data.existduration = 1.5f;
+			retval.data.phi = 0.0f;
+			break;
+		case SmokeAnim:
+			retval.data.existduration = 3.0;
+			retval.data.phi = 0.0f;
 			break;
 		}
 		return retval;
@@ -517,6 +604,22 @@ public class Entity implements GameObject
 				        || this.data.existduration > 1e5)
 					throw new IOException("exist duration out of range");
 				break;
+			case FireAnim:
+			case RedstoneFireAnim:
+			case SmokeAnim:
+				this.data.existduration = i.readDouble();
+				if(Double.isInfinite(this.data.existduration)
+				        || Double.isNaN(this.data.existduration)
+				        || this.data.existduration < 0
+				        || this.data.existduration > 1e5)
+					throw new IOException("exist duration out of range");
+				this.data.frame = i.readFloat();
+				if(Double.isInfinite(this.data.frame)
+				        || Double.isNaN(this.data.frame)
+				        || this.data.frame < -1 - SimulationAnimationFrameCount
+				        || this.data.existduration > 1 + SimulationAnimationFrameCount)
+					throw new IOException("frame out of range");
+				break;
 			}
 			return;
 		}
@@ -592,6 +695,12 @@ public class Entity implements GameObject
 			case RedstoneFire:
 			case Smoke:
 				o.writeDouble(this.data.existduration);
+				break;
+			case FireAnim:
+			case RedstoneFireAnim:
+			case SmokeAnim:
+				o.writeDouble(this.data.existduration);
+				o.writeFloat(this.data.frame);
 				break;
 			}
 			return;
