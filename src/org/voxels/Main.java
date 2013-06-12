@@ -594,7 +594,18 @@ public final class Main
 				players.front().giveBlock(BlockType.BTRedstoneRepeaterOff);
 				players.front().giveBlock(BlockType.BTStickyPiston);
 				players.front().giveBlock(BlockType.BTPiston);
-				players.front().giveBlock(BlockType.BTSlime);
+				players.front().giveBlock(BlockType.BTSand);
+				players.front().giveBlock(BlockType.BTGunpowder);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTTNT);
+				players.front().giveBlock(BlockType.BTBlazeRod);
 				players.front().giveBlock(BlockType.BTDiamondPick);
 				players.front().giveBlock(BlockType.BTGoldPick);
 			}

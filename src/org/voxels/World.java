@@ -1539,6 +1539,18 @@ public class World
 		players.entityCheckHitPlayers();
 	}
 
+	private void explodeEntities(Vector pos, float strength)
+	{
+		for(EntityNode node = removeAllEntities(), nextNode = (node != null ? node.next
+		        : null); node != null; node = nextNode, nextNode = (node != null ? node.next
+		        : null))
+		{
+			node.e.explode(pos, strength);
+			if(!node.e.isEmpty())
+				insertEntity(node);
+		}
+	}
+
 	void checkHitPlayer(Player p)
 	{
 		for(EntityNode node = removeAllEntities(), nextNode = (node != null ? node.next
@@ -1692,6 +1704,7 @@ public class World
 		checkAllTimedInvalidates();
 		moveAllBlocks();
 		generateAllTrees();
+		runAllExplosions();
 		updateLight();
 	}
 
@@ -2303,5 +2316,285 @@ public class World
 	public static void clear()
 	{
 		world = new World();
+	}
+
+	private static class ExplosionNode
+	{
+		public final int x, y, z;
+		public float strength;
+		public final int hash;
+		public ExplosionNode listnext, hashnext;
+
+		public ExplosionNode(int x,
+		                     int y,
+		                     int z,
+		                     float strength,
+		                     int hash,
+		                     ExplosionNode listnext,
+		                     ExplosionNode hashnext)
+		{
+			this.x = x;
+			this.y = y;
+			this.z = z;
+			this.strength = strength;
+			this.listnext = listnext;
+			this.hashnext = hashnext;
+			this.hash = hash;
+		}
+	}
+
+	private ExplosionNode[] explosionHashTable = new ExplosionNode[WorldHashPrime];
+	private ExplosionNode[] explosionFinalPowerHashTable = new ExplosionNode[WorldHashPrime];
+	private ExplosionNode explosionList = null;
+	private ExplosionNode explosionFinalPowerList = null;
+
+	/**
+	 * creates an explosion at &lt;<code>x</code>, <code>y</code>,
+	 * <code>z</code>&gt;
+	 * 
+	 * @param x
+	 *            the x coordinate of the new explosion
+	 * @param y
+	 *            the y coordinate of the new explosion
+	 * @param z
+	 *            the z coordinate of the new explosion
+	 * @param strength
+	 *            the strength of the new explosion
+	 */
+	public void addExplosion(int x, int y, int z, float strength)
+	{
+		int hash = hashPos(x, y, z);
+		ExplosionNode prev = null, node = this.explosionHashTable[hash];
+		while(node != null)
+		{
+			if(node.x == x && node.y == y && node.z == z)
+			{
+				if(prev != null)
+				{
+					prev.hashnext = node.hashnext;
+					node.hashnext = this.explosionHashTable[hash];
+					this.explosionHashTable[hash] = node;
+				}
+				node.strength += strength;
+				return;
+			}
+			prev = node;
+			node = node.hashnext;
+		}
+		node = new ExplosionNode(x,
+		                         y,
+		                         z,
+		                         strength,
+		                         hash,
+		                         this.explosionList,
+		                         this.explosionHashTable[hash]);
+		this.explosionHashTable[hash] = node;
+		this.explosionList = node;
+	}
+
+	private static class PositionWorklistNode
+	{
+		public final int x, y, z;
+		public PositionWorklistNode next;
+
+		public PositionWorklistNode(int x, int y, int z)
+		{
+			this.x = x;
+			this.y = y;
+			this.z = z;
+		}
+	}
+
+	private PositionWorklistNode addFinalExplosionPower(int x,
+	                                                    int y,
+	                                                    int z,
+	                                                    float strength)
+	{
+		int hash = hashPos(x, y, z);
+		ExplosionNode prev = null, node = this.explosionFinalPowerHashTable[hash];
+		while(node != null)
+		{
+			if(node.x == x && node.y == y && node.z == z)
+			{
+				if(prev != null)
+				{
+					prev.hashnext = node.hashnext;
+					node.hashnext = this.explosionFinalPowerHashTable[hash];
+					this.explosionFinalPowerHashTable[hash] = node;
+				}
+				if(node.strength < strength)
+				{
+					node.strength = strength;
+					return new PositionWorklistNode(x, y, z);
+				}
+				return null;
+			}
+			prev = node;
+			node = node.hashnext;
+		}
+		node = new ExplosionNode(x,
+		                         y,
+		                         z,
+		                         strength,
+		                         hash,
+		                         this.explosionFinalPowerList,
+		                         this.explosionFinalPowerHashTable[hash]);
+		this.explosionFinalPowerHashTable[hash] = node;
+		this.explosionFinalPowerList = node;
+		return new PositionWorklistNode(x, y, z);
+	}
+
+	private float getFinalExplosionPower(int x, int y, int z)
+	{
+		int hash = hashPos(x, y, z);
+		ExplosionNode prev = null, node = this.explosionFinalPowerHashTable[hash];
+		while(node != null)
+		{
+			if(node.x == x && node.y == y && node.z == z)
+			{
+				if(prev != null)
+				{
+					prev.hashnext = node.hashnext;
+					node.hashnext = this.explosionFinalPowerHashTable[hash];
+					this.explosionFinalPowerHashTable[hash] = node;
+				}
+				return node.strength;
+			}
+			prev = node;
+			node = node.hashnext;
+		}
+		return 0.0f;
+	}
+
+	private float getExplosionStrength(int x, int y, int z, float strength)
+	{
+		Block b = getBlockEval(x, y, z);
+		if(b == null)
+			return 0.0f;
+		if(b.getType() == BlockType.BTEmpty)
+		{
+			if(strength > 55)
+			{
+				return strength - 55;
+			}
+			return 0;
+		}
+		if(!b.isExplodable())
+			return 0.0f;
+		if(b.getHardness() + 50 <= strength)
+			return strength - b.getHardness() - 50;
+		return 0.0f;
+	}
+
+	private void runExplosion(int x, int y, int z, float strength)
+	{
+		Block b = getBlockEval(x, y, z);
+		if(b == null)
+			return;
+		if(b.getType() == BlockType.BTEmpty)
+			return;
+		if(!b.isExplodable())
+			return;
+		if(b.getHardness() > strength)
+			return;
+		if(b.getType() == BlockType.BTTNT)
+		{
+			insertEntity(Entity.NewPrimedTNT(new Vector(x, y, z),
+			                                 World.fRand(0, 1)));
+			b.TNTExplode(x, y, z);
+		}
+		else if(World.fRand(0, 5) < 1 && b.canDig())
+			b.digBlock(x, y, z);
+		setBlock(x, y, z, new Block());
+	}
+
+	private void runAllExplosions()
+	{
+		ExplosionNode allExplosions = this.explosionList;
+		this.explosionList = null;
+		{
+			ExplosionNode node = allExplosions;
+			while(node != null)
+			{
+				this.explosionHashTable[node.hash] = null;
+				node = node.listnext;
+			}
+		}
+		PositionWorklistNode worklist = null;
+		{
+			ExplosionNode node = allExplosions;
+			while(node != null)
+			{
+				PositionWorklistNode newnode = addFinalExplosionPower(node.x,
+				                                                      node.y,
+				                                                      node.z,
+				                                                      node.strength);
+				if(newnode != null)
+				{
+					newnode.next = worklist;
+					worklist = newnode;
+				}
+				node = node.listnext;
+			}
+		}
+		while(worklist != null)
+		{
+			PositionWorklistNode node = worklist;
+			worklist = null;
+			while(node != null)
+			{
+				float strength = getExplosionStrength(node.x,
+				                                      node.y,
+				                                      node.z,
+				                                      getFinalExplosionPower(node.x,
+				                                                             node.y,
+				                                                             node.z));
+				if(strength > 0)
+				{
+					for(int dir = 0; dir < 6; dir++)
+					{
+						int dx = Block.getOrientationDX(dir);
+						int dy = Block.getOrientationDY(dir);
+						int dz = Block.getOrientationDZ(dir);
+						PositionWorklistNode newnode = addFinalExplosionPower(node.x
+						                                                              + dx,
+						                                                      node.y
+						                                                              + dy,
+						                                                      node.z
+						                                                              + dz,
+						                                                      strength);
+						if(newnode != null)
+						{
+							newnode.next = worklist;
+							worklist = newnode;
+						}
+					}
+				}
+				node = node.next;
+			}
+		}
+		ExplosionNode head = this.explosionFinalPowerList;
+		this.explosionFinalPowerList = null;
+		{
+			ExplosionNode node = head;
+			while(node != null)
+			{
+				this.explosionFinalPowerHashTable[node.hash] = null;
+				node = node.listnext;
+			}
+		}
+		while(head != null)
+		{
+			runExplosion(head.x, head.y, head.z, head.strength);
+			head = head.listnext;
+		}
+		ExplosionNode node = allExplosions;
+		while(node != null)
+		{
+			explodeEntities(new Vector(node.x + 0.5f,
+			                           node.y + 0.5f,
+			                           node.z + 0.5f), node.strength);
+			node = node.listnext;
+		}
 	}
 }

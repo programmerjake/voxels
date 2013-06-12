@@ -138,6 +138,10 @@ public class Entity implements GameObject
 			this.data.blocktype = rt.data.blocktype;
 			this.data.velocity = rt.data.velocity;
 			break;
+		case PrimedTNT:
+			this.data.velocity = rt.data.velocity;
+			this.data.existduration = rt.data.existduration;
+			break;
 		}
 	}
 
@@ -251,6 +255,16 @@ public class Entity implements GameObject
 				b.drawAsEntity(Matrix.translate(this.position));
 				glPopMatrix();
 			}
+			break;
+		}
+		case PrimedTNT:
+		{
+			Block b = Block.NewTNT();
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glMultMatrix(worldToCamera);
+			b.drawAsEntity(Matrix.translate(this.position));
+			glPopMatrix();
 			break;
 		}
 		}
@@ -395,6 +409,52 @@ public class Entity implements GameObject
 				this.data.velocity.y = -15.0f;
 			break;
 		}
+		case PrimedTNT:
+		{
+			int x = Math.round(this.position.x);
+			int y = Math.round(this.position.y);
+			int z = Math.round(this.position.z);
+			final float ParticlesPerSecond = 15;
+			int startcount = (int)Math.floor(this.data.existduration
+			        * ParticlesPerSecond);
+			this.data.existduration -= Main.getFrameDuration();
+			int endcount = (int)Math.floor(this.data.existduration
+			        * ParticlesPerSecond);
+			int count = startcount - endcount;
+			for(int i = 0; i < count; i++)
+			{
+				world.insertEntity(NewParticle(this.position.add(new Vector(World.fRand(0,
+				                                                                        1),
+				                                                            1.0f,
+				                                                            World.fRand(0,
+				                                                                        1))),
+				                               ParticleType.SmokeAnim,
+				                               new Vector(0)));
+			}
+			if(this.data.existduration <= 0)
+			{
+				world.addExplosion(x, y, z, 55 * 7);
+				clear();
+				return;
+			}
+			Block b = world.getBlock(x, y - 1, z);
+			if(b == null || b.isSupporting())
+			{
+				this.data.velocity = new Vector(0);
+				break;
+			}
+			Vector deltapos = this.data.velocity.mul((float)Main.getFrameDuration());
+			if(deltapos.abs_squared() > 1)
+				deltapos = deltapos.normalize();
+			this.position = this.position.add(deltapos);
+			this.data.velocity = this.data.velocity.add(new Vector(0,
+			                                                       -GravityAcceleration
+			                                                               * (float)Main.getFrameDuration(),
+			                                                       0));
+			if(this.data.velocity.y < -15.0f)
+				this.data.velocity.y = -15.0f;
+			break;
+		}
 		}
 	}
 
@@ -440,6 +500,8 @@ public class Entity implements GameObject
 			break;
 		case FallingBlock:
 			break;
+		case PrimedTNT:
+			break;
 		}
 	}
 
@@ -457,6 +519,62 @@ public class Entity implements GameObject
 	public boolean isEmpty()
 	{
 		return this.type == EntityType.Nothing;
+	}
+
+	/**
+	 * check for moving from an explosion
+	 * 
+	 * @param pos
+	 *            the explosion position
+	 * @param strength
+	 *            the explosion strength
+	 */
+	public void explode(Vector pos, float strength)
+	{
+		switch(this.type)
+		{
+		case Last:
+			break;
+		case Nothing:
+			break;
+		case Block:
+		{
+			if(this.data.nearperson)
+			{
+				return;
+			}
+			float actualStrength = strength;
+			actualStrength -= 5 * pos.sub(this.position).abs();
+			if(actualStrength <= 0)
+				return;
+			Vector dir = pos.sub(this.position)
+			                .normalize()
+			                .mul(actualStrength / 150);
+			this.data.velocity = this.data.velocity.add(dir);
+			break;
+		}
+		case Particle:
+		{
+			break;
+		}
+		case FallingBlock:
+		{
+			break;
+		}
+		case PrimedTNT:
+		{
+			float actualStrength = strength;
+			actualStrength -= 5 * pos.sub(this.position.add(new Vector(0.5f)))
+			                         .abs();
+			if(actualStrength <= 0)
+				return;
+			Vector dir = pos.sub(this.position.add(new Vector(0.5f)))
+			                .normalize()
+			                .mul(actualStrength / 150);
+			this.data.velocity = this.data.velocity.add(dir);
+			break;
+		}
+		}
 	}
 
 	/**
@@ -546,6 +664,23 @@ public class Entity implements GameObject
 		return retval;
 	}
 
+	/**
+	 * creates a new primed TNT entity
+	 * 
+	 * @param position
+	 *            the new entity's position
+	 * @param timeFactor
+	 *            the new amount of time scaled to 0-1
+	 * @return the new primed TNT entity
+	 */
+	public static Entity NewPrimedTNT(Vector position, double timeFactor)
+	{
+		Entity retval = new Entity(new Vector(position), EntityType.PrimedTNT);
+		retval.data.velocity = new Vector(0);
+		retval.data.existduration = timeFactor * 2.5f + 1.5f;
+		return retval;
+	}
+
 	private void readPhiTheta(DataInput i) throws IOException
 	{
 		this.data.phi = i.readFloat();
@@ -621,6 +756,17 @@ public class Entity implements GameObject
 					throw new IOException("frame out of range");
 				break;
 			}
+			return;
+		}
+		case PrimedTNT:
+		{
+			this.data.existduration = i.readDouble();
+			if(Double.isInfinite(this.data.existduration)
+			        || Double.isNaN(this.data.existduration)
+			        || this.data.existduration < 0
+			        || this.data.existduration > 100)
+				throw new IOException("exist duration out of range");
+			this.data.velocity = Vector.read(i);
 			return;
 		}
 		}
@@ -703,6 +849,12 @@ public class Entity implements GameObject
 				o.writeFloat(this.data.frame);
 				break;
 			}
+			return;
+		}
+		case PrimedTNT:
+		{
+			o.writeDouble(this.data.existduration);
+			this.data.velocity.write(o);
 			return;
 		}
 		}

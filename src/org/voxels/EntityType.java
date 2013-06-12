@@ -41,6 +41,10 @@ public enum EntityType
 	 */
 	FallingBlock,
 	/**
+	 * primed TNT
+	 */
+	PrimedTNT,
+	/**
 	 * used to get <code>EntityType.count</code>
 	 */
 	Last;

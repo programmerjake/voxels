@@ -808,6 +808,38 @@ public class Block implements GameObject
 		return new Block(BlockType.BTSlime);
 	}
 
+	/**
+	 * @return new gunpowder
+	 */
+	public static Block NewGunpowder()
+	{
+		return new Block(BlockType.BTGunpowder);
+	}
+
+	/**
+	 * @return new TNT
+	 */
+	public static Block NewTNT()
+	{
+		return new Block(BlockType.BTTNT);
+	}
+
+	/**
+	 * @return new blaze rod
+	 */
+	public static Block NewBlazeRod()
+	{
+		return new Block(BlockType.BTBlazeRod);
+	}
+
+	/**
+	 * @return new blaze powder
+	 */
+	public static Block NewBlazePowder()
+	{
+		return new Block(BlockType.BTBlazePowder);
+	}
+
 	private static void drawFace(Vector p1,
 	                             Vector p2,
 	                             Vector p3,
@@ -2683,6 +2715,10 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return;
 		}
 	}
@@ -3079,6 +3115,10 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			break;
 		}
 		return null;
@@ -3102,6 +3142,22 @@ public class Block implements GameObject
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * explode this TNT block
+	 * 
+	 * @param bx
+	 *            x coordinate of this block
+	 * @param by
+	 *            y coordinate of this block
+	 * @param bz
+	 *            z coordinate of this block
+	 */
+	public void TNTExplode(int bx, int by, int bz)
+	{
+		world.insertEntity(Entity.NewPrimedTNT(new Vector(bx, by, bz), 1));
+		world.setBlock(bx, by, bz, new Block());
 	}
 
 	/**
@@ -3292,6 +3348,43 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+			return null;
+		case BTTNT:
+		{
+			boolean isOn = false;
+			for(int orientation = 0; orientation < 6; orientation++)
+			{
+				int dx = getOrientationDX(orientation);
+				int dy = getOrientationDY(orientation);
+				int dz = getOrientationDZ(orientation);
+				int x = bx + dx, y = by + dy, z = bz + dz;
+				int curPower = getEvalRedstoneIOValue(x,
+				                                      y,
+				                                      z,
+				                                      getNegOrientation(orientation));
+				if(curPower == REDSTONE_POWER_STRONG)
+				{
+					isOn = true;
+					break;
+				}
+				if(curPower >= REDSTONE_POWER_WEAK_MIN
+				        && curPower <= REDSTONE_POWER_WEAK_MAX)
+				{
+					isOn = true;
+					break;
+				}
+			}
+			if(isOn)
+			{
+				world.insertEntity(Entity.NewPrimedTNT(new Vector(bx, by, bz),
+				                                       1));
+				return new Block();
+			}
+			return null;
+		}
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return null;
 		}
 		return null;
@@ -3583,6 +3676,12 @@ public class Block implements GameObject
 		case BTStickyPistonHead:
 			return PushType.NonPushable;
 		case BTSlime:
+		case BTGunpowder:
+			return PushType.DropAsEntity;
+		case BTTNT:
+			return PushType.Pushed;
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return PushType.DropAsEntity;
 		}
 		return PushType.NonPushable;
@@ -3729,6 +3828,10 @@ public class Block implements GameObject
 		case BTDiamondPick:
 		case BTDiamondShovel:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return null;
 		case BTLadder:
 		{
@@ -4000,6 +4103,10 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return 1;
 		}
 		return 0;
@@ -4156,6 +4263,10 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return true;
 		}
 		return false;
@@ -4378,6 +4489,16 @@ public class Block implements GameObject
 		case BTStickyPistonHead:
 			draw(blockToWorld, true, false);
 			return;
+		case BTGunpowder:
+			drawImgAsEntity(blockToWorld, this.type.textures[this.data.intdata]);
+			return;
+		case BTTNT:
+			draw(blockToWorld, true, false);
+			return;
+		case BTBlazeRod:
+		case BTBlazePowder:
+			drawImgAsEntity(blockToWorld, this.type.textures[this.data.intdata]);
+			return;
 		}
 	}
 
@@ -4538,6 +4659,10 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 		{
 			Block b = new Block(this);
 			b.setLighting(0, 0, 15);
@@ -4861,6 +4986,22 @@ public class Block implements GameObject
 	        BlockType.BTPiston,
 	        BlockType.BTEmpty
 	    }, 2, BlockType.BTStickyPiston, 1),
+	    new ReduceStruct(new BlockType[]
+	    {
+	        BlockType.BTGunpowder,
+	        BlockType.BTSand,
+	        BlockType.BTGunpowder,
+	        BlockType.BTSand,
+	        BlockType.BTGunpowder,
+	        BlockType.BTSand,
+	        BlockType.BTGunpowder,
+	        BlockType.BTSand,
+	        BlockType.BTGunpowder
+	    }, 3, BlockType.BTTNT, 1),
+	    new ReduceStruct(new BlockType[]
+	    {
+		    BlockType.BTBlazeRod
+	    }, 1, BlockType.BTBlazePowder, 2),
 	};
 	private static final int reduceCount = reduceArray.length;
 
@@ -5246,6 +5387,12 @@ public class Block implements GameObject
 		case BTStickyPistonHead:
 			return solidAdjustPlayerPosition(position, getHeight(), distLimit);
 		case BTSlime:
+		case BTGunpowder:
+			return position;
+		case BTTNT:
+			return solidAdjustPlayerPosition(position, getHeight(), distLimit);
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return position;
 		}
 		return null;
@@ -5350,6 +5497,10 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return true;
 		}
 		return false;
@@ -5464,6 +5615,10 @@ public class Block implements GameObject
 		case BTLever:
 		case BTObsidian:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
 			                                              y + 0.5f,
 			                                              z + 0.5f),
@@ -5732,6 +5887,12 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+			return REDSTONE_POWER_NONE;
+		case BTTNT:
+			return REDSTONE_POWER_INPUT;
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return REDSTONE_POWER_NONE;
 		}
 		return REDSTONE_POWER_NONE;
@@ -5838,6 +5999,10 @@ public class Block implements GameObject
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return false;
 		case BTBedrock:
 		case BTChest:
@@ -6144,6 +6309,10 @@ public class Block implements GameObject
 		case BTStickyPiston:
 		case BTPistonHead:
 		case BTStickyPistonHead:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return true;
 		}
 		return true;
@@ -6387,6 +6556,10 @@ public class Block implements GameObject
 			return;
 		}
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return;
 		}
 	}
@@ -6606,6 +6779,10 @@ public class Block implements GameObject
 			return;
 		}
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return;
 		}
 	}
@@ -6633,5 +6810,13 @@ public class Block implements GameObject
 			throw new IOException("sunlight is out of range");
 		retval.internalRead(i);
 		return retval;
+	}
+
+	/**
+	 * @return true if this block is explodable
+	 */
+	public boolean isExplodable()
+	{
+		return this.type.isExplodable();
 	}
 }

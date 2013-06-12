@@ -277,14 +277,15 @@ public class Player implements GameObject
 			glColor3f(1, 1, 1);
 			glBegin(GL_QUADS);
 			glTexCoord2f(0, 0);
-			glVertex3f(-8, -8, workbenchZDist - 0.01f);
+			glVertex3f(-8, -8, workbenchZDist - 0.1f);
 			glTexCoord2f(1, 0);
-			glVertex3f(8, -8, workbenchZDist - 0.01f);
+			glVertex3f(8, -8, workbenchZDist - 0.1f);
 			glTexCoord2f(1, 1);
-			glVertex3f(8, 8, workbenchZDist - 0.01f);
+			glVertex3f(8, 8, workbenchZDist - 0.1f);
 			glTexCoord2f(0, 1);
-			glVertex3f(-8, 8, workbenchZDist - 0.01f);
+			glVertex3f(-8, 8, workbenchZDist - 0.1f);
 			glEnd();
+			glClear(GL_DEPTH_BUFFER_BIT);
 			for(int x = 0; x <= this.workbenchSize; x++)
 			{
 				for(int y = 0; y <= this.workbenchSize; y++)
@@ -383,6 +384,7 @@ public class Player implements GameObject
 			glVertex3f(maxx, maxy + 1, zdist);
 			glVertex3f(minx, maxy + 1, zdist);
 			glEnd();
+			glClear(GL_DEPTH_BUFFER_BIT);
 			final String title = "Chest";
 			final float titleScale = 0.5f;
 			Text.draw(Matrix.scale(titleScale)
@@ -475,14 +477,15 @@ public class Player implements GameObject
 			glColor3f(1, 1, 1);
 			glBegin(GL_QUADS);
 			glTexCoord2f(0, 0);
-			glVertex3f(-8, -8, furnaceZDist - 0.01f);
+			glVertex3f(-8, -8, furnaceZDist - 0.1f);
 			glTexCoord2f(1, 0);
-			glVertex3f(8, -8, furnaceZDist - 0.01f);
+			glVertex3f(8, -8, furnaceZDist - 0.1f);
 			glTexCoord2f(1, 1);
-			glVertex3f(8, 8, furnaceZDist - 0.01f);
+			glVertex3f(8, 8, furnaceZDist - 0.1f);
 			glTexCoord2f(0, 1);
-			glVertex3f(-8, 8, furnaceZDist - 0.01f);
+			glVertex3f(-8, 8, furnaceZDist - 0.1f);
 			glEnd();
+			glClear(GL_DEPTH_BUFFER_BIT);
 			Block furnace = world.getBlock(this.blockX,
 			                               this.blockY,
 			                               this.blockZ);
@@ -589,6 +592,7 @@ public class Player implements GameObject
 			break;
 		}
 		}
+		glClear(GL_DEPTH_BUFFER_BIT);
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 		Image.unselectTexture();
@@ -600,6 +604,7 @@ public class Player implements GameObject
 		glVertex3f(maxx, maxy, zdist);
 		glVertex3f(minx, maxy, zdist);
 		glEnd();
+		glClear(GL_DEPTH_BUFFER_BIT);
 		int blocktypecount = 0, blocktypeindex = -1;
 		for(int i = 1; i < BlockType.Count; i++)
 		{
@@ -1471,6 +1476,10 @@ public class Player implements GameObject
 					// TODO finish
 					world.setBlock(this.blockX, this.blockY, this.blockZ, b);
 					didAction = true;
+				}
+				else if(b != null && b.getType() == BlockType.BTTNT)
+				{
+					// TODO finish
 				}
 				if(didAction)
 					Main.play(Main.clickAudio);

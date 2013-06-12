@@ -2756,9 +2756,185 @@ public enum BlockType
 		}
 	},
 	/**
+	 * gunpowder
+	 */
+	BTGunpowder(60, false, BlockDrawType.BDTItem, new Image[]
+	{
+		new Image("gunpowder.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewGunpowder();
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
+	 * TNT
+	 */
+	BTTNT(61, false, BlockDrawType.BDTSolid, new Image[]
+	{
+		new Image("tnt.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewTNT();
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
+	 * blaze rod
+	 */
+	BTBlazeRod(62, false, BlockDrawType.BDTItem, new Image[]
+	{
+		new Image("blazerod.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewBlazeRod();
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
+	 * blaze powder
+	 */
+	BTBlazePowder(63, false, BlockDrawType.BDTItem, new Image[]
+	{
+		new Image("blazepowder.png")
+	})
+	{
+		@Override
+		public Block make(int orientation)
+		{
+			return Block.NewBlazePowder();
+		}
+
+		@Override
+		public int getLight()
+		{
+			return 0;
+		}
+
+		@Override
+		public boolean isDoubleSided()
+		{
+			return false;
+		}
+
+		@Override
+		public boolean isParticleGenerate()
+		{
+			return false;
+		}
+
+		@Override
+		public BlockType getSmeltResult()
+		{
+			return BTEmpty;
+		}
+
+		@Override
+		public int getBurnTime()
+		{
+			return 0;
+		}
+	},
+	/**
 	 * last block value, used to get <code>BlockType.Count</code>
 	 */
-	BTLast(60, false, BlockDrawType.BDTNone, null)
+	BTLast(64, false, BlockDrawType.BDTNone, null)
 	{
 		@Override
 		public Block make(int orientation)
@@ -3153,6 +3329,10 @@ public enum BlockType
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return -1;
 		}
 		return -1;
@@ -3253,6 +3433,10 @@ public enum BlockType
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return false;
 		}
 		return false;
@@ -3367,6 +3551,12 @@ public enum BlockType
 		case BTStickyPistonHead:
 			return 20;
 		case BTSlime:
+		case BTGunpowder:
+			return 5;
+		case BTTNT:
+			return 15;
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return 5;
 		}
 		return -1;
@@ -3477,6 +3667,14 @@ public enum BlockType
 			return 0;
 		case BTSlime:
 			return 5;
+		case BTGunpowder:
+			return 5;
+		case BTTNT:
+			return 0;
+		case BTBlazeRod:
+			return 1;
+		case BTBlazePowder:
+			return 0;
 		}
 		return 0;
 	}
@@ -3570,6 +3768,12 @@ public enum BlockType
 		case BTStickyPistonHead:
 			return false;
 		case BTSlime:
+		case BTGunpowder:
+			return true;
+		case BTTNT:
+			return false;
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return true;
 		}
 		return false;
@@ -3670,6 +3874,12 @@ public enum BlockType
 		case BTPistonHead:
 		case BTStickyPistonHead:
 		case BTSlime:
+		case BTGunpowder:
+			return false;
+		case BTTNT:
+			return true;
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return false;
 		}
 		return false;
@@ -3756,6 +3966,10 @@ public enum BlockType
 		case BTStickyPiston:
 		case BTPistonHead:
 		case BTStickyPistonHead:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
 			return false;
 		}
 		return false;
@@ -3799,6 +4013,96 @@ public enum BlockType
 	 */
 	public boolean use3DOrientation()
 	{
+		return false;
+	}
+
+	/**
+	 * @return true if this block is explodable
+	 */
+	public boolean isExplodable()
+	{
+		switch(this)
+		{
+		case BTSun:
+		case BTMoon:
+		case BTDeleteBlock:
+		case BTLast:
+			return false;
+		case BTEmpty:
+			return true;
+		case BTCoal:
+		case BTDiamond:
+		case BTDiamondPick:
+		case BTDiamondShovel:
+		case BTEmerald:
+		case BTGoldIngot:
+		case BTGoldPick:
+		case BTGoldShovel:
+		case BTIronIngot:
+		case BTIronPick:
+		case BTIronShovel:
+		case BTLapisLazuli:
+		case BTPlank:
+		case BTRedstoneBlock:
+		case BTRedstoneDustOff:
+		case BTRedstoneDustOn:
+		case BTRedstoneTorchOff:
+		case BTRedstoneTorchOn:
+		case BTSapling:
+		case BTStick:
+		case BTStoneButton:
+		case BTStonePick:
+		case BTStoneShovel:
+		case BTTorch:
+			return true;
+		case BTWater:
+			return false;
+		case BTWoodButton:
+		case BTWoodPick:
+		case BTWoodShovel:
+		case BTLadder:
+		case BTLever:
+		case BTSlime:
+		case BTLeaves:
+			return true;
+		case BTLava:
+			return false;
+		case BTGlass:
+			return true;
+		case BTBedrock:
+			return false;
+		case BTChest:
+		case BTCoalOre:
+		case BTCobblestone:
+		case BTDiamondOre:
+		case BTDirt:
+		case BTEmeraldOre:
+		case BTFurnace:
+		case BTGoldOre:
+		case BTGrass:
+		case BTGravel:
+		case BTIronOre:
+		case BTLapisLazuliOre:
+		case BTRedstoneOre:
+		case BTSand:
+		case BTStone:
+		case BTWood:
+		case BTWorkbench:
+		case BTRedstoneRepeaterOff:
+		case BTRedstoneRepeaterOn:
+			return true;
+		case BTObsidian:
+			return false;
+		case BTPiston:
+		case BTStickyPiston:
+		case BTPistonHead:
+		case BTStickyPistonHead:
+		case BTGunpowder:
+		case BTTNT:
+		case BTBlazeRod:
+		case BTBlazePowder:
+			return true;
+		}
 		return false;
 	}
 }
