@@ -935,11 +935,11 @@ public final class Main
 				return;
 		}
 		showProgressDialog("Saving...");
-		FileOutputStream fos = null;
+		OutputStream fos = null;
 		boolean needHide = true;
 		try
 		{
-			fos = new FileOutputStream(saveFile);
+			fos = new BufferedOutputStream(new FileOutputStream(saveFile));
 			DataOutputStream dos = new DataOutputStream(fos);
 			World.write(dos);
 			players.write(dos);
@@ -1003,11 +1003,11 @@ public final class Main
 			if(!getLoadFile())
 				return;
 			showProgressDialog("Loading...");
-			FileInputStream fis = null;
+			InputStream fis = null;
 			boolean needHide = true;
 			try
 			{
-				fis = new FileInputStream(saveFile);
+				fis = new BufferedInputStream(new FileInputStream(saveFile));
 				DataInputStream dis = new DataInputStream(fis);
 				World.read(dis);
 				PlayerList.read(dis);
