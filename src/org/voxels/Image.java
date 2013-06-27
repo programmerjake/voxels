@@ -27,10 +27,7 @@ import org.lwjgl.opengl.Display;
 import de.matthiasmann.twl.utils.PNGDecoder;
 import de.matthiasmann.twl.utils.PNGDecoder.Format;
 
-/**
- * @author jacob
- * 
- */
+/** @author jacob */
 public class Image
 {
 	private byte[] data;
@@ -38,8 +35,8 @@ public class Image
 	private boolean topToBottom;
 	private boolean alphaInvert;
 	private static final int BytesPerPixel = 4; // RGBA
-	private int texture;
-	private boolean validTexture;
+	protected int texture;
+	protected boolean validTexture;
 
 	private void SwapRows(int y1, int y2)
 	{
@@ -86,9 +83,7 @@ public class Image
 		}
 	}
 
-	/**
-	 * create an invalid <code>Image</code>
-	 */
+	/** create an invalid <code>Image</code> */
 	public Image()
 	{
 		this.data = null;
@@ -100,13 +95,11 @@ public class Image
 		this.validTexture = false;
 	}
 
-	/**
-	 * load an image from <code>filename</code><br/>
+	/** load an image from <code>filename</code><br/>
 	 * only supports loading from PNG images
 	 * 
 	 * @param filename
-	 *            the name of the image to load
-	 */
+	 *            the name of the image to load */
 	@SuppressWarnings("resource")
 	public Image(String filename)
 	{
@@ -119,6 +112,13 @@ public class Image
 			PNGDecoder decoder = new PNGDecoder(in);
 			this.w = decoder.getWidth();
 			this.h = decoder.getHeight();
+			if(Integer.bitCount(this.w) != 1 || Integer.bitCount(this.h) != 1) // must
+			                                                                   // be
+			                                                                   // power
+			                                                                   // of
+			                                                                   // two
+			                                                                   // sizes
+				throw new IOException();
 			ByteBuffer buf = ByteBuffer.wrap(new byte[4 * decoder.getWidth()
 			        * decoder.getHeight()]);
 			decoder.decode(buf, decoder.getWidth() * 4, Format.RGBA);
@@ -156,16 +156,31 @@ public class Image
 		}
 	}
 
-	/**
-	 * create a transparent image
+	/** create a transparent image
 	 * 
 	 * @param width
 	 *            the width of the new image
 	 * @param height
-	 *            the height of the new image
-	 */
+	 *            the height of the new image */
 	public Image(int width, int height)
 	{
+		if(Integer.bitCount(width) != 1 || Integer.bitCount(height) != 1) // must
+		                                                                  // be
+		                                                                  // a
+		                                                                  // power
+		                                                                  // of
+		                                                                  // 2
+		                                                                  // size
+		{
+			this.data = null;
+			this.w = 0;
+			this.h = 0;
+			this.topToBottom = false;
+			this.alphaInvert = false;
+			this.texture = 0;
+			this.validTexture = false;
+			return;
+		}
 		this.texture = 0;
 		this.validTexture = false;
 		this.topToBottom = false;
@@ -177,12 +192,10 @@ public class Image
 			this.data[i] = (byte)0xFF;
 	}
 
-	/**
-	 * create a copy of <code>rt</code>
+	/** create a copy of <code>rt</code>
 	 * 
 	 * @param rt
-	 *            the image to copy
-	 */
+	 *            the image to copy */
 	public Image(Image rt)
 	{
 		this.texture = 0;
@@ -201,9 +214,7 @@ public class Image
 			this.data = null;
 	}
 
-	/**
-	 * @return true if this image is valid
-	 */
+	/** @return true if this image is valid */
 	public boolean isValid()
 	{
 		if(this.data != null)
@@ -213,18 +224,14 @@ public class Image
 
 	private static int CurrentTexture = 0;
 
-	/**
-	 * select the default (blank) texture
-	 */
+	/** select the default (blank) texture */
 	public static void unselectTexture()
 	{
 		glBindTexture(GL_TEXTURE_2D, 0);
 		CurrentTexture = 0;
 	}
 
-	/**
-	 * call after calling glNewList
-	 */
+	/** call after calling glNewList */
 	public static void onListStart()
 	{
 		CurrentTexture = 0;
@@ -274,9 +281,7 @@ public class Image
 		this.validTexture = true;
 	}
 
-	/**
-	 * selects this image as the current texture
-	 */
+	/** selects this image as the current texture */
 	public void selectTexture()
 	{
 		if(!this.validTexture)
@@ -288,9 +293,7 @@ public class Image
 		}
 	}
 
-	/**
-	 * @return true if this is selected as the current texture
-	 */
+	/** @return true if this is selected as the current texture */
 	public boolean isSelected()
 	{
 		if(!this.validTexture)
@@ -298,14 +301,10 @@ public class Image
 		return this.texture == CurrentTexture;
 	}
 
-	/**
-	 * the size that an image used as an icon must be
-	 */
+	/** the size that an image used as an icon must be */
 	public final int IconSize = 32;
 
-	/**
-	 * sets this image as the window's icon
-	 */
+	/** sets this image as the window's icon */
 	public void setWindowIcon()
 	{
 		if(this.data == null)
@@ -320,16 +319,14 @@ public class Image
 		});
 	}
 
-	/**
-	 * get the color of a pixel
+	/** get the color of a pixel
 	 * 
 	 * @param x
 	 *            x coordinate from left
 	 * @param y
 	 *            y coordinate from top
 	 * @return the color of the pixel or transparent white if (<code>x</code>,
-	 *         <code>y</code>) is outside of the image
-	 */
+	 *         <code>y</code>) is outside of the image */
 	public Color getPixel(int x, int y)
 	{
 		if(this.data == null || x < 0 || x >= this.w || y < 0 || y >= this.h)
@@ -346,16 +343,14 @@ public class Image
 		                 this.data[index + 3]);
 	}
 
-	/**
-	 * set the color of a pixel
+	/** set the color of a pixel
 	 * 
 	 * @param x
 	 *            x coordinate from left
 	 * @param y
 	 *            y coordinate from top
 	 * @param c
-	 *            the new color of the pixel
-	 */
+	 *            the new color of the pixel */
 	public void setPixel(int x, int y, Color c)
 	{
 		if(this.data == null || x < 0 || x >= this.w || y < 0 || y >= this.h)
@@ -372,9 +367,7 @@ public class Image
 		this.data[index + 3] = c.a;
 	}
 
-	/**
-	 * destroy this image
-	 */
+	/** destroy this image */
 	public void destroy()
 	{
 		this.data = null;
@@ -389,5 +382,65 @@ public class Image
 		}
 		glDeleteTextures(this.texture);
 		this.validTexture = false;
+		this.texture = 0;
+	}
+
+	/** @return this image's width */
+	public int getWidth()
+	{
+		return this.w;
+	}
+
+	/** @return this image's height */
+	public int getHeight()
+	{
+		return this.h;
+	}
+
+	private static class ConstantImage extends Image
+	{
+		public ConstantImage(Image rt)
+		{
+			super(rt);
+		}
+
+		@Override
+		public void setPixel(int x, int y, Color c)
+		{
+		}
+
+		@Override
+		public void destroy()
+		{
+			if(isSelected())
+				unselectTexture();
+			glDeleteTextures(this.texture);
+			this.validTexture = false;
+			this.texture = 0;
+		}
+
+		@Override
+		public boolean isModifiable()
+		{
+			return false;
+		}
+	}
+
+	/** @return true if this image is modifiable */
+	public boolean isModifiable()
+	{
+		return true;
+	}
+
+	/** makes a unmodifiable copy of an image
+	 * 
+	 * @param img
+	 *            the image to copy
+	 * @return the unmodifiable copy of <code>img</code> */
+	public static Image unmodifiable(Image img)
+	{
+		if(img != null && img.isModifiable())
+			return new ConstantImage(img);
+		return img;
 	}
 }

@@ -16,22 +16,18 @@
  */
 package org.voxels;
 
-/**
- * @author jacob
- * 
- */
+/** @author jacob */
 public interface GameObject
 {
-	/**
-	 * draw this object
+	/** draw this object
 	 * 
+	 * @param rs
+	 *            the rendering stream to draw to
 	 * @param worldToCamera
 	 *            Matrix that transforms world coordinates to camera coordinates
-	 */
-	public void draw(Matrix worldToCamera);
+	 * @return <code>rs</code> */
+	public RenderingStream draw(RenderingStream rs, Matrix worldToCamera);
 
-	/**
-	 * move this object
-	 */
+	/** move this object */
 	public void move();
 }

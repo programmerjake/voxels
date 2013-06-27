@@ -23,19 +23,12 @@ import static org.voxels.World.world;
 import java.io.*;
 import java.net.Socket;
 
-/**
- * @author jacob
- * 
- */
+/** @author jacob */
 public final class PlayerList
 {
-	/**
-	 * the global player list
-	 */
+	/** the global player list */
 	static public PlayerList players = new PlayerList();
-	/**
-	 * the number of players in multiplayer
-	 */
+	/** the number of players in multiplayer */
 	static public int PlayerCount = 0;
 	private static final int hashPrime = 8191;
 
@@ -203,9 +196,7 @@ public final class PlayerList
 		init();
 	}
 
-	/**
-	 * @return the front player
-	 */
+	/** @return the front player */
 	public Player front()
 	{
 		if(this.head == null)
@@ -213,9 +204,7 @@ public final class PlayerList
 		return this.head.p;
 	}
 
-	/**
-	 * @return the front player's name
-	 */
+	/** @return the front player's name */
 	public String getFrontName()
 	{
 		if(this.head == null)
@@ -223,9 +212,7 @@ public final class PlayerList
 		return this.head.name;
 	}
 
-	/**
-	 * draw from the perspective of the front player
-	 */
+	/** draw from the perspective of the front player */
 	public void draw()
 	{
 		if(this.head == null)
@@ -246,23 +233,24 @@ public final class PlayerList
 		}
 	}
 
-	/**
-	 * draw all the players
+	/** draw all the players
 	 * 
+	 * @param rs
+	 *            the rendering stream
 	 * @param worldToCamera
 	 *            Matrix that transforms world coordinates to camera coordinates
-	 */
-	public void drawPlayers(Matrix worldToCamera)
+	 * @return <code>rs</code> */
+	public RenderingStream
+	    drawPlayers(RenderingStream rs, Matrix worldToCamera)
 	{
 		for(Node pnode = this.head; pnode != null; pnode = pnode.next)
 		{
-			pnode.p.draw(worldToCamera);
+			pnode.p.draw(rs, worldToCamera);
 		}
+		return rs;
 	}
 
-	/**
-	 * check for all entities hitting player
-	 */
+	/** check for all entities hitting player */
 	public void entityCheckHitPlayers()
 	{
 		if(PlayerCount > 0 && !Main.isServer)
@@ -275,13 +263,11 @@ public final class PlayerList
 		}
 	}
 
-	/**
-	 * get a player by name
+	/** get a player by name
 	 * 
 	 * @param name
 	 *            the name to look for
-	 * @return the player found or <code>null</code> if no player matches
-	 */
+	 * @return the player found or <code>null</code> if no player matches */
 	public Player getPlayer(String name)
 	{
 		Node node = findPlayer(name);
@@ -290,23 +276,19 @@ public final class PlayerList
 		return node.p;
 	}
 
-	/**
-	 * add a default player with no name and no password
-	 */
+	/** add a default player with no name and no password */
 	public void addDefaultPlayer()
 	{
 		insertPlayer(new Player(), null, "", "");
 	}
 
-	/**
-	 * @param mouseX
+	/** @param mouseX
 	 *            mouse x position
 	 * @param mouseY
 	 *            mouse y position
 	 * @param mouseLButton
 	 *            if the mouse's left button is pressed
-	 * @return true to move mouse to center
-	 */
+	 * @return true to move mouse to center */
 	public boolean
 	    handleMouseMove(int mouseX, int mouseY, boolean mouseLButton)
 	{
@@ -315,10 +297,8 @@ public final class PlayerList
 		return front().handleMouseMove(mouseX, mouseY, mouseLButton);
 	}
 
-	/**
-	 * @param event
-	 *            the event to handle
-	 */
+	/** @param event
+	 *            the event to handle */
 	public void handleMouseUpDown(final Main.MouseEvent event)
 	{
 		if(this.head == null)
@@ -326,9 +306,7 @@ public final class PlayerList
 		front().handleMouseUpDown(event);
 	}
 
-	/**
-	 * move all the players
-	 */
+	/** move all the players */
 	public void move()
 	{
 		if(this.head == null)
@@ -336,10 +314,8 @@ public final class PlayerList
 		front().move();
 	}
 
-	/**
-	 * @param event
-	 *            the event to handle
-	 */
+	/** @param event
+	 *            the event to handle */
 	public void handleKeyboardEvent(Main.KeyboardEvent event)
 	{
 		if(this.head == null)
@@ -347,14 +323,12 @@ public final class PlayerList
 		front().handleKeyboardEvent(event);
 	}
 
-	/**
-	 * write to a <code>DataOutput</code>
+	/** write to a <code>DataOutput</code>
 	 * 
 	 * @param o
 	 *            <code>DataOutput</code> to write to
 	 * @throws IOException
-	 *             the exception thrown
-	 */
+	 *             the exception thrown */
 	public void write(DataOutput o) throws IOException
 	{
 		if(this.head == null)
@@ -362,22 +336,19 @@ public final class PlayerList
 		front().write(o);
 	}
 
-	/**
-	 * read from a <code>DataInput</code>
+	/** read from a <code>DataInput</code>
 	 * 
 	 * @param i
 	 *            <code>DataInput</code> to read from
 	 * @throws IOException
-	 *             the exception thrown
-	 */
+	 *             the exception thrown */
 	public static void read(DataInput i) throws IOException
 	{
 		players.clear();
 		players.insertPlayer(Player.read(i), null, "", "");
 	}
 
-	/**
-	 * push all players inside of &lt;<code>bx</code>, <code>by</code>,
+	/** push all players inside of &lt;<code>bx</code>, <code>by</code>,
 	 * <code>bz</code>&gt; out in the direction &lt;<code>dx</code>,
 	 * <code>dy</code>, <code>dz</code>&gt;
 	 * 
@@ -392,8 +363,7 @@ public final class PlayerList
 	 * @param dy
 	 *            y coordinate of the direction to push
 	 * @param dz
-	 *            z coordinate of the direction to push
-	 */
+	 *            z coordinate of the direction to push */
 	public void push(int bx, int by, int bz, int dx, int dy, int dz)
 	{
 		if(PlayerCount > 0 && !Main.isServer)

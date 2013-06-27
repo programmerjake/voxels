@@ -19,33 +19,28 @@ package org.voxels;
 import static org.voxels.Color.V;
 import static org.voxels.Color.VA;
 
-/**
- * @author jacob
- * 
- */
+/** @author jacob */
 public class SmokeSimulation extends FireSimulation
 {
-	/**
-	 * create a new SmokeSimulation
-	 */
-	public SmokeSimulation()
-	{
-		super(0.8f, 25);
-	}
+    /** create a new SmokeSimulation */
+    public SmokeSimulation()
+    {
+        super(0.8f, 10);
+    }
 
-	@Override
-	protected Color getValueToColor(float v)
-	{
-		if(v > fRand(0.1f, 1.0f))
-			return V((1.0f - v) / 2.0f);
-		return VA(0, 1.0f);
-	}
+    @Override
+    protected Color getValueToColor(float v)
+    {
+        if(v > fRand(0.1f, 1.1f))
+            return V((1.0f - v) / 2.0f);
+        return VA(0, 1.0f);
+    }
 
-	@Override
-	protected float getShrinkTerm(int y)
-	{
-		return Math.max(0, Height - y)
-		        / fRand(Height * 4.0f * 35.0f / 32.0f,
-		                Height * 4.0f * 45.0f / 32.0f);
-	}
+    @Override
+    protected float getShrinkTerm(int y)
+    {
+        return Math.max(0, Height - y)
+                / fRand(Height * 4.0f * 35.0f / 32.0f,
+                        Height * 4.0f * 45.0f / 32.0f);
+    }
 }
