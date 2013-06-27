@@ -3349,10 +3349,10 @@ public class Block implements GameObject
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         {
-            if(this.data.intdata != 0)
+            if(this.data.intdata > 0)
             {
                 Block retval = new Block(this);
-                retval.data.intdata = 0;
+                retval.data.intdata--;
                 return retval;
             }
         }
@@ -6797,10 +6797,7 @@ public class Block implements GameObject
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         {
-            if(i.readBoolean())
-                this.data.intdata = 1;
-            else
-                this.data.intdata = 0;
+            this.data.intdata = i.readUnsignedByte();
             return;
         }
         }
@@ -7423,6 +7420,6 @@ public class Block implements GameObject
      */
     public void pressurePlatePress()
     {
-        this.data.intdata = 1;
+        this.data.intdata = 4;
     }
 }
