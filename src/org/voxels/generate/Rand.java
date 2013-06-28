@@ -551,7 +551,8 @@ public class Rand
 
     void fillCaveChunk(CaveChunk cc)
     {
-        final float caveProb = 2.0f;
+        // final float caveProb = 2.0f;
+        final float caveProb = 10.0f;
         for(int x = 0; x < CaveChunk.size; x++)
         {
             for(int z = 0; z < CaveChunk.size; z++)
@@ -663,9 +664,8 @@ public class Rand
                                 case Cylinder3:
                                 case Cylinder4:
                                 {
-                                    dir.y *= 4;
-                                    dir.y = Math.round(dir.y);
-                                    dir.y /= 16;
+                                    dir = new Vector(dir);
+                                    dir.y = 1 / 3f;
                                     dir = dir.normalize();
                                     Vector p = dir.mul(0.95f * dir.dot(new Vector(dx,
                                                                                   dy,

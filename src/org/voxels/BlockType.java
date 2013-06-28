@@ -2441,7 +2441,7 @@ public enum BlockType
         }
     },
     /** piston */
-    BTPiston(55, false, BlockDrawType.BDTCustom,
+    BTPiston(55, true, BlockDrawType.BDTCustom,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("piston.png")),
@@ -2497,7 +2497,7 @@ public enum BlockType
         }
     },
     /** sticky piston */
-    BTStickyPiston(56, false, BlockDrawType.BDTCustom,
+    BTStickyPiston(56, true, BlockDrawType.BDTCustom,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("stickypiston.png")),
@@ -2730,7 +2730,7 @@ public enum BlockType
         }
     },
     /** TNT */
-    BTTNT(61, false, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
+    BTTNT(61, true, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
     {
         TextureAtlas.addImage(new Image("tnt.png"))
     })

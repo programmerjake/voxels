@@ -564,7 +564,7 @@ public class Entity implements GameObject
                 this.position = hitObstructionRetval;
                 this.data.velocity = new Vector(0);
             }
-            if(!moveToNearestEmptySpace(new Vector(-0.5f), 1.0f))
+            if(!moveToNearestEmptySpace(new Vector(0.5f), 1.0f))
             {
                 world.addExplosion(x, y, z, TNTStrength);
                 clear();

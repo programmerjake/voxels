@@ -1714,8 +1714,8 @@ public class Player implements GameObject
             Vector origvelocity = new Vector(this.velocity);
             if(isFlying)
             {
-                float newMag = this.velocity.abs()
-                        - (float)Main.getFrameDuration();
+                float newMag = this.velocity.abs() - 15
+                        * (float)Main.getFrameDuration();
                 if(newMag <= 0)
                     this.velocity = new Vector(0);
                 else
