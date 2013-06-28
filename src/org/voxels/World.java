@@ -1208,15 +1208,20 @@ public class World
     /** draw the world
      * 
      * @param renderingStream
-     *            the rendering stream to render
+     *            the opaque rendering stream to render
+     * @param transparentRenderingStream
+     *            the transparent rendering stream to render
      * @param worldToCamera
      *            the transformation from world coordinates to camera
      *            coordinates */
-    public void draw(RenderingStream renderingStream, Matrix worldToCamera)
+    public void draw(RenderingStream renderingStream,
+                     RenderingStream transparentRenderingStream,
+                     Matrix worldToCamera)
     {
         RenderingStream rs[] = new RenderingStream[Chunk.drawPhaseCount];
         rs[0] = renderingStream;
-        for(int i = 1; i < Chunk.drawPhaseCount; i++)
+        rs[1] = transparentRenderingStream;
+        for(int i = 2; i < Chunk.drawPhaseCount; i++)
             rs[i] = new RenderingStream();
         Vector cameraPos = worldToCamera.invert().apply(new Vector(0));
         int cameraX = (int)Math.floor(cameraPos.x);

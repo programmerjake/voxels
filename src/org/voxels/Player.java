@@ -215,6 +215,7 @@ public class Player implements GameObject
     {
         Matrix worldToCamera = getWorldToCamera();
         RenderingStream rs = new RenderingStream();
+        RenderingStream trs = new RenderingStream();
         players.drawPlayers(rs, worldToCamera);
         if(this.state == State.Normal)
         {
@@ -222,12 +223,12 @@ public class Player implements GameObject
             if(this.deleteAnimTime >= 0)
             {
                 b = Block.NewDeleteAnim(this.deleteAnimTime);
-                b.draw(rs,
+                b.draw(trs,
                        Matrix.translate(this.blockX, this.blockY, this.blockZ)
                              .concat(worldToCamera));
             }
         }
-        world.draw(rs, worldToCamera); // must call draw world first
+        world.draw(rs, trs, worldToCamera); // must call draw world first
         if(this.state == State.Normal)
         {
             Block b = getSelectedBlock();
@@ -1707,10 +1708,20 @@ public class Player implements GameObject
         {
         case Normal:
         {
+            boolean isFlying = Main.isKeyDown(Main.KEY_F);
             boolean inWater = isInWater();
             boolean inLadder = isInLadder();
             Vector origvelocity = new Vector(this.velocity);
-            if(inWater)
+            if(isFlying)
+            {
+                float newMag = this.velocity.abs()
+                        - (float)Main.getFrameDuration();
+                if(newMag <= 0)
+                    this.velocity = new Vector(0);
+                else
+                    this.velocity = this.velocity.normalize().mul(newMag);
+            }
+            else if(inWater)
             {
                 Vector acc = this.velocity.mul(-(float)Main.getFrameDuration());
                 Vector newvel = this.velocity.add(acc);
@@ -1748,7 +1759,9 @@ public class Player implements GameObject
                 this.velocity = new Vector(0);
             }
             Vector forwardVec;
-            if(inWater)
+            if(isFlying)
+                forwardVec = getForwardVector();
+            else if(inWater)
                 forwardVec = getForwardVector();
             else if(inLadder)
             {
@@ -1779,7 +1792,7 @@ public class Player implements GameObject
                     isMoving = true;
                 }
             }
-            if(inWater && !isMoving)
+            if(!isFlying && inWater && !isMoving)
             {
                 this.velocity.y -= World.GravityAcceleration
                         * (float)Main.getFrameDuration() * 0.25f;
