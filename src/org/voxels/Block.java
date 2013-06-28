@@ -5450,6 +5450,12 @@ public class Block implements GameObject
         return this.type.isSupporting();
     }
 
+    /** @return true if this block is solid */
+    public boolean isSolid()
+    {
+        return this.type.isSolid();
+    }
+
     /** @return true if this block can be dug */
     public boolean canDig()
     {

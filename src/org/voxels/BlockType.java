@@ -3873,6 +3873,112 @@ public enum BlockType
         return false;
     }
 
+    /** @return true if this block is solid */
+    public boolean isSolid()
+    {
+        switch(this)
+        {
+        case BTDeleteBlock:
+        case BTSun:
+        case BTMoon:
+        case BTLast:
+            return false;
+        case BTEmpty:
+            return false;
+        case BTStone:
+        case BTCobblestone:
+        case BTGrass:
+        case BTDirt:
+            return true;
+        case BTSapling:
+            return false;
+        case BTBedrock:
+            return true;
+        case BTWater:
+        case BTLava:
+            return false;
+        case BTSand:
+        case BTGravel:
+        case BTWood:
+        case BTLeaves:
+        case BTGlass:
+        case BTChest:
+        case BTWorkbench:
+        case BTFurnace:
+            return true;
+        case BTPlank:
+        case BTStick:
+        case BTWoodPick:
+        case BTStonePick:
+        case BTWoodShovel:
+        case BTStoneShovel:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+            return false;
+        case BTRedstoneOre:
+        case BTRedstoneBlock:
+            return true;
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTStoneButton:
+        case BTWoodButton:
+            return false;
+        case BTCoal:
+            return false;
+        case BTCoalOre:
+            return true;
+        case BTIronIngot:
+            return false;
+        case BTIronOre:
+            return true;
+        case BTLapisLazuli:
+            return false;
+        case BTLapisLazuliOre:
+            return true;
+        case BTGoldIngot:
+            return false;
+        case BTGoldOre:
+            return true;
+        case BTDiamond:
+            return false;
+        case BTDiamondOre:
+            return true;
+        case BTEmerald:
+            return false;
+        case BTEmeraldOre:
+            return true;
+        case BTTorch:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTLadder:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTLever:
+            return false;
+        case BTObsidian:
+        case BTPiston:
+        case BTStickyPiston:
+            return true;
+        case BTPistonHead:
+        case BTStickyPistonHead:
+        case BTSlime:
+        case BTGunpowder:
+            return false;
+        case BTTNT:
+            return true;
+        case BTBlazeRod:
+        case BTBlazePowder:
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
+            return false;
+        }
+        return false;
+    }
+
     /** @return the growing time for this sapling */
     public double getGrowTime()
     {

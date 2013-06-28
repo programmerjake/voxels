@@ -23,8 +23,7 @@ import static org.voxels.Matrix.glLoadMatrix;
 import static org.voxels.PlayerList.players;
 
 import java.io.*;
-import java.util.Random;
-import java.util.WeakHashMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voxels.generate.*;
@@ -1121,7 +1120,7 @@ public class World
         }
     }
 
-    private WeakHashMap<BlockWrapper, RenderingStream> blockCache = new WeakHashMap<World.BlockWrapper, RenderingStream>();
+    private Map<BlockWrapper, RenderingStream> blockCache = new HashMap<World.BlockWrapper, RenderingStream>();
 
     private void drawBlock(RenderingStream rs,
                            int x,
@@ -1139,7 +1138,7 @@ public class World
         getLightingArray(x, y, z);
         b = getBlock(x, y, z);
         BlockWrapper bw = new BlockWrapper(b, x, y, z);
-        final boolean USE_CACHE = true; // TODO fix
+        final boolean USE_CACHE = false; // TODO fix
         RenderingStream blockRenderingStream = null;
         boolean canCache = b.isCacheable(x, y, z) && USE_CACHE;
         if(canCache)
@@ -1800,11 +1799,13 @@ public class World
     private BlockHitDescriptor
         internalGetPointedAtBlock(final Vector pos_in,
                                   final Vector dir_in,
-                                  float maxDist,
+                                  float maxDist_in,
                                   boolean getBlockRightBefore,
                                   boolean calcPassThruWater,
                                   boolean passThruWater_in)
     {
+        final float maxDist = Float.isNaN(maxDist_in) ? 128
+                : Math.max(0, Math.min(128, maxDist_in));
         int finishx = 0, finishy = 0, finishz = 0, orientation = -1;
         Vector pos = new Vector(pos_in);
         Vector dir = new Vector(dir_in);

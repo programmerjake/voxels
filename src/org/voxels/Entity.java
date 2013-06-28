@@ -279,7 +279,60 @@ public class Entity implements GameObject
         return null;
     }
 
-    private static final float TNTStrength = 5 * 6 * 7 * 7 * 7;
+    private static final float TNTStrength = 5 * 6 * 6 * 7 * 7 * 7;
+
+    private boolean canBeInBlock(Block b)
+    {
+        if(b == null)
+            return false;
+        return !b.isSolid();
+    }
+
+    /** @param deltaPos
+     *            the value that you add to <code>this.position</code> to get
+     *            the actual position
+     * @param size
+     *            the size of this entity
+     * @return if this entity can move to any block */
+    private boolean moveToNearestEmptySpace(Vector deltaPos, float size)
+    {
+        int px = (int)Math.floor(this.position.x + deltaPos.x);
+        int py = (int)Math.floor(this.position.y + deltaPos.y);
+        int pz = (int)Math.floor(this.position.z + deltaPos.z);
+        if(canBeInBlock(world.getBlockEval(px, py, pz)))
+            return true;
+        for(int dist = 1; dist < 64; dist++)
+        {
+            for(int dx = -dist; dx <= dist; dx++)
+            {
+                for(int dy = -dist; dy <= dist; dy++)
+                {
+                    for(int dz = -dist; dz <= dist; dz++)
+                    {
+                        if(Math.max(Math.max(Math.abs(dx), Math.abs(dy)),
+                                    Math.abs(dz)) != dist)
+                            dz = dist;
+                        int x = px + dx, y = py + dy, z = pz + dz;
+                        if(canBeInBlock(world.getBlockEval(x, y, z)))
+                        {
+                            Vector pos = new Vector(x + 0.5f,
+                                                    y + 0.5f,
+                                                    z + 0.5f);
+                            Vector dir = this.position.add(deltaPos).sub(pos);
+                            float magnitude = Math.max(dir.x,
+                                                       Math.max(dir.y, dir.z));
+                            if(magnitude == 0)
+                                magnitude = 1;
+                            dir = dir.mul(Math.max(0, 1.0f - size) / magnitude);
+                            this.position = pos.add(dir).sub(deltaPos);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
     @Override
     public void move()
@@ -347,6 +400,11 @@ public class Entity implements GameObject
                         this.position = hitObstructionRetval;
                         this.data.velocity = new Vector(0);
                     }
+                    if(!moveToNearestEmptySpace(new Vector(0), 1.0f / 7))
+                    {
+                        clear();
+                        return;
+                    }
                     if(this.position.y < miny)
                     {
                         this.position.y = miny;
@@ -381,6 +439,11 @@ public class Entity implements GameObject
                     {
                         this.position = hitObstructionRetval;
                         this.data.velocity = new Vector(0);
+                    }
+                    if(!moveToNearestEmptySpace(new Vector(0), 1.0f / 7))
+                    {
+                        clear();
+                        return;
                     }
                 }
             }
@@ -500,6 +563,12 @@ public class Entity implements GameObject
             {
                 this.position = hitObstructionRetval;
                 this.data.velocity = new Vector(0);
+            }
+            if(!moveToNearestEmptySpace(new Vector(-0.5f), 1.0f))
+            {
+                world.addExplosion(x, y, z, TNTStrength);
+                clear();
+                return;
             }
             this.data.velocity = this.data.velocity.add(new Vector(0,
                                                                    -GravityAcceleration
