@@ -86,11 +86,22 @@ public class RenderingStream
             return this;
         }
 
+        private static final TextureAtlas.TextureHandle whiteTexture = TextureAtlas.addImage(new Image(Color.RGB(1.0f,
+                                                                                                                 1.0f,
+                                                                                                                 1.0f)));
+        /**
+         * 
+         */
+        public static final TextureAtlas.TextureHandle NO_TEXTURE = null;
+
         /** @param texture
-         *            the polygon's texture */
+         *            the polygon's texture or <code>NO_TEXTURE</code> */
         public Polygon(TextureAtlas.TextureHandle texture)
         {
-            this.texture = texture;
+            if(texture == NO_TEXTURE)
+                this.texture = whiteTexture;
+            else
+                this.texture = texture;
         }
 
         /** construct a copy of a polygon
@@ -162,6 +173,60 @@ public class RenderingStream
         return this;
     }
 
+    /** insert a new rectangle from &lt;<code>x1</code>, <code>y1</code>, 0&gt;
+     * to &lt;<code>x2</code>, <code>y2</code>, 0&gt;
+     * 
+     * @param x1
+     *            the first point's x coordinate
+     * @param y1
+     *            the first point's y coordinate
+     * @param x2
+     *            the second point's x coordinate
+     * @param y2
+     *            the second point's y coordinate
+     * @param u1
+     *            the first point's u coordinate
+     * @param v1
+     *            the first point's v coordinate
+     * @param u2
+     *            the second point's u coordinate
+     * @param v2
+     *            the second point's v coordinate
+     * @param color
+     *            the new rectangle's color
+     * @param texture
+     *            the texture or <code>Polygon.NO_TEXTURE</code>
+     * @return <code>this</code> */
+    public RenderingStream addRect(float x1,
+                                   float y1,
+                                   float x2,
+                                   float y2,
+                                   float u1,
+                                   float v1,
+                                   float u2,
+                                   float v2,
+                                   Color color,
+                                   TextureAtlas.TextureHandle texture)
+    {
+        Polygon p1 = new Polygon(texture);
+        p1.addVertex(new Vector(x1, y1, 0), u1, v1, color);
+        p1.addVertex(new Vector(x2, y1, 0), u2, v1, color);
+        p1.addVertex(new Vector(x2, y2, 0), u2, v2, color);
+        add(p1);
+        Polygon p2 = new RenderingStream.Polygon(texture);
+        p2.addVertex(new Vector(x2, y2, 0), u2, v2, color);
+        p2.addVertex(new Vector(x1, y2, 0), u1, v2, color);
+        p2.addVertex(new Vector(x1, y1, 0), u1, v1, color);
+        add(p2);
+        return this;
+    }
+
+    /** @return the current matrix */
+    public Matrix getMatrix()
+    {
+        return new Matrix(this.matrixStack.getFirst());
+    }
+
     /**
 	 * 
 	 */
@@ -177,7 +242,7 @@ public class RenderingStream
         if(mat == null)
             throw new NullPointerException();
         this.matrixStack.removeFirst();
-        this.matrixStack.addFirst(mat);
+        this.matrixStack.addFirst(new Matrix(mat));
     }
 
     /** @param mat

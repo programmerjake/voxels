@@ -381,12 +381,13 @@ public final class Main
 
     private static void generateGame()
     {
+        saveFile = null;
         World.clear();
         players.clear();
         players.addDefaultPlayer();
         if(DEBUG)
         {
-            for(int i = 0; i < 1000; i++)
+            for(int i = 0; i < 10000; i++)
             {
                 players.front().giveBlock(BlockType.BTChest);
                 players.front().giveBlock(BlockType.BTFurnace);
@@ -406,10 +407,16 @@ public final class Main
                 players.front().giveBlock(BlockType.BTRedstoneDustOff);
                 players.front().giveBlock(BlockType.BTRedstoneTorchOff);
                 players.front().giveBlock(BlockType.BTLever);
+                players.front().giveBlock(BlockType.BTStonePressurePlate);
+                players.front().giveBlock(BlockType.BTWoodPressurePlate);
                 players.front().giveBlock(BlockType.BTLava);
+                players.front().giveBlock(BlockType.BTWater);
+                players.front().giveBlock(BlockType.BTObsidian);
                 players.front().giveBlock(BlockType.BTStone);
                 players.front().giveBlock(BlockType.BTRedstoneRepeaterOff);
-                players.front().giveBlock(BlockType.BTStickyPiston);
+                players.front().giveBlock(BlockType.BTSlime);
+                players.front().giveBlock(BlockType.BTSlime);
+                players.front().giveBlock(BlockType.BTPiston);
                 players.front().giveBlock(BlockType.BTPiston);
                 players.front().giveBlock(BlockType.BTSand);
                 players.front().giveBlock(BlockType.BTGunpowder);
@@ -427,6 +434,293 @@ public final class Main
                 players.front().giveBlock(BlockType.BTGoldPick);
             }
         }
+        didLoad = true;
+    }
+
+    private static boolean isFullscreen = false;
+    private static double curTime;
+    private static double lastFrameStartTime;
+
+    /** @param menu
+     *            the menu to run */
+    public static void runMenu(MenuScreen menu)
+    {
+        Mouse.setGrabbed(false);
+        boolean done = false;
+        while(!done)
+        {
+            setFullscreen(isFullscreen);
+            menu.draw();
+            Display.update();
+            {
+                while(Mouse.next())
+                {
+                    MouseEvent event = new MouseEvent();
+                    if(event.isDown)
+                        menu.onClick((float)event.mouseX / ScreenXRes * 2f - 1f,
+                                     1f - (float)event.mouseY / ScreenYRes * 2f);
+                }
+                while(Keyboard.next())
+                {
+                    KeyboardEvent event = new KeyboardEvent();
+                    if(event.isDown && event.key == KEY_F4
+                            && isKeyDown(KEY_ALT))
+                    {
+                        done = true;
+                        continue;
+                    }
+                    if(event.isDown && event.key == KEY_F11)
+                    {
+                        isFullscreen = !isFullscreen;
+                        continue;
+                    }
+                }
+                int mouseX = Mouse.getX();
+                int mouseY = Display.getHeight() - Mouse.getY() - 1;
+                menu.onMouseOver((float)mouseX / ScreenXRes * 2f - 1f, 1f
+                        - (float)mouseY / ScreenYRes * 2f);
+            }
+            Display.sync(60);
+            curTime = Timer();
+            frameDuration = curTime - lastFrameStartTime;
+            internalSaveAll();
+            lastFrameStartTime = curTime;
+            if(menu.isDone())
+                done = true;
+            if(Display.isCloseRequested())
+                done = true;
+        }
+    }
+
+    private static void runOptionsMenu()
+    {
+        runMenu(new MenuScreen(Color.V(0.75f))
+        {
+            @Override
+            protected void drawBackground(Matrix tform)
+            {
+                super.drawBackground(tform);
+                String str = "Options";
+                float xScale = 2f / 40f;
+                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
+                                .concat(Matrix.translate(-xScale
+                                                                 / 2f
+                                                                 * Text.sizeW(str)
+                                                                 / Text.sizeW("A"),
+                                                         0.7f,
+                                                         0))
+                                .concat(tform),
+                          Color.RGB(0, 0, 0),
+                          str);
+            }
+
+            {
+                add(new CheckMenuItem("Debug Mode",
+                                      Color.RGB(0f, 0f, 0f),
+                                      this.getBackgroundColor(),
+                                      Color.RGB(0f, 0f, 0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public void setChecked(boolean checked)
+                    {
+                        Main.DEBUG = checked;
+                    }
+
+                    @Override
+                    public boolean isChecked()
+                    {
+                        return Main.DEBUG;
+                    }
+                });
+                add(new TextMenuItem("Return To Main Menu",
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        this.container.close();
+                    }
+                });
+            }
+        });
+    }
+
+    @SuppressWarnings("synthetic-access")
+    private static void runMainMenu()
+    {
+        runMenu(new MenuScreen(Color.RGB(0.75f, 0.75f, 0.75f))
+        {
+            @Override
+            protected void drawBackground(Matrix tform)
+            {
+                super.drawBackground(tform);
+                String str = "Main Menu";
+                float xScale = 2f / 40f;
+                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
+                                .concat(Matrix.translate(-xScale
+                                                                 / 2f
+                                                                 * Text.sizeW(str)
+                                                                 / Text.sizeW("A"),
+                                                         0.7f,
+                                                         0))
+                                .concat(tform),
+                          Color.RGB(0, 0, 0),
+                          str);
+            }
+
+            {
+                add(new TextMenuItem("New Game",
+                                     Color.RGB(0f, 0f, 0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0f, 0f, 0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        if(didLoad)
+                        {
+                            saveAll();
+                            internalSaveAll();
+                        }
+                        generateGame();
+                        this.container.close();
+                    }
+                });
+                add(new TextMenuItem("Load Game",
+                                     Color.RGB(0f, 0f, 0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0f, 0f, 0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        if(didLoad)
+                        {
+                            saveAll();
+                            internalSaveAll();
+                        }
+                        didLoad = false;
+                        loadAll();
+                        if(didLoad)
+                            this.container.close();
+                    }
+                });
+                if(didLoad)
+                {
+                    add(new TextMenuItem("Save Game",
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         this.getBackgroundColor(),
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         Color.RGB(0.0f, 0.0f, 1.0f),
+                                         this)
+                    {
+                        @Override
+                        public void onMouseOver(float mouseX, float mouseY)
+                        {
+                            select();
+                        }
+
+                        @Override
+                        public void onClick(float mouseX, float mouseY)
+                        {
+                            saveAll();
+                        }
+                    });
+                    add(new TextMenuItem("Return To Game",
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         this.getBackgroundColor(),
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         Color.RGB(0.0f, 0.0f, 1.0f),
+                                         this)
+                    {
+                        @Override
+                        public void onMouseOver(float mouseX, float mouseY)
+                        {
+                            select();
+                        }
+
+                        @Override
+                        public void onClick(float mouseX, float mouseY)
+                        {
+                            this.container.close();
+                        }
+                    });
+                }
+                add(new TextMenuItem("Quit Game",
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        if(Main.didLoad)
+                        {
+                            saveAll();
+                            internalSaveAll();
+                        }
+                        AL.destroy();
+                        Display.destroy();
+                        System.exit(0);
+                    }
+                });
+                add(new TextMenuItem("Options",
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        runOptionsMenu();
+                    }
+                });
+            }
+        });
     }
 
     /** @param args
@@ -439,9 +733,6 @@ public final class Main
                 DEBUG = true;
         }
         init();
-        loadAll();
-        if(!didLoad)
-            generateGame();
         try
         {
             DisplayMode[] modes = Display.getAvailableDisplayModes();
@@ -469,10 +760,17 @@ public final class Main
             e.printStackTrace();
             System.exit(1);
         }
-        boolean isFullscreen = false;
+        isFullscreen = false;
         boolean done = false;
-        double lastFrameStartTime = Timer();
-        double curTime = Timer();
+        lastFrameStartTime = Timer();
+        curTime = Timer();
+        runMainMenu();
+        if(!didLoad)
+        {
+            AL.destroy();
+            Display.destroy();
+            System.exit(0);
+        }
         while(!done)
         {
             setFullscreen(isFullscreen);
@@ -496,6 +794,11 @@ public final class Main
                     if(event.isDown && event.key == KEY_F11)
                     {
                         isFullscreen = !isFullscreen;
+                        continue;
+                    }
+                    if(event.isDown && event.key == KEY_P)
+                    {
+                        runMainMenu();
                         continue;
                     }
                     players.handleKeyboardEvent(event);
@@ -808,13 +1111,14 @@ public final class Main
 
     private static boolean didLoad = false;
 
-    private static void loadAll()
+    private static boolean loadAll()
     {
         boolean done = false;
+        boolean retval = false;
         while(!done)
         {
             if(!getLoadFile())
-                return;
+                return false;
             showProgressDialog("Loading...");
             InputStream fis = null;
             boolean needHide = true;
@@ -829,6 +1133,7 @@ public final class Main
                 needHide = false;
                 done = true;
                 didLoad = true;
+                retval = true;
             }
             catch(EOFException e)
             {
@@ -865,6 +1170,7 @@ public final class Main
                     hideProgressDialog();
             }
         }
+        return retval;
     }
 
     private Main()
