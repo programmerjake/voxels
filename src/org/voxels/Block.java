@@ -1700,6 +1700,7 @@ public class Block implements GameObject
                      isAsItem,
                      false);
         }
+        if(!isAsItem)
         {
             Vector p1 = localToWorld.apply(new Vector(0.5f, 0, 0));
             Vector p2 = localToWorld.apply(new Vector(0.5f, 0, 1));
@@ -4747,15 +4748,10 @@ public class Block implements GameObject
             drawBlockAsItem(rs, blockToWorld);
             return rs;
         case BTSapling:
-            drawItem(rs,
-                     Matrix.identity(),
-                     blockToWorld,
-                     0,
-                     0,
-                     0,
-                     this.type.textures[/*this.data.intdata*/0],
-                     false,
-                     true); // TODO finish
+            draw(rs,
+                 Matrix.translate(0, 0, -0.5f).concat(blockToWorld),
+                 false,
+                 true);
             return rs;
         case BTPlank:
         case BTStick:
@@ -8068,6 +8064,10 @@ public class Block implements GameObject
         {
         case BTWood:
             return NewWood(treeGetTreeType(), orientation);
+        case BTLeaves:
+            return NewLeaves(treeGetTreeType());
+        case BTSapling:
+            return NewSapling(treeGetTreeType());
         default:
             return this.type.make(orientation, vieworientation);
         }

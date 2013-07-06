@@ -19,6 +19,7 @@ package org.voxels;
 import java.io.*;
 import java.util.*;
 
+import org.voxels.generate.Tree;
 import org.voxels.generate.Tree.TreeType;
 
 /** @author jacob */
@@ -280,6 +281,13 @@ public enum BlockType
         public int getBurnTime()
         {
             return 3;
+        }
+
+        @Override
+        protected void addToCreativeModeBlockList(List<Block> list)
+        {
+            for(int i = 0; i < Tree.TreeType.values().length; i++)
+                list.add(Block.NewSapling(Tree.TreeType.values()[i]));
         }
     },
     /** bedrock block */
@@ -546,6 +554,13 @@ public enum BlockType
         {
             return 50;
         }
+
+        @Override
+        protected void addToCreativeModeBlockList(List<Block> list)
+        {
+            for(int i = 0; i < Tree.TreeType.values().length; i++)
+                list.add(Block.NewWood(Tree.TreeType.values()[i], 0));
+        }
     },
     /** leaves block */
     BTLeaves(12, false, BlockDrawType.BDTCustom,
@@ -588,6 +603,13 @@ public enum BlockType
         public int getBurnTime()
         {
             return 20;
+        }
+
+        @Override
+        protected void addToCreativeModeBlockList(List<Block> list)
+        {
+            for(int i = 0; i < Tree.TreeType.values().length; i++)
+                list.add(Block.NewLeaves(Tree.TreeType.values()[i]));
         }
     },
     /** glass block */
