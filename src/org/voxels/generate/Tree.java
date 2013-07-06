@@ -18,235 +18,514 @@ package org.voxels.generate;
 
 import static org.voxels.World.world;
 
+import java.util.Random;
+
 import org.voxels.*;
 
-/**
- * @author jacob
- * 
- */
+/** @author jacob */
 public final class Tree
 {
-	/**
-	 * @author jacob
-	 * 
-	 */
-	public static enum TreeBlockKind
-	{
-		/**
-		 * 
-		 */
-		None, /**
-		 * 
-		 */
-		Wood, /**
-		 * 
-		 */
-		Leaves;
-		/**
-		 * @param a
-		 *            first <code>TreeBlockKind</code> to combine
-		 * @param b
-		 *            second <code>TreeBlockKind</code> to combine
-		 * @return the resulting <code>TreeBlockKind</code>
-		 */
-		public static TreeBlockKind combine(TreeBlockKind a, TreeBlockKind b)
-		{
-			if(a == None && b == None)
-				return None;
-			if(a == Wood || b == Wood)
-				return Wood;
-			return Leaves;
-		}
+    /** @author jacob */
+    public static enum TreeType
+    {
+        /**
+         * 
+         */
+        Oak, /**
+         * 
+         */
+        Birch, /**
+         * 
+         */
+        Spruce, /**
+         * 
+         */
+        Jungle
+    }
 
-		/**
-		 * @param b
-		 *            the original block
-		 * @param tbk
-		 *            the <code>TreeBlockKind</code>
-		 * @return the resulting block
-		 */
-		public static Block combine(Block b, TreeBlockKind tbk)
-		{
-			if(tbk == None)
-				return b;
-			if(tbk == Leaves)
-			{
-				if(b.getType() == BlockType.BTWood
-				        || b.getType() == BlockType.BTLeaves)
-					return b;
-				return Block.NewLeaves();
-			}
-			if(b.getType() == BlockType.BTWood)
-				return b;
-			return Block.NewWood();
-		}
-	}
+    private final TreeType treeType;
+    /**
+     * 
+     */
+    public static final int maxXZExtent = 10;
+    /**
+     * 
+     */
+    public static final int maxYExtent = 32;
+    /** the x and z extents <BR/>
+     * -<code>XZExtent</code> &le; x &le; <code>XZExtent</code> <BR/>
+     * -<code>XZExtent</code> &le; z &le; <code>XZExtent</code> <BR/> */
+    public final int XZExtent;
+    /** the y extent<br/>
+     * 0 &le; y &le; <code>YExtent</code> */
+    public final int YExtent;
+    private BlockType blocks[];
 
-	private static final float leavesScaleFactor = 0.7f;
-	private static final int treeHeightMin = 5;
-	private static final int treeHeightMax = 9;
+    private BlockType getBlockTypeInternal(int x_in, int y, int z_in)
+    {
+        int x = x_in, z = z_in;
+        x += this.XZExtent;
+        z += this.XZExtent;
+        if(x < 0 || x >= this.XZExtent * 2 + 1 || y < 0
+                || y >= this.YExtent + 1 || z < 0 || z >= this.XZExtent * 2 + 1)
+            return BlockType.BTEmpty;
+        BlockType retval = this.blocks[x + (this.XZExtent * 2 + 1)
+                * (y + (this.YExtent + 1) * z)];
+        if(retval == null)
+            return BlockType.BTEmpty;
+        return retval;
+    }
 
-	/**
-	 * @param t
-	 *            the random input. must be 0 &lt; <code>t</code> &lt; 1
-	 * @return the resulting tree height
-	 */
-	public static int getTreeHeight(float t)
-	{
-		float retval = treeHeightMin + (treeHeightMax - treeHeightMin)
-		        * Math.max(0, Math.min(1, t));
-		return Math.round(retval);
-	}
+    /** @param x
+     *            the x coordinate relative to the base of the tree
+     * @param y
+     *            the y coordinate relative to the base of the tree
+     * @param z
+     *            the z coordinate relative to the base of the tree
+     * @return the block type */
+    public BlockType getBlockType(int x, int y, int z)
+    {
+        return getBlockTypeInternal(x, y, z);
+    }
 
-	private Tree()
-	{
-	}
+    private int getWoodOrientation(int x, int y, int z)
+    {
+        if(getBlockType(x, y - 1, z) == BlockType.BTWood
+                || getBlockType(x, y + 1, z) == BlockType.BTWood)
+            return 0; // ±y sides without bark
+        if(getBlockType(x - 1, y, z) == BlockType.BTWood
+                || getBlockType(x + 1, y, z) == BlockType.BTWood)
+            return 1; // ±x sides without bark
+        if(getBlockType(x, y, z - 1) == BlockType.BTWood
+                || getBlockType(x, y, z + 1) == BlockType.BTWood)
+            return 2; // ±z sides without bark
+        return 3; // all sides without bark
+    }
 
-	/**
-	 * @param treeHeight
-	 *            the tree height
-	 * @return the tree's minimum x coordinate
-	 */
-	public static int getTreeMinX(int treeHeight)
-	{
-		return -Math.round(leavesScaleFactor * treeHeight);
-	}
+    /** @param x
+     *            the block's x coordinate
+     * @param y
+     *            the block's y coordinate
+     * @param z
+     *            the block's z coordinate
+     * @return the block */
+    public Block getBlock(int x, int y, int z)
+    {
+        BlockType bt = getBlockType(x, y, z);
+        if(bt == BlockType.BTEmpty)
+            return null;
+        if(bt == BlockType.BTWood)
+            return Block.NewWood(this.treeType, getWoodOrientation(x, y, z));
+        if(bt == BlockType.BTLeaves)
+            return Block.NewLeaves(this.treeType, 0);
+        return bt.make(-1);
+    }
 
-	/**
-	 * @param treeHeight
-	 *            the tree height
-	 * @return the tree's maximum x coordinate
-	 */
-	public static int getTreeMaxX(int treeHeight)
-	{
-		return Math.round(leavesScaleFactor * treeHeight);
-	}
+    private boolean setBlockType(int x_in, int y, int z_in, BlockType bt)
+    {
+        int x = x_in, z = z_in;
+        x += this.XZExtent;
+        z += this.XZExtent;
+        if(x < 0 || x >= this.XZExtent * 2 + 1 || y < 0
+                || y >= this.YExtent + 1 || z < 0 || z >= this.XZExtent * 2 + 1)
+            return false;
+        this.blocks[x + (this.XZExtent * 2 + 1) * (y + (this.YExtent + 1) * z)] = bt;
+        return true;
+    }
 
-	/**
-	 * @param treeHeight
-	 *            the tree height
-	 * @return the tree's minimum y coordinate
-	 */
-	public static int getTreeMinY(int treeHeight)
-	{
-		return 0;
-	}
+    private BlockType[] makeBlocksArray()
+    {
+        return new BlockType[(this.XZExtent * 2 + 1) * (this.YExtent + 1)
+                * (this.XZExtent * 2 + 1)];
+    }
 
-	/**
-	 * @param treeHeight
-	 *            the tree height
-	 * @return the tree's maximum y coordinate
-	 */
-	public static int getTreeMaxY(int treeHeight)
-	{
-		return Math.round(leavesScaleFactor * treeHeight) + treeHeight;
-	}
+    private void generateLeaves(int x, int y, int z)
+    {
+        if(this.treeType == TreeType.Jungle)
+        {
+            final int sz = 4;
+            for(int dx = -sz; dx <= sz; dx++)
+                for(int dy = 0; dy <= sz; dy++)
+                    for(int dz = -sz; dz <= sz; dz++)
+                        if(dx * dx + dy * dy * 2 * 2 + dz * dz < (sz + 1)
+                                * (sz + 1))
+                            if(getBlockType(x + dx, y + dy, z + dz) != BlockType.BTWood)
+                                setBlockType(x + dx,
+                                             y + dy,
+                                             z + dz,
+                                             BlockType.BTLeaves);
+            return;
+        }
+        final int sz = 1;
+        for(int dx = -sz; dx <= sz; dx++)
+            for(int dy = -sz; dy <= sz; dy++)
+                for(int dz = -sz; dz <= sz; dz++)
+                    if(dx * dx + dy * dy + dz * dz < (sz + 1) * (sz + 1))
+                        if(getBlockType(x + dx, y + dy, z + dz) != BlockType.BTWood)
+                            setBlockType(x + dx,
+                                         y + dy,
+                                         z + dz,
+                                         BlockType.BTLeaves);
+    }
 
-	/**
-	 * @param treeHeight
-	 *            the tree height
-	 * @return the tree's minimum z coordinate
-	 */
-	public static int getTreeMinZ(int treeHeight)
-	{
-		return -Math.round(leavesScaleFactor * treeHeight);
-	}
+    private void generateTreeBranch(int x_in,
+                                    int y_in,
+                                    int z_in,
+                                    Random rand,
+                                    int dx_in,
+                                    int dz_in)
+    {
+        int x = x_in, y = y_in, z = z_in;
+        int dx = dx_in, dz = dz_in;
+        while(true)
+        {
+            if(getBlockType(x, y, z) == BlockType.BTWood)
+                return;
+            if(!setBlockType(x, y, z, BlockType.BTWood))
+                return;
+            generateLeaves(x, y, z);
+            if(rand.nextInt(4) == 0 || y >= this.YExtent - 1)
+                return;
+            dx += rand.nextInt(3) - 1;
+            dz += rand.nextInt(3) - 1;
+            Vector v = new Vector(dx, 1, dz).normalize();
+            int ndx = Math.round(v.x);
+            int ndy = Math.round(v.y);
+            int ndz = Math.round(v.z);
+            x += ndx;
+            y += ndy;
+            z += ndz;
+        }
+    }
 
-	/**
-	 * @param treeHeight
-	 *            the tree height
-	 * @return the tree's maximum z coordinate
-	 */
-	public static int getTreeMaxZ(int treeHeight)
-	{
-		return Math.round(leavesScaleFactor * treeHeight);
-	}
+    private void generateLargeBranchedTree(Random rand, boolean isBigTrunk)
+    {
+        for(int y = 0; y <= this.YExtent - 2; y++)
+        {
+            if(isBigTrunk)
+            {
+                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                    generateTreeBranch(0, y, 0, rand, -1, -1);
+                else
+                    setBlockType(0, y, 0, BlockType.BTWood);
+                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                    generateTreeBranch(1, y, 0, rand, 1, -1);
+                else
+                    setBlockType(1, y, 0, BlockType.BTWood);
+                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                    generateTreeBranch(1, y, 1, rand, 1, 1);
+                else
+                    setBlockType(1, y, 1, BlockType.BTWood);
+                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                    generateTreeBranch(0, y, 1, rand, -1, 1);
+                else
+                    setBlockType(0, y, 1, BlockType.BTWood);
+            }
+            else if(y >= this.YExtent / 3 && rand.nextInt(3) == 0)
+                generateTreeBranch(0, y, 0, rand, 0, 0);
+            else
+                setBlockType(0, y, 0, BlockType.BTWood);
+        }
+    }
 
-	/**
-	 * the maximum coordinate value
-	 */
-	public static final int maximumExtent = getTreeMaxY(treeHeightMax);
+    private void makeLeafRing(int y, int r)
+    {
+        for(int x = -r; x <= r; x++)
+        {
+            for(int z = -r; z <= r; z++)
+            {
+                if(x == 0 && z == 0)
+                    setBlockType(x, y, z, BlockType.BTWood);
+                else if(x * x + z * z < (r + 0.25f) * (r + 0.25f))
+                    if(getBlockType(x, y, z) != BlockType.BTWood)
+                        setBlockType(x, y, z, BlockType.BTLeaves);
+            }
+        }
+    }
 
-	/**
-	 * @param dx
-	 *            x coordinate
-	 * @param dy
-	 *            y coordinate
-	 * @param dz
-	 *            z coordinate
-	 * @param treeHeight
-	 *            tree height
-	 * @return the <code>TreeBlockKind</code>
-	 */
-	public static TreeBlockKind getTreeShape(int dx,
-	                                         int dy,
-	                                         int dz,
-	                                         int treeHeight)
-	{
-		int treeLeavesSize = Math.round(leavesScaleFactor * treeHeight);
-		if(dx == 0 && dz == 0 && dy >= 0 && dy <= treeHeight + treeLeavesSize)
-			return TreeBlockKind.Wood;
-		int yp = dy - treeHeight - treeLeavesSize;
-		if(dx * dx + yp * yp + dz * dz < treeLeavesSize * treeLeavesSize)
-			return TreeBlockKind.Leaves;
-		return TreeBlockKind.None;
-	}
+    /** @param treeType
+     *            the tree type
+     * @param t
+     *            the random parameter */
+    public Tree(TreeType treeType, float t)
+    {
+        this.treeType = treeType;
+        Random rand = new Random((long)(t * Math.PI * 100000.0));
+        switch(treeType)
+        {
+        case Birch:
+            this.XZExtent = 2;
+            this.YExtent = 5 + rand.nextInt(7 - 5 + 1);
+            this.blocks = makeBlocksArray();
+            for(int y = 0; y <= this.YExtent; y++)
+            {
+                switch(this.YExtent - y)
+                {
+                case 0:
+                    setBlockType(0, y, 0, BlockType.BTLeaves);
+                    setBlockType(-1, y, 0, BlockType.BTLeaves);
+                    setBlockType(0, y, -1, BlockType.BTLeaves);
+                    setBlockType(1, y, 0, BlockType.BTLeaves);
+                    setBlockType(0, y, 1, BlockType.BTLeaves);
+                    break;
+                case 1:
+                    setBlockType(0, y, 0, BlockType.BTWood);
+                    setBlockType(-1, y, 0, BlockType.BTLeaves);
+                    setBlockType(0, y, -1, BlockType.BTLeaves);
+                    setBlockType(1, y, 0, BlockType.BTLeaves);
+                    setBlockType(0, y, 1, BlockType.BTLeaves);
+                    if(rand.nextBoolean())
+                        setBlockType(-1, y, -1, BlockType.BTLeaves);
+                    if(rand.nextBoolean())
+                        setBlockType(1, y, -1, BlockType.BTLeaves);
+                    if(rand.nextBoolean())
+                        setBlockType(1, y, 1, BlockType.BTLeaves);
+                    if(rand.nextBoolean())
+                        setBlockType(-1, y, 1, BlockType.BTLeaves);
+                    break;
+                case 2:
+                case 3:
+                    for(int x = -2; x <= 2; x++)
+                    {
+                        for(int z = -2; z <= 2; z++)
+                        {
+                            if(Math.abs(x) == 2 && Math.abs(z) == 2
+                                    && rand.nextBoolean())
+                                continue;
+                            setBlockType(x, y, z, BlockType.BTLeaves);
+                        }
+                    }
+                    setBlockType(0, y, 0, BlockType.BTWood);
+                    break;
+                default:
+                    setBlockType(0, y, 0, BlockType.BTWood);
+                    break;
+                }
+            }
+            break;
+        case Jungle:
+            if(rand.nextFloat() >= 0.1)
+            {
+                this.XZExtent = 5;
+                this.YExtent = 12 + rand.nextInt(16 - 12 + 1);
+                this.blocks = makeBlocksArray();
+                generateLargeBranchedTree(rand, false);
+            }
+            else
+            {
+                this.XZExtent = maxXZExtent;
+                this.YExtent = maxYExtent;
+                this.blocks = makeBlocksArray();
+                generateLargeBranchedTree(rand, true);
+            }
+            break;
+        case Spruce:
+            switch(rand.nextInt(10))
+            {
+            case 0:
+            {
+                this.XZExtent = 1;
+                this.YExtent = 15 + rand.nextInt(17 - 15 + 1);
+                this.blocks = makeBlocksArray();
+                int leavesHeight = 2 + rand.nextInt(4);
+                for(int y = 0; y <= this.YExtent; y++)
+                {
+                    if(this.YExtent - y == 0)
+                    {
+                        setBlockType(0, y, 0, BlockType.BTLeaves);
+                        setBlockType(-1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, -1, BlockType.BTLeaves);
+                        setBlockType(1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, 1, BlockType.BTLeaves);
+                    }
+                    else if(this.YExtent - y < leavesHeight)
+                    {
+                        setBlockType(0, y, 0, BlockType.BTWood);
+                        setBlockType(-1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, -1, BlockType.BTLeaves);
+                        setBlockType(1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, 1, BlockType.BTLeaves);
+                    }
+                    else
+                    {
+                        setBlockType(0, y, 0, BlockType.BTWood);
+                    }
+                }
+                break;
+            }
+            case 1:
+            {
+                this.XZExtent = 5;
+                this.YExtent = 15 + rand.nextInt(17 - 15 + 1);
+                this.blocks = makeBlocksArray();
+                int leavesHeight = this.YExtent - 2 - rand.nextInt(2);
+                for(int y = 0; y <= this.YExtent; y++)
+                {
+                    if(this.YExtent - y == 0)
+                    {
+                        setBlockType(0, y, 0, BlockType.BTLeaves);
+                        setBlockType(-1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, -1, BlockType.BTLeaves);
+                        setBlockType(1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, 1, BlockType.BTLeaves);
+                    }
+                    else if(this.YExtent - y < leavesHeight)
+                    {
+                        makeLeafRing(y, (this.YExtent - y) % 2 == 0 ? 1 : 2);
+                    }
+                    else
+                    {
+                        setBlockType(0, y, 0, BlockType.BTWood);
+                    }
+                }
+                break;
+            }
+            default:
+            {
+                this.XZExtent = 5;
+                this.YExtent = 7 + rand.nextInt(9 - 7 + 1);
+                this.blocks = makeBlocksArray();
+                int leavesHeight = this.YExtent - 2 - rand.nextInt(2);
+                for(int y = 0; y <= this.YExtent; y++)
+                {
+                    if(this.YExtent - y == 0)
+                    {
+                        setBlockType(0, y, 0, BlockType.BTLeaves);
+                        setBlockType(-1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, -1, BlockType.BTLeaves);
+                        setBlockType(1, y, 0, BlockType.BTLeaves);
+                        setBlockType(0, y, 1, BlockType.BTLeaves);
+                    }
+                    else if(this.YExtent - y < leavesHeight)
+                    {
+                        makeLeafRing(y, ((this.YExtent - y) % 2 == 0) ? 1 : 2);
+                    }
+                    else
+                    {
+                        setBlockType(0, y, 0, BlockType.BTWood);
+                    }
+                }
+                break;
+            }
+            }
+            break;
+        case Oak:
+        default:
+        {
+            if(rand.nextFloat() >= 0.5) // TODO change back to 0.1
+            {
+                this.XZExtent = 3;
+                this.YExtent = 7 + rand.nextInt(9 - 7 + 1);
+                this.blocks = makeBlocksArray();
+                for(int y = 0; y <= this.YExtent - 2; y++)
+                {
+                    setBlockType(0, y, 0, BlockType.BTWood);
+                }
+                for(int y = this.YExtent - 5; y <= this.YExtent; y++)
+                {
+                    int dy = y - (this.YExtent - 3);
+                    int sz = 4 - Math.abs(dy);
+                    for(int x = -sz; x <= sz; x++)
+                        for(int z = -sz; z <= sz; z++)
+                            if(getBlockType(x, y, z) == BlockType.BTEmpty)
+                                setBlockType(x, y, z, BlockType.BTLeaves);
+                }
+            }
+            else
+            {
+                this.XZExtent = maxXZExtent;
+                this.YExtent = 15;
+                this.blocks = makeBlocksArray();
+                generateLargeBranchedTree(rand, false);
+            }
+        }
+        }
+    }
 
-	/**
-	 * generate a tree
-	 * 
-	 * @param type
-	 *            the sapling generating this tree
-	 * @param tx
-	 *            the tree's x coordinate
-	 * @param ty
-	 *            the tree's y coordinate
-	 * @param tz
-	 *            the tree's z coordinate
-	 * @param treeHeight
-	 *            the tree's height
-	 */
-	public static void generate(Block type,
-	                            int tx,
-	                            int ty,
-	                            int tz,
-	                            int treeHeight)
-	{
-		for(int dx = getTreeMinX(treeHeight); dx <= getTreeMaxX(treeHeight); dx++)
-		{
-			for(int dy = getTreeMinY(treeHeight); dy <= getTreeMaxY(treeHeight); dy++)
-			{
-				for(int dz = getTreeMinZ(treeHeight); dz <= getTreeMaxZ(treeHeight); dz++)
-				{
-					int x = tx + dx, y = ty + dy, z = tz + dz;
-					Block b = world.getBlockEval(x, y, z);
-					if(b == null)
-						continue;
-					b = TreeBlockKind.combine(b,
-					                          getTreeShape(dx,
-					                                       dy,
-					                                       dz,
-					                                       treeHeight));
-					world.setBlock(x, y, z, b);
-				}
-			}
-		}
-	}
+    /** generate a tree
+     * 
+     * @param type
+     *            the sapling generating this tree
+     * @param tx
+     *            the tree's x coordinate
+     * @param ty
+     *            the tree's y coordinate
+     * @param tz
+     *            the tree's z coordinate
+     * @param t
+     *            the tree's random parameter
+     * @return if this tree generated */
+    public static boolean generate(Block type, int tx, int ty, int tz, float t)
+    {
+        Tree tree = new Tree(type.treeGetTreeType(), t);
+        for(int dx = -tree.XZExtent; dx <= tree.XZExtent; dx++)
+        {
+            for(int dy = 0; dy <= tree.YExtent; dy++)
+            {
+                for(int dz = -tree.XZExtent; dz <= tree.XZExtent; dz++)
+                {
+                    int x = tx + dx, y = ty + dy, z = tz + dz;
+                    Block b = world.getBlockEval(x, y, z);
+                    BlockType blockType = tree.getBlockType(x, y, z);
+                    if(blockType == BlockType.BTEmpty)
+                        continue;
+                    if(b == null)
+                        return false;
+                    BlockType.Replaceability replaceability;
+                    if(blockType == BlockType.BTWood)
+                        replaceability = b.getReplaceability(true);
+                    else
+                        replaceability = b.getReplaceability(false);
+                    if(replaceability == BlockType.Replaceability.CanNotGrow)
+                        return false;
+                }
+            }
+        }
+        for(int dx = -tree.XZExtent; dx <= tree.XZExtent; dx++)
+        {
+            for(int dy = 0; dy <= tree.YExtent; dy++)
+            {
+                for(int dz = -tree.XZExtent; dz <= tree.XZExtent; dz++)
+                {
+                    int x = tx + dx, y = ty + dy, z = tz + dz;
+                    Block b = world.getBlockEval(x, y, z);
+                    BlockType blockType = tree.getBlockType(x, y, z);
+                    if(blockType == BlockType.BTEmpty)
+                        continue;
+                    if(b == null)
+                        return false;
+                    BlockType.Replaceability replaceability;
+                    if(blockType == BlockType.BTWood)
+                        replaceability = b.getReplaceability(true);
+                    else
+                        replaceability = b.getReplaceability(false);
+                    if(replaceability == BlockType.Replaceability.CanNotGrow)
+                        return false;
+                    if(replaceability == BlockType.Replaceability.Replace)
+                    {
+                        b = tree.getBlock(x, y, z);
+                        if(b != null)
+                            world.setBlock(x, y, z, b);
+                    }
+                }
+            }
+        }
+        return true;
+    }
 
-	/**
-	 * generate a tree with a random height
-	 * 
-	 * @param type
-	 *            the sapling generating this tree
-	 * @param tx
-	 *            the tree's x coordinate
-	 * @param ty
-	 *            the tree's y coordinate
-	 * @param tz
-	 *            the tree's z coordinate
-	 */
-	public static void generate(Block type, int tx, int ty, int tz)
-	{
-		generate(type, tx, ty, tz, getTreeHeight(World.fRand(0, 1)));
-	}
+    /** generate a tree with a random height
+     * 
+     * @param type
+     *            the sapling generating this tree
+     * @param tx
+     *            the tree's x coordinate
+     * @param ty
+     *            the tree's y coordinate
+     * @param tz
+     *            the tree's z coordinate */
+    public static void generate(Block type, int tx, int ty, int tz)
+    {
+        if(!generate(type, tx, ty, tz, World.fRand(0, 1)))
+            world.setBlock(tx, ty, tz, type);
+    }
 }

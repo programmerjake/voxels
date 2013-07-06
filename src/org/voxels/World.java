@@ -23,7 +23,7 @@ import static org.voxels.Matrix.glLoadMatrix;
 import static org.voxels.PlayerList.players;
 
 import java.io.*;
-import java.util.*;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voxels.generate.*;
@@ -37,7 +37,7 @@ public class World
      * <code>-Depth &lt;= y &lt; Height</code>
      * 
      * @see #Depth */
-    public static final int Height = 64;
+    public static final int Height = 10000;
     /** the maximum depth<br/>
      * <code>-Depth &lt;= y &lt; Height</code>
      * 
@@ -46,10 +46,20 @@ public class World
     /** gravitational acceleration */
     public static final float GravityAcceleration = 9.8f;
     private static long randSeed = new Random().nextLong();
-    private static final int viewDist = 10;
+    static int viewDist = 10;
     private long displayListValidTag = 0;
-    private Rand landGenerator = Rand.create();
+    private Rand.Settings landGeneratorSettings = null;
+    private Rand landGenerator = Rand.create(this.landGeneratorSettings);
     private static final int generatedChunkScale = 1 << 0; // must be power of 2
+
+    /** @param landGeneratorSettings
+     *            the new land generator settings */
+    public void setLandGeneratorSettings(Rand.Settings landGeneratorSettings)
+    {
+        this.landGeneratorSettings = landGeneratorSettings;
+        this.landGenerator = Rand.create(this.landGenerator.getSeed(),
+                                         this.landGeneratorSettings);
+    }
 
     /** generate a random <code>float</code>
      * 
@@ -1074,9 +1084,9 @@ public class World
         }
         if(!chunkPassClipPlane(p, 0, 0, 1, 0))
             return false;
-        if(!chunkPassClipPlane(p, -1, 0, 1, 0))
+        if(!chunkPassClipPlane(p, -1 / Main.aspectRatio, 0, 1, 0))
             return false;
-        if(!chunkPassClipPlane(p, 1, 0, 1, 0))
+        if(!chunkPassClipPlane(p, 1 / Main.aspectRatio, 0, 1, 0))
             return false;
         if(!chunkPassClipPlane(p, 0, -1, 1, 0))
             return false;
@@ -1084,43 +1094,6 @@ public class World
             return false;
         return true;
     }
-
-    private static final class BlockWrapper
-    {
-        public final Block block;
-        public final int bx, by, bz;
-
-        @Override
-        public boolean equals(Object obj)
-        {
-            if(obj == null || !(obj instanceof BlockWrapper))
-                return false;
-            BlockWrapper rt = (BlockWrapper)obj;
-            return this.block.drawsSame(this.bx,
-                                        this.by,
-                                        this.bz,
-                                        rt.block,
-                                        rt.bx,
-                                        rt.by,
-                                        rt.bz);
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return this.block.getDrawHashcode(this.bx, this.by, this.bz);
-        }
-
-        public BlockWrapper(Block block, int bx, int by, int bz)
-        {
-            this.block = block;
-            this.bx = bx;
-            this.by = by;
-            this.bz = bz;
-        }
-    }
-
-    private Map<BlockWrapper, RenderingStream> blockCache = new HashMap<World.BlockWrapper, RenderingStream>();
 
     private void drawBlock(RenderingStream rs,
                            int x,
@@ -1137,24 +1110,7 @@ public class World
             return;
         getLightingArray(x, y, z);
         b = getBlock(x, y, z);
-        BlockWrapper bw = new BlockWrapper(b, x, y, z);
-        final boolean USE_CACHE = false; // TODO fix
-        RenderingStream blockRenderingStream = null;
-        boolean canCache = b.isCacheable(x, y, z) && USE_CACHE;
-        if(canCache)
-            blockRenderingStream = this.blockCache.get(bw);
-        if(blockRenderingStream == null)
-        {
-            blockRenderingStream = new RenderingStream();
-            blockRenderingStream.setMatrix(Matrix.translate(-x, -y, -z));
-            b.draw(blockRenderingStream, Matrix.translate(x, y, z));
-            if(canCache)
-                this.blockCache.put(bw, blockRenderingStream);
-        }
-        rs.pushMatrixStack();
-        rs.concatMatrix(Matrix.translate(x, y, z));
-        rs.add(blockRenderingStream);
-        rs.popMatrixStack();
+        b.draw(rs, Matrix.translate(x, y, z));
     }
 
     private void drawChunk(RenderingStream rs,
@@ -1235,20 +1191,20 @@ public class World
         Block sunb = Block.NewSun();
         Block moonb = Block.NewMoon();
         if(!this.sunPosition.equals(new Vector(0)))
-            sunb.drawAsItem(new RenderingStream(),
-                            Matrix.translate(cameraPos.add(new Vector(-0.5f,
-                                                                      -0.5f,
-                                                                      -0.5f))
-                                                      .add(this.sunPosition.normalize()
-                                                                           .mul(10.0f))))
+            sunb.drawAsEntity(new RenderingStream(),
+                              Matrix.translate(cameraPos.add(new Vector(-0.5f,
+                                                                        -0.5f,
+                                                                        -0.5f))
+                                                        .add(this.sunPosition.normalize()
+                                                                             .mul(10.0f))))
                 .render();
         if(!this.moonPosition.equals(new Vector(0)))
-            moonb.drawAsItem(new RenderingStream(),
-                             Matrix.translate(cameraPos.add(new Vector(-0.5f,
-                                                                       -0.5f,
-                                                                       -0.5f))
-                                                       .add(this.moonPosition.normalize()
-                                                                             .mul(10.0f))))
+            moonb.drawAsEntity(new RenderingStream(),
+                               Matrix.translate(cameraPos.add(new Vector(-0.5f,
+                                                                         -0.5f,
+                                                                         -0.5f))
+                                                         .add(this.moonPosition.normalize()
+                                                                               .mul(10.0f))))
                  .render();
         glPopMatrix();
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -1509,7 +1465,7 @@ public class World
      *            the new seed */
     public void setSeed(int newSeed)
     {
-        this.landGenerator = Rand.create(newSeed);
+        this.landGenerator = Rand.create(newSeed, this.landGeneratorSettings);
     }
 
     private static class ChunkGenerator implements Runnable
@@ -2105,7 +2061,7 @@ public class World
                                                              this.treeGenerateListHead);
     }
 
-    private static final int fileVersion = 1;
+    private static final int fileVersion = 2;
 
     /** write to a <code>DataOutput</code>
      * 
@@ -2117,6 +2073,7 @@ public class World
     {
         o.writeInt(fileVersion);
         o.writeInt(world.landGenerator.getSeed());
+        world.landGeneratorSettings.write(o);
         o.writeLong(randSeed);
         o.writeFloat(world.timeOfDay);
         int chunkcount = 0;
@@ -2242,6 +2199,125 @@ public class World
     {
         int v = i.readInt();
         if(v != fileVersion)
+        {
+            readVer1(i, v);
+            return;
+        }
+        int seed = i.readInt();
+        clear(seed);
+        world.setLandGeneratorSettings(Rand.Settings.read(i));
+        randSeed = i.readLong();
+        float timeOfDay = i.readFloat();
+        if(Float.isInfinite(timeOfDay) || Float.isNaN(timeOfDay)
+                || timeOfDay < 0 || timeOfDay >= 1)
+            throw new IOException("time of day is out of range");
+        world.setTimeOfDay(timeOfDay);
+        int chunkcount = i.readInt();
+        if(chunkcount < 0)
+            throw new IOException("chunk count out of range");
+        if(chunkcount > 0)
+        {
+            Main.pushProgress(0, 0.9f);
+            Main.pushProgress(0, 1.0f / chunkcount);
+            int progress = 0;
+            while(chunkcount-- > 0)
+            {
+                int cx = i.readInt();
+                int cy = i.readInt();
+                int cz = i.readInt();
+                if(cx != getChunkX(cx) || cy != getChunkY(cy)
+                        || cz != getChunkZ(cz))
+                    throw new IOException("chunk origin not valid");
+                Main.pushProgress(progress++, 1.0f / Chunk.size);
+                for(int x = cx; x < cx + Chunk.size; x++)
+                {
+                    for(int y = cy; y < cy + Chunk.size; y++)
+                    {
+                        for(int z = cz; z < cz + Chunk.size; z++)
+                        {
+                            world.internalSetBlock(x, y, z, Block.read(i));
+                        }
+                    }
+                    Main.setProgress(x);
+                }
+                world.setGenerated(cx, cy, cz, true);
+                Main.popProgress();
+            }
+            Main.popProgress();
+            Main.popProgress();
+        }
+        int entitycount = i.readInt();
+        if(entitycount < 0)
+            throw new IOException("entity count out of range");
+        if(entitycount > 0)
+        {
+            Main.pushProgress(0.9f, 0.05f);
+            int progress = 0;
+            while(entitycount-- > 0)
+            {
+                world.insertEntity(Entity.read(i));
+                Main.setProgress(progress++);
+            }
+            Main.popProgress();
+        }
+        int evalTypeCount = i.readUnsignedShort();
+        if(evalTypeCount > EvalTypeCount)
+            throw new IOException("EvalTypeCount is too big");
+        Main.pushProgress(0.95f, 0.05f);
+        Main.pushProgress(0, 1.0f / (evalTypeCount + 1));
+        for(int evalTypei = 0; evalTypei < evalTypeCount; evalTypei++)
+        {
+            EvalType evalType = EvalType.values()[evalTypei];
+            int evalNodeCount = i.readInt();
+            if(evalNodeCount < 0)
+                throw new IOException("invalid eval node count");
+            if(evalNodeCount > 0)
+            {
+                Main.pushProgress(evalTypei, 1.0f / evalNodeCount);
+                int progress = 0;
+                while(evalNodeCount-- > 0)
+                {
+                    int x = i.readInt();
+                    int y = i.readInt();
+                    int z = i.readInt();
+                    boolean hasBlock = i.readBoolean();
+                    if(hasBlock)
+                        world.insertEvalNode(evalType, x, y, z, Block.read(i));
+                    else
+                        world.insertEvalNode(evalType, x, y, z);
+                    Main.setProgress(progress++);
+                }
+                Main.popProgress();
+            }
+        }
+        int timedInvalidateCount = i.readInt();
+        if(timedInvalidateCount < 0)
+            throw new IOException("invalid timed invalidate count");
+        if(timedInvalidateCount > 0)
+        {
+            Main.pushProgress(evalTypeCount, 1.0f / timedInvalidateCount);
+            int progress = 0;
+            while(timedInvalidateCount-- > 0)
+            {
+                int x = i.readInt();
+                int y = i.readInt();
+                int z = i.readInt();
+                double timeLeft = i.readDouble();
+                if(Double.isNaN(timeLeft) || Double.isInfinite(timeLeft)
+                        || timeLeft < 0)
+                    throw new IOException("invalid timed invalidate time left");
+                world.addTimedInvalidate(x, y, z, timeLeft);
+                Main.setProgress(progress++);
+            }
+            Main.popProgress();
+        }
+        Main.popProgress();
+        Main.popProgress();
+    }
+
+    private static void readVer1(DataInput i, int v) throws IOException
+    {
+        if(v != 1)
         {
             readVer0(i, v);
             return;

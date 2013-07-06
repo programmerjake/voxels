@@ -36,6 +36,7 @@ import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.newdawn.slick.openal.Audio;
 import org.newdawn.slick.openal.AudioLoader;
+import org.voxels.generate.Rand;
 
 /** @author jacob */
 public final class Main
@@ -44,12 +45,16 @@ public final class Main
     public static int ScreenXRes = 640;
     /** the screen y resolution */
     public static int ScreenYRes = 480;
+    /** the aspect ratio */
+    public static float aspectRatio = (float)ScreenXRes / ScreenYRes;
     /** the program's version */
     public static final String Version = "0.2.2";
     /** true if this program is running as a server */
     public static boolean isServer = false;
     /** true if this program is the debug version */
     public static boolean DEBUG = false;
+    /** if running in fancy graphics mode instead of fast graphics mode */
+    public static boolean FancyGraphics = false;
     static boolean lastEventWasLeftButtonDown = false;
 
     /** @author jacob */
@@ -110,7 +115,7 @@ public final class Main
     {
         players.draw();
         glClear(GL_DEPTH_BUFFER_BIT);
-        final float dist = ScreenXRes / 22;
+        final float dist = ScreenXRes / 22 * aspectRatio;
         Text.draw(Matrix.translate(-dist, dist - 1.0f, -dist),
                   Color.RGB(1.0f, 1.0f, 1.0f),
                   frameText);
@@ -157,7 +162,7 @@ public final class Main
         final double minGLdist = 1e-2;
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_ALPHA_TEST);
-        glEnable(GL_CULL_FACE);
+        glEnable(GL_CULL_FACE); // TODO fix
         glEnable(GL_BLEND);
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
@@ -168,7 +173,12 @@ public final class Main
         glViewport(0, 0, ScreenXRes, ScreenYRes);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        glFrustum(-minGLdist, minGLdist, -minGLdist, minGLdist, minGLdist, 1e3);
+        glFrustum(-minGLdist * aspectRatio,
+                  minGLdist * aspectRatio,
+                  -minGLdist,
+                  minGLdist,
+                  minGLdist,
+                  150f);
     }
 
     /** @return the current time in seconds */
@@ -379,67 +389,79 @@ public final class Main
                 + Math.abs(mode.getHeight() - 480);
     }
 
+    private static Rand.Settings makeLandGeneratorSettings()
+    {
+        Rand.SettingsCreatorMenu menu = new Rand.SettingsCreatorMenu();
+        runMenu(menu);
+        return menu.settings;
+    }
+
     private static void generateGame()
     {
         saveFile = null;
         World.clear();
+        world.setLandGeneratorSettings(makeLandGeneratorSettings());
         players.clear();
         players.addDefaultPlayer();
-        if(DEBUG)
-        {
-            for(int i = 0; i < 10000; i++)
-            {
-                players.front().giveBlock(BlockType.BTChest);
-                players.front().giveBlock(BlockType.BTFurnace);
-                players.front().giveBlock(BlockType.BTSapling);
-                players.front().giveBlock(BlockType.BTTorch);
-                players.front().giveBlock(BlockType.BTWorkbench);
-                players.front().giveBlock(BlockType.BTLadder);
-                players.front().giveBlock(BlockType.BTLadder);
-                players.front().giveBlock(BlockType.BTLadder);
-                players.front().giveBlock(BlockType.BTLadder);
-                players.front().giveBlock(BlockType.BTLadder);
-                players.front().giveBlock(BlockType.BTLadder);
-                players.front().giveBlock(BlockType.BTRedstoneDustOff);
-                players.front().giveBlock(BlockType.BTRedstoneDustOff);
-                players.front().giveBlock(BlockType.BTRedstoneDustOff);
-                players.front().giveBlock(BlockType.BTRedstoneDustOff);
-                players.front().giveBlock(BlockType.BTRedstoneDustOff);
-                players.front().giveBlock(BlockType.BTRedstoneTorchOff);
-                players.front().giveBlock(BlockType.BTLever);
-                players.front().giveBlock(BlockType.BTStonePressurePlate);
-                players.front().giveBlock(BlockType.BTWoodPressurePlate);
-                players.front().giveBlock(BlockType.BTLava);
-                players.front().giveBlock(BlockType.BTWater);
-                players.front().giveBlock(BlockType.BTObsidian);
-                players.front().giveBlock(BlockType.BTStone);
-                players.front().giveBlock(BlockType.BTRedstoneRepeaterOff);
-                players.front().giveBlock(BlockType.BTSlime);
-                players.front().giveBlock(BlockType.BTSlime);
-                players.front().giveBlock(BlockType.BTPiston);
-                players.front().giveBlock(BlockType.BTPiston);
-                players.front().giveBlock(BlockType.BTSand);
-                players.front().giveBlock(BlockType.BTGunpowder);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTTNT);
-                players.front().giveBlock(BlockType.BTBlazeRod);
-                players.front().giveBlock(BlockType.BTDiamondPick);
-                players.front().giveBlock(BlockType.BTGoldPick);
-            }
-        }
+        // if(DEBUG)
+        // {
+        // for(int i = 0; i < 10000; i++)
+        // {
+        // players.front().giveBlock(BlockType.BTChest);
+        // players.front().giveBlock(BlockType.BTFurnace);
+        // players.front().giveBlock(BlockType.BTSapling);
+        // players.front().giveBlock(BlockType.BTTorch);
+        // players.front().giveBlock(BlockType.BTWorkbench);
+        // players.front().giveBlock(BlockType.BTLadder);
+        // players.front().giveBlock(BlockType.BTLadder);
+        // players.front().giveBlock(BlockType.BTLadder);
+        // players.front().giveBlock(BlockType.BTLadder);
+        // players.front().giveBlock(BlockType.BTLadder);
+        // players.front().giveBlock(BlockType.BTLadder);
+        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
+        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
+        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
+        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
+        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
+        // players.front().giveBlock(BlockType.BTRedstoneTorchOff);
+        // players.front().giveBlock(BlockType.BTLever);
+        // players.front().giveBlock(BlockType.BTStonePressurePlate);
+        // players.front().giveBlock(BlockType.BTWoodPressurePlate);
+        // players.front().giveBlock(BlockType.BTLava);
+        // players.front().giveBlock(BlockType.BTWater);
+        // players.front().giveBlock(BlockType.BTObsidian);
+        // players.front().giveBlock(BlockType.BTStone);
+        // players.front().giveBlock(BlockType.BTRedstoneRepeaterOff);
+        // players.front().giveBlock(BlockType.BTSlime);
+        // players.front().giveBlock(BlockType.BTSlime);
+        // players.front().giveBlock(BlockType.BTPiston);
+        // players.front().giveBlock(BlockType.BTPiston);
+        // players.front().giveBlock(BlockType.BTSand);
+        // players.front().giveBlock(BlockType.BTGunpowder);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTTNT);
+        // players.front().giveBlock(BlockType.BTBlazeRod);
+        // players.front().giveBlock(BlockType.BTDiamondPick);
+        // players.front().giveBlock(BlockType.BTGoldPick);
+        // }
+        // }
         didLoad = true;
     }
 
-    private static boolean isFullscreen = false;
+    static boolean isFullscreen = false;
     private static double curTime;
     private static double lastFrameStartTime;
+    /**
+     * 
+     */
+    public static boolean isCreativeMode = false;
 
     /** @param menu
      *            the menu to run */
@@ -492,6 +514,218 @@ public final class Main
         }
     }
 
+    /** @param title
+     *            the title
+     * @param message
+     *            the message */
+    public static void alert(final String title, final String message)
+    {
+        runMenu(new MenuScreen(Color.V(0.75f))
+        {
+            @Override
+            protected void drawBackground(Matrix tform)
+            {
+                super.drawBackground(tform);
+                String str = title;
+                float xScale = 2f / 40f;
+                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
+                                .concat(Matrix.translate(-xScale
+                                                                 / 2f
+                                                                 * Text.sizeW(str)
+                                                                 / Text.sizeW("A"),
+                                                         0.7f,
+                                                         0))
+                                .concat(tform),
+                          Color.RGB(0, 0, 0),
+                          str);
+            }
+
+            {
+                add(new TextMenuItem(message,
+                                     Color.RGB(0f, 0f, 0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0f, 0f, 0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                    }
+                });
+                add(new SpacerMenuItem(Color.V(0.0f), this));
+                MenuItem okButton = new TextMenuItem("OK",
+                                                     Color.RGB(0f, 0f, 0f),
+                                                     this.getBackgroundColor(),
+                                                     Color.RGB(0f, 0f, 0f),
+                                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        this.container.close();
+                    }
+                };
+                add(okButton);
+                okButton.select();
+            }
+        });
+    }
+
+    private static void runScreenResolutionMenu()
+    {
+        runMenu(new MenuScreen(Color.V(0.75f))
+        {
+            public DisplayMode[] modes;
+            private int selectedMode;
+
+            @Override
+            protected void drawBackground(Matrix tform)
+            {
+                super.drawBackground(tform);
+                String str = "Change Screen Resolution";
+                float xScale = 2f / 40f;
+                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
+                                .concat(Matrix.translate(-xScale
+                                                                 / 2f
+                                                                 * Text.sizeW(str)
+                                                                 / Text.sizeW("A"),
+                                                         0.7f,
+                                                         0))
+                                .concat(tform),
+                          Color.RGB(0, 0, 0),
+                          str);
+            }
+
+            public void setSelectedMode(int selectedMode)
+            {
+                this.selectedMode = selectedMode;
+                try
+                {
+                    Display.setDisplayMode(this.modes[this.selectedMode]);
+                    ScreenXRes = this.modes[this.selectedMode].getWidth();
+                    ScreenYRes = this.modes[this.selectedMode].getHeight();
+                    aspectRatio = (float)ScreenXRes / ScreenYRes;
+                }
+                catch(LWJGLException e)
+                {
+                    StringWriter w = new StringWriter();
+                    PrintWriter pw = new PrintWriter(w, true);
+                    e.printStackTrace(pw);
+                    alert("Can't change display mode", w.toString());
+                }
+            }
+
+            public int getSelectedMode()
+            {
+                return this.selectedMode;
+            }
+
+            {
+                try
+                {
+                    this.modes = Display.getAvailableDisplayModes();
+                }
+                catch(LWJGLException e)
+                {
+                    e.printStackTrace();
+                    System.exit(1);
+                }
+                this.selectedMode = -1;
+                DisplayMode[] newModes = new DisplayMode[0];
+                for(int i = 0; i < this.modes.length; i++)
+                {
+                    boolean found = false;
+                    for(int j = 0; j < newModes.length; j++)
+                    {
+                        if(newModes[j].getWidth() == this.modes[i].getWidth()
+                                && newModes[j].getHeight() == this.modes[i].getHeight())
+                        {
+                            found = true;
+                            int oldDist = Math.abs(newModes[j].getBitsPerPixel() - 32)
+                                    + Math.abs(newModes[j].getFrequency() - 60);
+                            int newDist = Math.abs(this.modes[i].getBitsPerPixel() - 32)
+                                    + Math.abs(this.modes[i].getFrequency() - 60);
+                            if(newDist <= oldDist)
+                                newModes[j] = this.modes[i];
+                        }
+                    }
+                    if(!found)
+                    {
+                        DisplayMode[] temp = new DisplayMode[newModes.length + 1];
+                        for(int j = 0; j < newModes.length; j++)
+                            temp[j] = newModes[j];
+                        temp[newModes.length] = this.modes[i];
+                        newModes = temp;
+                    }
+                }
+                this.modes = newModes;
+                for(int i = 0; i < this.modes.length; i++)
+                {
+                    if(this.modes[i].getWidth() == Display.getDisplayMode()
+                                                          .getWidth()
+                            && this.modes[i].getHeight() == Display.getDisplayMode()
+                                                                   .getHeight())
+                        this.selectedMode = i;
+                    final int index = i;
+                    add(new OptionMenuItem(Integer.toString(this.modes[i].getWidth())
+                                                   + "x"
+                                                   + Integer.toString(this.modes[i].getHeight()),
+                                           Color.RGB(0f, 0f, 0f),
+                                           this.getBackgroundColor(),
+                                           Color.RGB(0f, 0f, 0f),
+                                           Color.RGB(0.0f, 0.0f, 1.0f),
+                                           this)
+                    {
+                        @Override
+                        public void pick()
+                        {
+                            setSelectedMode(index);
+                        }
+
+                        @Override
+                        public boolean isPicked()
+                        {
+                            return index == getSelectedMode();
+                        }
+                    });
+                }
+                add(new SpacerMenuItem(Color.V(0), this));
+                add(new TextMenuItem("OK",
+                                     Color.RGB(0f, 0f, 0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0f, 0f, 0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        this.container.close();
+                    }
+                });
+            }
+        });
+    }
+
     private static void runOptionsMenu()
     {
         runMenu(new MenuScreen(Color.V(0.75f))
@@ -534,6 +768,181 @@ public final class Main
                         return Main.DEBUG;
                     }
                 });
+                add(new CheckMenuItem("Use Vertex Arrays\nand a Texture Atlas",
+                                      Color.RGB(0f, 0f, 0f),
+                                      this.getBackgroundColor(),
+                                      Color.RGB(0f, 0f, 0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public void setChecked(boolean checked)
+                    {
+                        RenderingStream.USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = checked;
+                    }
+
+                    @Override
+                    public boolean isChecked()
+                    {
+                        return RenderingStream.USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS;
+                    }
+                });
+                add(new CheckMenuItem("Creative Mode",
+                                      Color.RGB(0f, 0f, 0f),
+                                      this.getBackgroundColor(),
+                                      Color.RGB(0f, 0f, 0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public void setChecked(boolean checked)
+                    {
+                        Main.isCreativeMode = checked;
+                    }
+
+                    @Override
+                    public boolean isChecked()
+                    {
+                        return Main.isCreativeMode;
+                    }
+                });
+                add(new CheckMenuItem("Fancy Graphics",
+                                      Color.RGB(0f, 0f, 0f),
+                                      this.getBackgroundColor(),
+                                      Color.RGB(0f, 0f, 0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public void setChecked(boolean checked)
+                    {
+                        Main.FancyGraphics = checked;
+                    }
+
+                    @Override
+                    public boolean isChecked()
+                    {
+                        return Main.FancyGraphics;
+                    }
+                });
+                add(new SpacerMenuItem(Color.V(0), this));
+                add(new OptionMenuItem("Render Distance : Far",
+                                       Color.RGB(0f, 0f, 0f),
+                                       this.getBackgroundColor(),
+                                       Color.RGB(0f, 0f, 0f),
+                                       Color.RGB(0.0f, 0.0f, 1.0f),
+                                       this)
+                {
+                    @Override
+                    public void pick()
+                    {
+                        World.viewDist = 32;
+                    }
+
+                    @Override
+                    public boolean isPicked()
+                    {
+                        return World.viewDist == 32;
+                    }
+                });
+                add(new OptionMenuItem("Render Distance : Medium",
+                                       Color.RGB(0f, 0f, 0f),
+                                       this.getBackgroundColor(),
+                                       Color.RGB(0f, 0f, 0f),
+                                       Color.RGB(0.0f, 0.0f, 1.0f),
+                                       this)
+                {
+                    @Override
+                    public void pick()
+                    {
+                        World.viewDist = 16;
+                    }
+
+                    @Override
+                    public boolean isPicked()
+                    {
+                        return World.viewDist == 16;
+                    }
+                });
+                add(new OptionMenuItem("Render Distance : Default",
+                                       Color.RGB(0f, 0f, 0f),
+                                       this.getBackgroundColor(),
+                                       Color.RGB(0f, 0f, 0f),
+                                       Color.RGB(0.0f, 0.0f, 1.0f),
+                                       this)
+                {
+                    @Override
+                    public void pick()
+                    {
+                        World.viewDist = 10;
+                    }
+
+                    @Override
+                    public boolean isPicked()
+                    {
+                        return World.viewDist == 10;
+                    }
+                });
+                add(new OptionMenuItem("Render Distance : Fast",
+                                       Color.RGB(0f, 0f, 0f),
+                                       this.getBackgroundColor(),
+                                       Color.RGB(0f, 0f, 0f),
+                                       Color.RGB(0.0f, 0.0f, 1.0f),
+                                       this)
+                {
+                    @Override
+                    public void pick()
+                    {
+                        World.viewDist = 8;
+                    }
+
+                    @Override
+                    public boolean isPicked()
+                    {
+                        return World.viewDist == 8;
+                    }
+                });
+                add(new SpacerMenuItem(Color.V(0), this));
+                add(new TextMenuItem("Change Screen Resolution...",
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     this.getBackgroundColor(),
+                                     Color.RGB(0.0f, 0.0f, 0.0f),
+                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                     this)
+                {
+                    @Override
+                    public void onMouseOver(float mouseX, float mouseY)
+                    {
+                        select();
+                    }
+
+                    @SuppressWarnings("synthetic-access")
+                    @Override
+                    public void onClick(float mouseX, float mouseY)
+                    {
+                        runScreenResolutionMenu();
+                    }
+                });
+                add(new CheckMenuItem("Full Screen",
+                                      Color.RGB(0f, 0f, 0f),
+                                      this.getBackgroundColor(),
+                                      Color.RGB(0f, 0f, 0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public void setChecked(boolean checked)
+                    {
+                        Main.isFullscreen = checked;
+                    }
+
+                    @Override
+                    public boolean isChecked()
+                    {
+                        return Main.isFullscreen;
+                    }
+                });
+                add(new SpacerMenuItem(Color.V(0), this));
                 add(new TextMenuItem("Return To Main Menu",
                                      Color.RGB(0.0f, 0.0f, 0.0f),
                                      this.getBackgroundColor(),
@@ -654,6 +1063,7 @@ public final class Main
                             saveAll();
                         }
                     });
+                    add(new SpacerMenuItem(Color.V(0), this));
                     add(new TextMenuItem("Return To Game",
                                          Color.RGB(0.0f, 0.0f, 0.0f),
                                          this.getBackgroundColor(),
@@ -674,6 +1084,7 @@ public final class Main
                         }
                     });
                 }
+                add(new SpacerMenuItem(Color.V(0), this));
                 add(new TextMenuItem("Quit Game",
                                      Color.RGB(0.0f, 0.0f, 0.0f),
                                      this.getBackgroundColor(),
@@ -744,9 +1155,10 @@ public final class Main
                 else if(getModeDist(modes[closestindex]) > getModeDist(modes[i]))
                     closestindex = i;
             }
+            Display.setDisplayMode(modes[closestindex]);
             ScreenXRes = modes[closestindex].getWidth();
             ScreenYRes = modes[closestindex].getHeight();
-            Display.setDisplayMode(modes[closestindex]);
+            aspectRatio = (float)ScreenXRes / ScreenYRes;
             Display.setTitle("Voxels " + Version);
             Display.create();
             Mouse.create();
@@ -803,18 +1215,33 @@ public final class Main
                     }
                     players.handleKeyboardEvent(event);
                 }
-                if(players.handleMouseMove(Mouse.getX(), Display.getHeight()
-                        - Mouse.getY() - 1, Mouse.isButtonDown(0)))
+                switch(players.handleMouseMove(Mouse.getX(),
+                                               Display.getHeight()
+                                                       - Mouse.getY() - 1,
+                                               Mouse.isButtonDown(0)))
                 {
-                    Mouse.setCursorPosition(ScreenXRes / 2, Display.getHeight()
-                            - ScreenYRes / 2 - 1);
+                case Grabbed:
+                    if(!Mouse.isGrabbed())
+                    {
+                        int x = Mouse.getX(), y = Mouse.getY();
+                        Mouse.setGrabbed(true);
+                        Mouse.setCursorPosition(x, y);
+                    }
+                    break;
+                case GrabbedAndCentered:
                     if(!Mouse.isGrabbed())
                         Mouse.setGrabbed(true);
-                }
-                else
-                {
+                    Mouse.setCursorPosition(ScreenXRes / 2, Display.getHeight()
+                            - ScreenYRes / 2 - 1);
+                    break;
+                default:
                     if(Mouse.isGrabbed())
+                    {
+                        int x = Mouse.getX(), y = Mouse.getY();
                         Mouse.setGrabbed(false);
+                        Mouse.setCursorPosition(x, y);
+                    }
+                    break;
                 }
                 players.move();
             }

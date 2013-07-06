@@ -24,10 +24,10 @@ import org.lwjgl.opengl.GL11;
 /** @author jacob */
 public class RenderingStream
 {
-    /* if <code>RenderingStream</code> should use vertex arrays and the texture
+    /** if <code>RenderingStream</code> should use vertex arrays and the texture
      * atlas */
-    private static final boolean USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = true;
-    private static final boolean USE_TEXTURE_ATLAS = true;
+    public static boolean USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = false;
+    private static final boolean USE_TEXTURE_ATLAS = false;
 
     /** @author jacob */
     public static final class Polygon

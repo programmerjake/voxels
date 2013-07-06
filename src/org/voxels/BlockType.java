@@ -17,6 +17,9 @@
 package org.voxels;
 
 import java.io.*;
+import java.util.*;
+
+import org.voxels.generate.Tree.TreeType;
 
 /** @author jacob */
 public enum BlockType
@@ -246,7 +249,7 @@ public enum BlockType
         @Override
         public Block make(int orientation)
         {
-            return Block.NewSapling();
+            return Block.NewSapling(TreeType.Oak);
         }
 
         @Override
@@ -493,13 +496,25 @@ public enum BlockType
     /** wood block */
     BTWood(11, true, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
     {
-        TextureAtlas.addImage(new Image("wood.png"))
+        TextureAtlas.addImage(new Image("wood.png")),
+        TextureAtlas.addImage(new Image("birchwood.png")),
+        TextureAtlas.addImage(new Image("sprucewood.png")),
+        TextureAtlas.addImage(new Image("junglewood.png")),
     })
     {
         @Override
         public Block make(int orientation)
         {
-            return Block.NewWood();
+            int o;
+            if(orientation < 0 || orientation >= 6)
+                o = 0;
+            else if(Block.getOrientationDX(orientation) != 0)
+                o = 1;
+            else if(Block.getOrientationDY(orientation) != 0)
+                o = 0;
+            else
+                o = 2;
+            return Block.NewWood(TreeType.Oak, o);
         }
 
         @Override
@@ -533,7 +548,7 @@ public enum BlockType
         }
     },
     /** leaves block */
-    BTLeaves(12, true, BlockDrawType.BDTCustom,
+    BTLeaves(12, false, BlockDrawType.BDTCustom,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("leaves.png"))
@@ -542,7 +557,7 @@ public enum BlockType
         @Override
         public Block make(int orientation)
         {
-            return Block.NewLeaves();
+            return Block.NewLeaves(TreeType.Oak);
         }
 
         @Override
@@ -3161,6 +3176,90 @@ public enum BlockType
     /** @return true if this block needs to be drawn using double sided polygons */
     public abstract boolean isDoubleSided();
 
+    /** @author jacob */
+    public static final class AddedBlockDescriptor
+    {
+        /**
+         * 
+         */
+        public final int maxCount;
+        /**
+         * 
+         */
+        public final Block b;
+
+        /** @param maxCount
+         *            the initial <code>maxCount</code>
+         * @param b
+         *            the initial <code>b</code> */
+        public AddedBlockDescriptor(int maxCount, Block b)
+        {
+            this.maxCount = maxCount;
+            this.b = b;
+        }
+    }
+
+    protected List<AddedBlockDescriptor> getCaveChestBlocks(int y)
+    {
+        int count = getChestGenCount(y);
+        ArrayList<AddedBlockDescriptor> retval = new ArrayList<BlockType.AddedBlockDescriptor>();
+        if(count > 0)
+            retval.add(new AddedBlockDescriptor(count, make(-1)));
+        return retval;
+    }
+
+    private static Map<Integer, List<AddedBlockDescriptor>> caveChestBlocksMap = new HashMap<Integer, List<AddedBlockDescriptor>>();
+
+    /** @param y
+     *            the y coordinate
+     * @return the resulting list of blocks */
+    public static List<AddedBlockDescriptor> getAllCaveChestBlocks(int y)
+    {
+        List<AddedBlockDescriptor> v = caveChestBlocksMap.get(new Integer(y));
+        if(v != null)
+            return v;
+        List<AddedBlockDescriptor> retval = new LinkedList<BlockType.AddedBlockDescriptor>();
+        for(int i = 0; i < BlockType.Count; i++)
+            retval.addAll(toBlockType(i).getCaveChestBlocks(y));
+        retval = Collections.unmodifiableList(retval);
+        caveChestBlocksMap.put(new Integer(y), retval);
+        return retval;
+    }
+
+    private static ArrayList<Block> creativeModeBlockList = null;
+
+    protected void addToCreativeModeBlockList(List<Block> list)
+    {
+        if(isInCreativeInventory())
+            list.add(make(-1));
+    }
+
+    private static void makeCreativeModeInventory()
+    {
+        if(creativeModeBlockList == null)
+        {
+            creativeModeBlockList = new ArrayList<Block>();
+            for(int i = 0; i < BlockType.Count; i++)
+                toBlockType(i).addToCreativeModeBlockList(creativeModeBlockList);
+        }
+    }
+
+    /** @return the creative mode inventory size */
+    public static int getCreativeModeInventorySize()
+    {
+        makeCreativeModeInventory();
+        return creativeModeBlockList.size();
+    }
+
+    /** @param index
+     *            the index
+     * @return the block at <code>index</code> in the creative mode inventory */
+    public static Block getCreativeModeInventoryBlock(int index)
+    {
+        makeCreativeModeInventory();
+        return creativeModeBlockList.get(index);
+    }
+
     private BlockType(int newvalue,
                       boolean newIsOpaque,
                       BlockDrawType newDrawType,
@@ -3603,7 +3702,9 @@ public enum BlockType
         case BTCoalOre:
             return 0;
         case BTIronIngot:
-            return 2;
+            if(y < 50 - World.Depth)
+                return 2;
+            return 0;
         case BTIronOre:
             return 0;
         case BTLapisLazuli:
@@ -3651,13 +3752,19 @@ public enum BlockType
         case BTStickyPistonHead:
             return 0;
         case BTSlime:
-            return 5;
+            if(y < 30 - World.Depth)
+                return 5;
+            return 0;
         case BTGunpowder:
-            return 5;
+            if(y > 20 - World.Depth)
+                return 5;
+            return 0;
         case BTTNT:
             return 0;
         case BTBlazeRod:
-            return 1;
+            if(y < 50 - World.Depth)
+                return 2;
+            return 0;
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
@@ -4067,6 +4174,88 @@ public enum BlockType
         return false;
     }
 
+    /** @return true if this block is in the creative mode inventory */
+    public boolean isInCreativeInventory()
+    {
+        switch(this)
+        {
+        case BTSun:
+        case BTMoon:
+        case BTDeleteBlock:
+        case BTLast:
+            return false;
+        case BTEmpty:
+        case BTCoal:
+        case BTDiamond:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTEmerald:
+        case BTGoldIngot:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTIronIngot:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTPlank:
+        case BTRedstoneBlock:
+        case BTRedstoneDustOff:
+        case BTRedstoneTorchOff:
+        case BTSapling:
+        case BTStick:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStoneShovel:
+        case BTTorch:
+        case BTWater:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTLadder:
+        case BTLever:
+        case BTSlime:
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
+        case BTLava:
+        case BTGlass:
+        case BTChest:
+        case BTCobblestone:
+        case BTDirt:
+        case BTFurnace:
+        case BTGoldOre:
+        case BTGravel:
+        case BTIronOre:
+        case BTSand:
+        case BTStone:
+        case BTWood:
+        case BTWorkbench:
+        case BTRedstoneRepeaterOff:
+        case BTObsidian:
+        case BTPiston:
+        case BTStickyPiston:
+        case BTGunpowder:
+        case BTTNT:
+        case BTBlazeRod:
+        case BTBlazePowder:
+            return true;
+        case BTGrass:
+        case BTLeaves:
+        case BTCoalOre:
+        case BTBedrock:
+        case BTDiamondOre:
+        case BTEmeraldOre:
+        case BTLapisLazuliOre:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOn:
+        case BTPistonHead:
+        case BTStickyPistonHead:
+        case BTRedstoneDustOn:
+        case BTRedstoneTorchOn:
+            return false;
+        }
+        return false;
+    }
+
     /** write to a <code>DataOutput</code>
      * 
      * @param o
@@ -4190,5 +4379,119 @@ public enum BlockType
             return true;
         }
         return false;
+    }
+
+    /** @author jacob */
+    public static enum Replaceability
+    {
+        /**
+         * 
+         */
+        Replace,
+        /**
+         * 
+         */
+        GrowAround,
+        /**
+         * 
+         */
+        CanNotGrow
+    }
+
+    /** @param isWood
+     *            if the replacing block is wood and not leaves
+     * @return the replaceability of this block */
+    public Replaceability getReplaceability(boolean isWood)
+    {
+        switch(this)
+        {
+        case BTSun:
+        case BTMoon:
+        case BTDeleteBlock:
+        case BTLast:
+            return Replaceability.CanNotGrow;
+        case BTEmpty:
+            return Replaceability.Replace;
+        case BTCoal:
+        case BTDiamond:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTEmerald:
+        case BTGoldIngot:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTIronIngot:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTPlank:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSapling:
+        case BTStick:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStoneShovel:
+        case BTTorch:
+            return Replaceability.Replace;
+        case BTWater:
+        case BTRedstoneBlock:
+            return Replaceability.CanNotGrow;
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTLadder:
+        case BTLever:
+        case BTSlime:
+        case BTLeaves:
+            return Replaceability.Replace;
+        case BTLava:
+        case BTGlass:
+        case BTBedrock:
+            return Replaceability.CanNotGrow;
+        case BTChest:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTDiamondOre:
+        case BTDirt:
+        case BTEmeraldOre:
+        case BTFurnace:
+        case BTGoldOre:
+        case BTGrass:
+        case BTGravel:
+        case BTIronOre:
+        case BTLapisLazuliOre:
+        case BTRedstoneOre:
+        case BTSand:
+        case BTStone:
+            return Replaceability.CanNotGrow;
+        case BTWood:
+            if(isWood)
+                return Replaceability.CanNotGrow;
+            return Replaceability.GrowAround;
+        case BTWorkbench:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+            return Replaceability.CanNotGrow;
+        case BTObsidian:
+            return Replaceability.CanNotGrow;
+        case BTPiston:
+        case BTStickyPiston:
+        case BTPistonHead:
+        case BTStickyPistonHead:
+            return Replaceability.CanNotGrow;
+        case BTGunpowder:
+            return Replaceability.Replace;
+        case BTTNT:
+            return Replaceability.CanNotGrow;
+        case BTBlazeRod:
+        case BTBlazePowder:
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
+            return Replaceability.Replace;
+        }
+        return Replaceability.CanNotGrow;
     }
 }

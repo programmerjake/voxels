@@ -27,7 +27,7 @@ public abstract class MenuScreen
     {
         public float getX()
         {
-            return -1.0f;
+            return Main.aspectRatio;
         }
 
         private float y;
@@ -39,7 +39,7 @@ public abstract class MenuScreen
 
         public float getWidth()
         {
-            return 2.0f;
+            return 2.0f * Main.aspectRatio;
         }
 
         private float height;
@@ -142,6 +142,8 @@ public abstract class MenuScreen
             return this.text;
         }
 
+        protected final float textScale = Text.sizeH("A") * 2.0f * 2.0f / 480.0f;
+
         public void setText(String text)
         {
             this.text = text;
@@ -154,7 +156,8 @@ public abstract class MenuScreen
                             Color selectedBackgroundColor,
                             MenuScreen container)
         {
-            super(Text.sizeH("A") * 2.0f * 2.0f / 480.0f, container);
+            super(Math.max(Text.sizeH("A"), Text.sizeH(text)) * 2.0f * 2.0f / 480.0f,
+                  container);
             this.text = text;
             this.textColor = new Color(textColor);
             this.backgroundColor = new Color(backgroundColor);
@@ -171,7 +174,8 @@ public abstract class MenuScreen
                             TextureAtlas.TextureHandle selectedTexture,
                             MenuScreen container)
         {
-            super(Text.sizeH("A") * 2.0f * 2.0f / 480.0f, container);
+            super(Math.max(Text.sizeH("A"), Text.sizeH(text)) * 2.0f * 2.0f / 480.0f,
+                  container);
             this.text = text;
             this.textColor = new Color(textColor);
             this.backgroundColor = Color.RGB(1.0f, 1.0f, 1.0f);
@@ -214,12 +218,15 @@ public abstract class MenuScreen
             Color textColor = this.textColor;
             if(isSelected)
                 textColor = this.selectedTextColor;
-            Matrix mat = Matrix.scale(getHeight(), getHeight(), 1.0f)
-                               .concat(Matrix.translate(-getHeight()
+            Matrix mat = Matrix.scale(this.textScale, this.textScale, 1.0f)
+                               .concat(Matrix.translate(-this.textScale
                                                                 / 2f
                                                                 * Text.sizeW(this.text)
                                                                 / Text.sizeW("A"),
-                                                        0,
+                                                        this.textScale
+                                                                * Text.sizeH(this.text)
+                                                                / Text.sizeH("A")
+                                                                - this.textScale,
                                                         0))
                                .concat(tform);
             Text.draw(mat, textColor, this.text);
@@ -275,6 +282,99 @@ public abstract class MenuScreen
         public void onClick(float mouseX, float mouseY)
         {
             setChecked(!isChecked());
+        }
+
+        @Override
+        public void onMouseOver(float mouseX, float mouseY)
+        {
+            select();
+        }
+    }
+
+    protected static class SpacerMenuItem extends MenuItem
+    {
+        private final Color color;
+
+        public SpacerMenuItem(Color color, MenuScreen container)
+        {
+            super(Text.sizeH("A") * 2.0f * 2.0f / 480.0f, container);
+            this.color = color;
+        }
+
+        @Override
+        public void draw(Matrix tform, boolean isSelected)
+        {
+            Image.unselectTexture();
+            GL11.glColor4f(Color.GetRValue(this.color) / 255.0f,
+                           Color.GetGValue(this.color) / 255.0f,
+                           Color.GetBValue(this.color) / 255.0f,
+                           0.0f);
+            GL11.glBegin(GL11.GL_LINES);
+            Vector.glVertex(tform.apply(new Vector(-1.0f, 0.5f * getHeight(), 0)));
+            Vector.glVertex(tform.apply(new Vector(1.0f, 0.5f * getHeight(), 0)));
+            GL11.glEnd();
+        }
+
+        @Override
+        public void onClick(float mouseX, float mouseY)
+        {
+        }
+
+        @Override
+        public void onMouseOver(float mouseX, float mouseY)
+        {
+        }
+    }
+
+    protected static abstract class OptionMenuItem extends TextMenuItem
+    {
+        public abstract boolean isPicked();
+
+        public abstract void pick();
+
+        public OptionMenuItem(String text,
+                              Color textColor,
+                              Color backgroundColor,
+                              Color selectedTextColor,
+                              Color selectedBackgroundColor,
+                              MenuScreen container)
+        {
+            super(text,
+                  textColor,
+                  backgroundColor,
+                  selectedTextColor,
+                  selectedBackgroundColor,
+                  container);
+        }
+
+        public OptionMenuItem(String text,
+                              Color textColor,
+                              TextureAtlas.TextureHandle texture,
+                              Color selectedTextColor,
+                              TextureAtlas.TextureHandle selectedTexture,
+                              MenuScreen container)
+        {
+            super(text,
+                  textColor,
+                  texture,
+                  selectedTextColor,
+                  selectedTexture,
+                  container);
+        }
+
+        @Override
+        public void draw(Matrix tform, boolean isSelected)
+        {
+            String tempText = getText();
+            setText((isPicked() ? "\u2022 " : "  ") + tempText);
+            super.draw(tform, isSelected);
+            setText(tempText);
+        }
+
+        @Override
+        public void onClick(float mouseX, float mouseY)
+        {
+            pick();
         }
 
         @Override

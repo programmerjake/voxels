@@ -73,7 +73,7 @@ public class Entity implements GameObject
         {
         }
 
-        public BlockType blocktype;
+        public Block block;
         public float theta, phi;
         public Vector velocity;
         public double existduration;
@@ -114,7 +114,7 @@ public class Entity implements GameObject
         case Nothing:
             break;
         case Block:
-            this.data.blocktype = rt.data.blocktype;
+            this.data.block = rt.data.block;
             this.data.theta = rt.data.theta;
             this.data.phi = rt.data.phi;
             this.data.velocity = rt.data.velocity;
@@ -130,7 +130,7 @@ public class Entity implements GameObject
             this.data.frame = rt.data.frame;
             break;
         case FallingBlock:
-            this.data.blocktype = rt.data.blocktype;
+            this.data.block = rt.data.block;
             this.data.velocity = rt.data.velocity;
             break;
         case PrimedTNT:
@@ -157,8 +157,7 @@ public class Entity implements GameObject
             break;
         case Block:
         {
-            Block b = Block.make(this.data.blocktype);
-            if(b != null)
+            if(this.data.block != null)
             {
                 Matrix tform = Matrix.translate(-0.5f, -0.5f, -0.5f)
                                      .concat(Matrix.rotatex(this.data.phi))
@@ -167,7 +166,7 @@ public class Entity implements GameObject
                                      .concat(Matrix.translate(this.position));
                 rs.pushMatrixStack();
                 rs.concatMatrix(worldToCamera);
-                b.drawAsEntity(rs, tform);
+                this.data.block.drawAsEntity(rs, tform);
                 rs.popMatrixStack();
             }
             break;
@@ -239,12 +238,12 @@ public class Entity implements GameObject
         }
         case FallingBlock:
         {
-            Block b = Block.make(this.data.blocktype);
-            if(b != null)
+            if(this.data.block != null)
             {
                 rs.pushMatrixStack();
                 rs.concatMatrix(worldToCamera);
-                b.drawAsEntity(rs, Matrix.translate(this.position));
+                this.data.block.drawAsEntity(rs,
+                                             Matrix.translate(this.position));
                 rs.popMatrixStack();
             }
             break;
@@ -498,7 +497,7 @@ public class Entity implements GameObject
             Block b = world.getBlock(x, y - 1, z);
             if(b == null || b.isSupporting())
             {
-                b = Block.make(this.data.blocktype);
+                b = this.data.block;
                 if(b == null)
                     b = new Block();
                 world.setBlock(x, y, z, b);
@@ -600,7 +599,7 @@ public class Entity implements GameObject
             Vector disp = ppos.sub(this.position);
             if(disp.abs_squared() <= 0.3f * 0.3f)
             {
-                p.giveBlock(this.data.blocktype, false);
+                p.giveBlock(this.data.block, false);
                 clear();
             }
             else if(disp.abs_squared() <= 3.0f * 3.0f)
@@ -698,16 +697,15 @@ public class Entity implements GameObject
      * 
      * @param position
      *            the initial position to create it at
-     * @param bt
-     *            the block type of the entity
+     * @param b
+     *            the block
      * @param velocity
      *            the initial velocity of the created entity
      * @return the new block entity */
-    public static Entity
-        NewBlock(Vector position, BlockType bt, Vector velocity)
+    public static Entity NewBlock(Vector position, Block b, Vector velocity)
     {
         Entity retval = new Entity(new Vector(position), EntityType.Block);
-        retval.data.blocktype = bt;
+        retval.data.block = b;
         retval.data.existduration = 0;
         retval.data.phi = 0;
         retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
@@ -764,14 +762,14 @@ public class Entity implements GameObject
      * 
      * @param position
      *            the initial position of the falling block
-     * @param bt
-     *            the type of block
+     * @param b
+     *            the block
      * @return the new falling block */
-    public static Entity NewFallingBlock(Vector position, BlockType bt)
+    public static Entity NewFallingBlock(Vector position, Block b)
     {
         Entity retval = new Entity(new Vector(position),
                                    EntityType.FallingBlock);
-        retval.data.blocktype = bt;
+        retval.data.block = b;
         retval.data.velocity = new Vector(0);
         return retval;
     }
@@ -812,7 +810,7 @@ public class Entity implements GameObject
             return;
         case Block:
         {
-            this.data.blocktype = BlockType.read(i);
+            this.data.block = Block.read(i);
             this.data.existduration = i.readDouble();
             if(Double.isInfinite(this.data.existduration)
                     || Double.isNaN(this.data.existduration)
@@ -826,7 +824,7 @@ public class Entity implements GameObject
         }
         case FallingBlock:
         {
-            this.data.blocktype = BlockType.read(i);
+            this.data.block = Block.read(i);
             this.data.velocity = Vector.read(i);
             return;
         }
@@ -919,7 +917,7 @@ public class Entity implements GameObject
             return;
         case Block:
         {
-            this.data.blocktype.write(o);
+            this.data.block.write(o);
             o.writeDouble(this.data.existduration);
             o.writeFloat(this.data.phi);
             o.writeFloat(this.data.theta);
@@ -929,7 +927,7 @@ public class Entity implements GameObject
         }
         case FallingBlock:
         {
-            this.data.blocktype.write(o);
+            this.data.block.write(o);
             this.data.velocity.write(o);
             return;
         }

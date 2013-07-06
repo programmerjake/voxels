@@ -37,12 +37,23 @@ public class Player implements GameObject
     private float viewPhi = 0.0f;
     private static final float selectionDist = 8.0f;
     private boolean paused = false, wasPaused = true;
-    private int blockCount[] = new int[BlockType.Count];
-    private int curBlockType = 0;
+    private int blockCount[] = new int[(Block.CHEST_ROWS + 1)
+            * Block.CHEST_COLUMNS];
+    private Block blockType[] = new Block[(Block.CHEST_ROWS + 1)
+            * Block.CHEST_COLUMNS];
+    private int selectionX = 0;
     private boolean isShiftDown = false;
     private int lastMouseX = -1, lastMouseY = -1;
     private static final float distLimit = 0.2f;
-    private int furnaceSelection = -1;
+    private int dragCount = 0;
+    private Block dragType = null;
+    private float dragX = 0, dragY = 0;
+    private int creativeOffset = 0;
+
+    private static int getInventoryIndex(int row, int column)
+    {
+        return row * Block.CHEST_COLUMNS + column;
+    }
 
     private enum State
     {
@@ -58,8 +69,7 @@ public class Player implements GameObject
     private int blockY = 0;
     private int blockZ = 0;
     private int blockOrientation = -1;
-    private int chestCurBlockType = 0;
-    private BlockType workbench[] = new BlockType[workbenchMaxSize
+    private final Block workbench[] = new Block[workbenchMaxSize
             * workbenchMaxSize];
     private float mouseDownTime = 0;
     private float deleteAnimTime = 0;
@@ -200,15 +210,139 @@ public class Player implements GameObject
     }
 
     private static Image workbenchImg = new Image("workbench.png");
+    private static Image inventoryImg = new Image("inventory.png");
+    private static Image creativeImg = new Image("creative.png");
+    private static Image chestImg = new Image("chestedit.png");
     private static Image furnaceImg = new Image("furnace.png");
-    private static final float workbenchZDist = -10.0f;
-    private static final float workbenchScale = 2.0f;
-    private static final float workbenchResultX = 6.5f;
-    private static final float furnaceZDist = -10.0f;
-    private static final float furnaceScale = 2.0f;
-    private static final float furnaceFireX = 0.0f, furnaceFireY = 0.0f;
-    private static final float furnaceDestX = 5.0f, furnaceDestY = 0.0f;
-    private static final float furnaceSrcX = 0, furnaceSrcY = 3;
+    private static Image hotbarBoxImg = new Image("hotbarbox.png");
+    private static final float workbenchZDist = -1.0f;
+    private static final float simScreenHeight = 480f;
+    private static final int dialogW = 170, dialogH = 151,
+            dialogTextureSize = 256;
+    private static final int inventoryLeft = 5, inventoryBottom = 28;
+    private static final int hotbarLeft = 5, hotbarBottom = 5;
+    private static final int chestLeft = 5, chestBottom = 255 - 161;
+    private static final int creativeLeft = 5, creativeBottom = 255 - 161;
+    private static final int CREATIVE_COLUMNS = 8;
+    private static final int creativeUpLeft = 151,
+            creativeUpBottom = 255 - 125;
+    private static final int creativeDownLeft = 151,
+            creativeDownBottom = 255 - 159;
+    private static final int creativeButtonSize = 14;
+    private static final int cellSize = 18, cellBorder = 1;
+    private static final int furnaceFireXCenter = 66,
+            furnaceFireBottom = 255 - 155;
+    private static final int furnaceSrcLeft = 59, furnaceSrcBottom = 255 - 132;
+    private static final int furnaceDestLeft = 101,
+            furnaceDestBottom = 255 - 146;
+
+    private void drawCenteredText(String str, float xCenter, float bottom)
+    {
+        if(str.length() <= 0)
+            return;
+        final Matrix imgMat = getImageMat();
+        Matrix textTransform = Matrix.scale(Text.sizeH("A"))
+                                     .concat(Matrix.translate(xCenter
+                                                                      - Text.sizeW(str)
+                                                                      / 2.0f,
+                                                              bottom,
+                                                              0))
+                                     .concat(imgMat)
+                                     .concat(Matrix.scale(0.7f));
+        Text.draw(textTransform, str);
+    }
+
+    private void drawCell(Block b,
+                          int count,
+                          float cellLeft,
+                          float cellBottom,
+                          boolean drawIfEmpty)
+    {
+        if(count <= 0 && !drawIfEmpty)
+            return;
+        final Matrix imgMat = getImageMat();
+        if(b != null)
+        {
+            Matrix blockTransform = Matrix.scale(16f)
+                                          .concat(Matrix.translate(cellLeft,
+                                                                   cellBottom,
+                                                                   0))
+                                          .concat(imgMat);
+            b.drawAsItem(new RenderingStream(), blockTransform).render();
+        }
+        if(count > 1 || drawIfEmpty)
+        {
+            String str = Integer.toString(count);
+            Matrix textTransform = Matrix.scale(Text.sizeH("A"))
+                                         .concat(Matrix.translate(cellLeft
+                                                                          + 16
+                                                                          - Text.sizeW(str),
+                                                                  cellBottom,
+                                                                  0))
+                                         .concat(imgMat)
+                                         .concat(Matrix.scale(0.7f));
+            Text.draw(textTransform, str);
+        }
+    }
+
+    private void drawInventory()
+    {
+        for(int x = 0; x < Block.CHEST_COLUMNS; x++)
+        {
+            for(int y = 0; y < Block.CHEST_ROWS; y++)
+            {
+                int count = this.blockCount[getInventoryIndex(y, x)];
+                Block b = this.blockType[getInventoryIndex(y, x)];
+                drawCell(b,
+                         count,
+                         inventoryLeft + cellSize * x,
+                         inventoryBottom + cellSize * y,
+                         false);
+            }
+        }
+        for(int x = 0; x < Block.CHEST_COLUMNS; x++)
+        {
+            int count = this.blockCount[getInventoryIndex(Block.CHEST_ROWS, x)];
+            Block b = this.blockType[getInventoryIndex(Block.CHEST_ROWS, x)];
+            drawCell(b, count, hotbarLeft + cellSize * x, hotbarBottom, false);
+        }
+    }
+
+    private int getWorkbenchLeft()
+    {
+        if(this.workbenchSize == 2)
+            return 48;
+        return 40;
+    }
+
+    private int getWorkbenchBottom()
+    {
+        if(this.workbenchSize == 2)
+            return 99;
+        return 89;
+    }
+
+    private int getWorkbenchResultLeft()
+    {
+        if(this.workbenchSize == 2)
+            return 104;
+        return 114;
+    }
+
+    private int getWorkbenchResultBottom()
+    {
+        if(this.workbenchSize == 2)
+            return 255 - 148;
+        return 255 - 148;
+    }
+
+    private Matrix getImageMat()
+    {
+        final float imgW = dialogW / simScreenHeight, imgH = dialogH
+                / simScreenHeight;
+        return Matrix.scale(2f / simScreenHeight)
+                     .concat(Matrix.translate(-imgW, -imgH, workbenchZDist));
+    }
 
     /** draw everything from this player's perspective */
     public void drawAll()
@@ -253,6 +387,58 @@ public class Player implements GameObject
         glVertex3f(0, 1, -100);
         glVertex3f(0, -1, -100);
         glEnd();
+        RenderingStream hotbarRS = new RenderingStream();
+        hotbarBoxImg.selectTexture();
+        glBegin(GL_QUADS);
+        final float blockHeight = 2f * 16f / simScreenHeight;
+        for(int i = 0; i < Block.CHEST_COLUMNS; i++)
+        {
+            final float zDist = -1f;
+            final float maxU = 20f / 32f, maxV = 20f / 32f;
+            final float height = 2f * 20f / simScreenHeight;
+            final float top = -0.85f, bottom = top - height;
+            final float width = height, left = (i - Block.CHEST_COLUMNS / 2f)
+                    * width, right = left + width;
+            if(i == this.selectionX)
+                glColor4f(0, 1, 0, 1);
+            else
+                glColor4f(1, 1, 1, 1);
+            glTexCoord2f(0, 0);
+            glVertex3f(left, bottom, zDist);
+            glTexCoord2f(maxU, 0);
+            glVertex3f(right, bottom, zDist);
+            glTexCoord2f(maxU, maxV);
+            glVertex3f(right, top, zDist);
+            glTexCoord2f(0, maxV);
+            glVertex3f(left, top, zDist);
+            if(this.blockCount[getInventoryIndex(Block.CHEST_ROWS, i)] > 0)
+            {
+                Matrix tform = Matrix.translate(left + width / 2f, bottom
+                        + height / 2f, -1f);
+                tform = Matrix.scale(blockHeight).concat(tform);
+                tform = Matrix.translate(-0.5f, -0.5f, 0).concat(tform);
+                this.blockType[getInventoryIndex(Block.CHEST_ROWS, i)].drawAsItem(hotbarRS,
+                                                                                  tform);
+            }
+        }
+        glEnd();
+        glClear(GL_DEPTH_BUFFER_BIT);
+        hotbarRS.render();
+        glClear(GL_DEPTH_BUFFER_BIT);
+        if(this.state != State.Normal)
+        {
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+            Image.unselectTexture();
+            glColor4f(0.5f, 0.5f, 0.5f, 0.125f);
+            glBegin(GL_QUADS);
+            glVertex3f(-Main.aspectRatio, -1, -1);
+            glVertex3f(Main.aspectRatio, -1, -1);
+            glVertex3f(Main.aspectRatio, 1, -1);
+            glVertex3f(-Main.aspectRatio, 1, -1);
+            glEnd();
+            glClear(GL_DEPTH_BUFFER_BIT);
+        }
         switch(this.state)
         {
         case Normal:
@@ -263,102 +449,86 @@ public class Player implements GameObject
         {
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
-            workbenchImg.selectTexture();
+            final int workbenchLeft = getWorkbenchLeft(), workbenchBottom = getWorkbenchBottom(), resultLeft = getWorkbenchResultLeft(), resultBottom = getWorkbenchResultBottom();
+            boolean drawCreative = false;
+            if(this.workbenchSize == 2)
+            {
+                if(Main.isCreativeMode)
+                {
+                    creativeImg.selectTexture();
+                    drawCreative = true;
+                }
+                else
+                    inventoryImg.selectTexture();
+            }
+            else
+                workbenchImg.selectTexture();
+            final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
+                    / dialogTextureSize;
+            Matrix imgMat = getImageMat();
             glColor3f(1, 1, 1);
             glBegin(GL_QUADS);
             glTexCoord2f(0, 0);
-            glVertex3f(-8, -8, workbenchZDist - 0.1f);
-            glTexCoord2f(1, 0);
-            glVertex3f(8, -8, workbenchZDist - 0.1f);
-            glTexCoord2f(1, 1);
-            glVertex3f(8, 8, workbenchZDist - 0.1f);
-            glTexCoord2f(0, 1);
-            glVertex3f(-8, 8, workbenchZDist - 0.1f);
+            glVertex(imgMat.apply(new Vector(0, 0, 0)));
+            glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(new Vector(dialogW, 0, 0)));
+            glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(new Vector(dialogW, dialogH, 0)));
+            glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(new Vector(0, dialogH, 0)));
             glEnd();
             glClear(GL_DEPTH_BUFFER_BIT);
-            for(int x = 0; x <= this.workbenchSize; x++)
+            drawInventory();
+            if(drawCreative)
             {
-                for(int y = 0; y <= this.workbenchSize; y++)
+                for(int y = 0; y < Block.CHEST_ROWS; y++)
                 {
-                    Matrix blocktransform = Matrix.translate(x
-                                                                     - this.workbenchSize
-                                                                     / 2.0f,
-                                                             y
-                                                                     - this.workbenchSize
-                                                                     / 2.0f,
-                                                             0.0f)
-                                                  .concat(Matrix.scale(workbenchScale))
-                                                  .concat(Matrix.translate(0,
-                                                                           0,
-                                                                           workbenchZDist));
-                    if(x < this.workbenchSize)
+                    for(int x = 0; x < CREATIVE_COLUMNS; x++)
                     {
-                        Image.unselectTexture();
-                        glColor4f(1, 1, 1, 0);
-                        glBegin(GL_LINES);
-                        glVertex(blocktransform.apply(new Vector(0, 0, 0)));
-                        glVertex(blocktransform.apply(new Vector(1, 0, 0)));
-                        glEnd();
-                    }
-                    if(y < this.workbenchSize)
-                    {
-                        Image.unselectTexture();
-                        glColor4f(1, 1, 1, 0);
-                        glBegin(GL_LINES);
-                        glVertex(blocktransform.apply(new Vector(0, 0, 0)));
-                        glVertex(blocktransform.apply(new Vector(0, 1, 0)));
-                        glEnd();
-                    }
-                    if(x >= this.workbenchSize || y >= this.workbenchSize)
-                        continue;
-                    Block b = Block.make(this.workbench[x + this.workbenchSize
-                            * y]);
-                    if(b != null)
-                    {
-                        b.drawAsItem(new RenderingStream(), blocktransform)
-                         .render();
-                    }
-                    if(x == this.workbenchSelX && y == this.workbenchSelY)
-                    {
-                        Vector minv = blocktransform.apply(new Vector(0));
-                        Vector maxv = blocktransform.apply(new Vector(1));
-                        internalDrawSelectedBlock(minv.x,
-                                                  maxv.x,
-                                                  minv.y,
-                                                  maxv.y,
-                                                  minv.z,
-                                                  maxv.z);
+                        Block b = null;
+                        int index = (y + this.creativeOffset)
+                                * CREATIVE_COLUMNS + x;
+                        if(index < BlockType.getCreativeModeInventorySize())
+                            b = BlockType.getCreativeModeInventoryBlock(index);
+                        if(b != null)
+                        {
+                            drawCell(b,
+                                     1,
+                                     creativeLeft + cellSize * x,
+                                     creativeBottom + cellSize
+                                             * (Block.CHEST_ROWS - y - 1),
+                                     false);
+                        }
                     }
                 }
             }
-            int count = 0;
-            Block b = null;
-            Block.ReduceDescriptor rd = Block.reduce(this.workbench,
-                                                     this.workbenchSize);
-            if(!rd.isEmpty())
+            else
             {
-                b = Block.make(rd.b);
-                count = rd.count;
-            }
-            if(b != null)
-            {
-                Matrix blockTransform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-                                              .concat(Matrix.scale(workbenchScale))
-                                              .concat(Matrix.translate(workbenchResultX,
-                                                                       0.0f,
-                                                                       workbenchZDist));
-                b.drawAsItem(new RenderingStream(), blockTransform).render();
-                blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
-                                       .concat(blockTransform);
-                blockTransform = Matrix.scale(0.5f / workbenchScale)
-                                       .concat(blockTransform);
-                blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
-                                                          / Text.sizeW("A")
-                                                          / 2.0f,
-                                                  0.0f,
-                                                  0.0f)
-                                       .concat(blockTransform);
-                Text.draw(blockTransform, Integer.toString(count));
+                for(int x = 0; x < this.workbenchSize; x++)
+                {
+                    for(int y = 0; y < this.workbenchSize; y++)
+                    {
+                        Block b = this.workbench[x + this.workbenchSize * y];
+                        if(b != null)
+                        {
+                            drawCell(b,
+                                     1,
+                                     workbenchLeft + cellSize * x,
+                                     workbenchBottom + cellSize * y,
+                                     false);
+                        }
+                    }
+                }
+                int count = 0;
+                Block b = null;
+                Block.ReduceDescriptor rd = Block.reduce(this.workbench,
+                                                         this.workbenchSize);
+                if(!rd.isEmpty())
+                {
+                    b = rd.b;
+                    count = rd.count;
+                }
+                drawCell(b, count, resultLeft, resultBottom, false);
             }
             break;
         }
@@ -366,96 +536,37 @@ public class Player implements GameObject
         {
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
-            Image.unselectTexture();
-            glColor4f(0.8f, 0.51f, 0.21f, 0.0f);
-            final float minx = -2.0f, maxx = 2.0f, miny = -6.5f, maxy = 7.5f, zdist = -9.9f;
+            chestImg.selectTexture();
+            final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
+                    / dialogTextureSize;
+            Matrix imgMat = getImageMat();
+            glColor3f(1, 1, 1);
             glBegin(GL_QUADS);
-            glVertex3f(minx, miny, zdist);
-            glVertex3f(maxx, miny, zdist);
-            glVertex3f(maxx, maxy + 1, zdist);
-            glVertex3f(minx, maxy + 1, zdist);
+            glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(new Vector(0, 0, 0)));
+            glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(new Vector(dialogW, 0, 0)));
+            glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(new Vector(dialogW, dialogH, 0)));
+            glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(new Vector(0, dialogH, 0)));
             glEnd();
             glClear(GL_DEPTH_BUFFER_BIT);
-            final String title = "Chest";
-            final float titleScale = 0.5f;
-            Text.draw(Matrix.scale(titleScale)
-                            .concat(Matrix.translate(-titleScale
-                                                             * Text.sizeW(title)
-                                                             / Text.sizeW("A")
-                                                             / 2.0f,
-                                                     maxy,
-                                                     zdist + 0.01f)),
-                      title);
+            drawInventory();
             Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
             if(chest == null || chest.getType() != BlockType.BTChest)
-            {
                 chest = Block.NewChest();
-                this.state = State.Normal;
-            }
-            int blocktypecount = 0, blocktypeindex = -1;
-            Main.addToFrameText("chestCurBlockType = " + this.chestCurBlockType
-                    + "\n");
-            for(int i = 1; i < BlockType.Count; i++)
+            for(int row = 0; row < Block.CHEST_ROWS; row++)
             {
-                if(chest.chestGetBlockTypeCount(BlockType.toBlockType(i)) > 0)
+                for(int column = 0; column < Block.CHEST_COLUMNS; column++)
                 {
-                    if(i == this.chestCurBlockType)
-                        blocktypeindex = blocktypecount;
-                    blocktypecount++;
-                }
-            }
-            int startpos = blocktypeindex - 5;
-            if(startpos < -1)
-                startpos = -1;
-            int endpos = blocktypeindex + 5;
-            if(endpos > blocktypecount - 1)
-                endpos = blocktypecount - 1;
-            for(int i = startpos; i <= endpos; i++)
-            {
-                float y = i - blocktypeindex;
-                Block b = null;
-                int count = 0;
-                for(int j = 1, k = 0; j < BlockType.Count; j++)
-                {
-                    if(chest.chestGetBlockTypeCount(BlockType.toBlockType(j)) > 0)
-                    {
-                        if(k == i)
-                        {
-                            b = Block.make(BlockType.toBlockType(j));
-                            count = chest.chestGetBlockTypeCount(BlockType.toBlockType(j));
-                            break;
-                        }
-                        k++;
-                    }
-                }
-                if(b != null)
-                {
-                    float scaleFactor = 0.8f;
-                    if(y < 0)
-                        y -= 0.5f;
-                    if(y > 0)
-                        y += 0.5f;
-                    if(y == 0)
-                        scaleFactor = 1.6f;
-                    Matrix blocktform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-                                              .concat(Matrix.scale(scaleFactor))
-                                              .concat(Matrix.translate((minx + maxx) / 2.0f,
-                                                                       (miny + maxy)
-                                                                               / 2.0f
-                                                                               + y,
-                                                                       zdist + 0.01f));
-                    b.drawAsItem(new RenderingStream(), blocktform).render();
-                    blocktform = Matrix.translate(1.5f, 0.5f, 0.0f)
-                                       .concat(blocktform);
-                    blocktform = Matrix.scale(0.5f / scaleFactor)
-                                       .concat(blocktform);
-                    blocktform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
-                                                          / Text.sizeW("A")
-                                                          / 2.0f,
-                                                  0,
-                                                  0)
-                                       .concat(blocktform);
-                    Text.draw(blocktform, Integer.toString(count));
+                    int count = chest.chestGetBlockCount(row, column);
+                    Block b = chest.chestGetBlockType(row, column);
+                    drawCell(b,
+                             count,
+                             chestLeft + column * cellSize,
+                             chestBottom + row * cellSize,
+                             false);
                 }
             }
             break;
@@ -465,205 +576,55 @@ public class Player implements GameObject
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
             furnaceImg.selectTexture();
+            final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
+                    / dialogTextureSize;
+            Matrix imgMat = getImageMat();
             glColor3f(1, 1, 1);
             glBegin(GL_QUADS);
             glTexCoord2f(0, 0);
-            glVertex3f(-8, -8, furnaceZDist - 0.1f);
-            glTexCoord2f(1, 0);
-            glVertex3f(8, -8, furnaceZDist - 0.1f);
-            glTexCoord2f(1, 1);
-            glVertex3f(8, 8, furnaceZDist - 0.1f);
-            glTexCoord2f(0, 1);
-            glVertex3f(-8, 8, furnaceZDist - 0.1f);
+            glVertex(imgMat.apply(new Vector(0, 0, 0)));
+            glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(new Vector(dialogW, 0, 0)));
+            glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(new Vector(dialogW, dialogH, 0)));
+            glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(new Vector(0, dialogH, 0)));
             glEnd();
             glClear(GL_DEPTH_BUFFER_BIT);
+            drawInventory();
             Block furnace = world.getBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ);
             if(furnace == null || furnace.getType() != BlockType.BTFurnace)
                 furnace = Block.NewFurnace();
-            int count = furnace.furnaceGetDestBlockCount();
-            Block b = Block.make(furnace.furnaceGetDestBlockType());
-            if(b != null)
-            {
-                Matrix blockTransform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-                                              .concat(Matrix.scale(furnaceScale))
-                                              .concat(Matrix.translate(furnaceDestX,
-                                                                       furnaceDestY,
-                                                                       furnaceZDist));
-                if(this.furnaceSelection == 2)
-                {
-                    Vector minv = blockTransform.apply(new Vector(0));
-                    Vector maxv = blockTransform.apply(new Vector(1));
-                    internalDrawSelectedBlock(minv.x,
-                                              maxv.x,
-                                              minv.y,
-                                              maxv.y,
-                                              minv.z,
-                                              maxv.z);
-                }
-                b.drawAsItem(new RenderingStream(), blockTransform).render();
-                blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
-                                       .concat(blockTransform);
-                blockTransform = Matrix.scale(0.5f / furnaceScale)
-                                       .concat(blockTransform);
-                blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
-                                                          / Text.sizeW("A")
-                                                          / 2.0f,
-                                                  0.0f,
-                                                  0.0f)
-                                       .concat(blockTransform);
-                Text.draw(blockTransform, Integer.toString(count));
-            }
-            count = furnace.furnaceGetSrcBlockCount();
-            b = Block.make(furnace.furnaceGetSrcBlockType());
-            {
-                Matrix blockTransform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-                                              .concat(Matrix.scale(furnaceScale))
-                                              .concat(Matrix.translate(furnaceSrcX,
-                                                                       furnaceSrcY,
-                                                                       furnaceZDist));
-                if(this.furnaceSelection == 1)
-                {
-                    Vector minv = blockTransform.apply(new Vector(0));
-                    Vector maxv = blockTransform.apply(new Vector(1));
-                    internalDrawSelectedBlock(minv.x,
-                                              maxv.x,
-                                              minv.y,
-                                              maxv.y,
-                                              minv.z,
-                                              maxv.z);
-                }
-                if(b != null)
-                {
-                    b.drawAsItem(new RenderingStream(), blockTransform)
-                     .render();
-                    blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
-                                           .concat(blockTransform);
-                    blockTransform = Matrix.scale(0.5f / furnaceScale)
-                                           .concat(blockTransform);
-                    blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
-                                                              / Text.sizeW("A")
-                                                              / 2.0f,
-                                                      0.0f,
-                                                      0.0f)
-                                           .concat(blockTransform);
-                    Text.draw(blockTransform, Integer.toString(count));
-                }
-            }
-            count = furnace.furnaceGetFuelLeft();
-            {
-                Matrix blockTransform = Matrix.translate(-0.5f, -0.5f, 0.0f)
-                                              .concat(Matrix.scale(furnaceScale))
-                                              .concat(Matrix.translate(furnaceFireX,
-                                                                       furnaceFireY,
-                                                                       furnaceZDist));
-                if(this.furnaceSelection == 0)
-                {
-                    Vector minv = blockTransform.apply(new Vector(0));
-                    Vector maxv = blockTransform.apply(new Vector(1));
-                    internalDrawSelectedBlock(minv.x,
-                                              maxv.x,
-                                              minv.y,
-                                              maxv.y,
-                                              minv.z,
-                                              maxv.z);
-                }
-                blockTransform = Matrix.translate(0.5f, -0.5f, 0.0f)
-                                       .concat(blockTransform);
-                blockTransform = Matrix.scale(0.5f / furnaceScale)
-                                       .concat(blockTransform);
-                blockTransform = Matrix.translate(-(float)Text.sizeW(Integer.toString(count))
-                                                          / Text.sizeW("A")
-                                                          / 2.0f,
-                                                  0.0f,
-                                                  0.0f)
-                                       .concat(blockTransform);
-                Text.draw(blockTransform, Integer.toString(count));
-            }
+            drawCell(furnace.furnaceGetSrcBlock(),
+                     furnace.furnaceGetSrcBlockCount(),
+                     furnaceSrcLeft,
+                     furnaceSrcBottom,
+                     false);
+            drawCell(furnace.furnaceGetDestBlock(),
+                     furnace.furnaceGetDestBlockCount(),
+                     furnaceDestLeft,
+                     furnaceDestBottom,
+                     true);
+            drawCenteredText(Integer.toString(furnace.furnaceGetFuelLeft()),
+                             furnaceFireXCenter,
+                             furnaceFireBottom);
             break;
         }
         }
         glClear(GL_DEPTH_BUFFER_BIT);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        Image.unselectTexture();
-        glColor4f(1.0f, 1.0f, 1.0f, 0.25f);
-        final float minx = -7, maxx = 7, miny = -9.5f, maxy = -7, zdist = -9.9f;
-        glBegin(GL_QUADS);
-        glVertex3f(minx, miny, zdist);
-        glVertex3f(maxx, miny, zdist);
-        glVertex3f(maxx, maxy, zdist);
-        glVertex3f(minx, maxy, zdist);
-        glEnd();
-        glClear(GL_DEPTH_BUFFER_BIT);
-        int blocktypecount = 0, blocktypeindex = -1;
-        for(int i = 1; i < BlockType.Count; i++)
+        if(this.state != State.Normal)
         {
-            if(this.blockCount[i] > 0)
-            {
-                if(i == this.curBlockType)
-                    blocktypeindex = blocktypecount;
-                blocktypecount++;
-            }
-        }
-        int startpos = blocktypeindex - 5;
-        if(startpos < -1)
-            startpos = -1;
-        int endpos = blocktypeindex + 5;
-        if(endpos > blocktypecount - 1)
-            endpos = blocktypecount - 1;
-        for(int i = startpos; i <= endpos; i++)
-        {
-            float x = i - blocktypeindex;
-            Block b = null;
-            int count = 0;
-            for(int j = 1, k = 0; j < BlockType.Count; j++)
-            {
-                if(this.blockCount[j] > 0)
-                {
-                    if(k == i)
-                    {
-                        b = Block.make(BlockType.toBlockType(j));
-                        count = this.blockCount[j];
-                        break;
-                    }
-                    k++;
-                }
-            }
-            if(b != null)
-            {
-                float scaleFactor = 0.8f;
-                if(x < 0)
-                    x -= 0.5f;
-                if(x > 0)
-                    x += 0.5f;
-                if(x == 0)
-                    scaleFactor = 1.6f;
-                Matrix blocktform = Matrix.translate(-0.5f, -0.5f, 0)
-                                          .concat(Matrix.scale(scaleFactor))
-                                          .concat(Matrix.translate(x,
-                                                                   (miny + (maxy - 1.0f)) / 2.0f,
-                                                                   zdist + 0.01f));
-                b.drawAsItem(new RenderingStream(), blocktform).render();
-                blocktform = Matrix.translate(0.5f, 1.2f, 0.0f)
-                                   .concat(blocktform);
-                float textSize = (float)Text.sizeW(Integer.toString(count))
-                        / Text.sizeW("A"), textScale = 0.8f / textSize;
-                if(x == 0 && textScale < 0.5f)
-                    textScale = 0.5f;
-                blocktform = Matrix.scale(textScale / scaleFactor)
-                                   .concat(blocktform);
-                blocktform = Matrix.translate(-textSize * textScale / 2.0f,
-                                              0.0f,
-                                              0.0f).concat(blocktform);
-                Text.draw(blocktform,
-                          Color.RGB(0.5f, 0.5f, 0.5f),
-                          Integer.toString(count));
-            }
+            drawCell(this.dragType,
+                     this.dragCount,
+                     this.dragX - cellSize / 2f,
+                     this.dragY - cellSize / 2f,
+                     false);
         }
         if(this.paused)
         {
+            glClear(GL_DEPTH_BUFFER_BIT);
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
             Image.unselectTexture();
@@ -696,12 +657,14 @@ public class Player implements GameObject
 
     private boolean mousePosToSelPosWorkbench(int mouseX, int mouseY)
     {
-        float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
-        float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
-        x *= -workbenchZDist / workbenchScale;
-        y *= -workbenchZDist / workbenchScale;
-        x += this.workbenchSize / 2.0;
-        y += this.workbenchSize / 2.0;
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= getWorkbenchLeft();
+        y -= getWorkbenchBottom();
+        x += cellBorder;
+        y += cellBorder;
+        x /= cellSize;
+        y /= cellSize;
         x = (float)Math.floor(x);
         y = (float)Math.floor(y);
         if(x >= 0 && y >= 0 && x < this.workbenchSize && y < this.workbenchSize)
@@ -713,63 +676,268 @@ public class Player implements GameObject
         return false;
     }
 
-    private boolean mouseIsInResultWorkbench(int mouseX, int mouseY)
+    private float mouseGetSimX(int mouseX)
     {
         float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
+        x *= Main.aspectRatio;
+        x += dialogW / simScreenHeight;
+        x /= 2f / simScreenHeight;
+        return x;
+    }
+
+    private float mouseGetSimY(int mouseY)
+    {
         float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
-        x *= -workbenchZDist;
-        y *= -workbenchZDist;
-        x -= workbenchResultX;
-        x /= workbenchScale;
-        y /= workbenchScale;
-        if(x < -0.5 || x > 0.5 || y < -0.5 || y > 0.5)
+        y += dialogH / simScreenHeight;
+        y /= 2f / simScreenHeight;
+        return y;
+    }
+
+    private boolean mouseIsInResultWorkbench(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= getWorkbenchLeft();
+        y -= getWorkbenchBottom();
+        x += cellBorder;
+        y += cellBorder;
+        if(x < 0 || x >= cellSize || y < 0 || y >= cellSize)
             return false;
         return true;
     }
 
     private boolean mouseIsInResultFurnace(int mouseX, int mouseY)
     {
-        float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
-        float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
-        x *= -furnaceZDist;
-        y *= -furnaceZDist;
-        x -= furnaceDestX;
-        y -= furnaceDestY;
-        x /= furnaceScale;
-        y /= furnaceScale;
-        if(x < -0.5 || x > 0.5 || y < -0.5 || y > 0.5)
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= furnaceDestLeft;
+        y -= furnaceDestBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x < 0 || x >= cellSize || y < 0 || y >= cellSize)
             return false;
         return true;
     }
 
     private boolean mouseIsInFireFurnace(int mouseX, int mouseY)
     {
-        float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
-        float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
-        x *= -furnaceZDist;
-        y *= -furnaceZDist;
-        x -= furnaceFireX;
-        y -= furnaceFireY;
-        x /= furnaceScale;
-        y /= furnaceScale;
-        if(x < -0.5 || x > 0.5 || y < -0.5 || y > 0.5)
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= furnaceFireXCenter;
+        y -= furnaceFireBottom;
+        if(x < -10 || x > 10 || y < 0 || y > 10)
             return false;
         return true;
     }
 
     private boolean mouseIsInSourceFurnace(int mouseX, int mouseY)
     {
-        float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
-        float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
-        x *= -furnaceZDist;
-        y *= -furnaceZDist;
-        x -= furnaceSrcX;
-        y -= furnaceSrcY;
-        x /= furnaceScale;
-        y /= furnaceScale;
-        if(x < -0.5 || x > 0.5 || y < -0.5 || y > 0.5)
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= furnaceSrcLeft;
+        y -= furnaceSrcBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x < 0 || x >= cellSize || y < 0 || y >= cellSize)
             return false;
         return true;
+    }
+
+    private boolean mouseIsInChest(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= chestLeft;
+        y -= chestBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return true;
+        return false;
+    }
+
+    private int mouseGetChestRow(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= chestLeft;
+        y -= chestBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return (int)Math.floor(y / cellSize);
+        return -1;
+    }
+
+    private int mouseGetChestColumn(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= chestLeft;
+        y -= chestBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return (int)Math.floor(x / cellSize);
+        return -1;
+    }
+
+    private boolean mouseIsInCreative(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= creativeLeft;
+        y -= creativeBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * CREATIVE_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return true;
+        return false;
+    }
+
+    private int mouseGetCreativeY(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= creativeLeft;
+        y -= creativeBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * CREATIVE_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return Block.CHEST_ROWS - (int)Math.floor(y / cellSize) - 1;
+        return -1;
+    }
+
+    private int mouseGetCreativeX(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= creativeLeft;
+        y -= creativeBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * CREATIVE_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return (int)Math.floor(x / cellSize);
+        return -1;
+    }
+
+    private boolean mouseIsInCreativeUpButton(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= creativeUpLeft;
+        y -= creativeUpBottom;
+        if(x >= 0 && x < creativeButtonSize && y >= 0
+                && y < creativeButtonSize * Block.CHEST_ROWS)
+            return true;
+        return false;
+    }
+
+    private boolean mouseIsInCreativeDownButton(int mouseX, int mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= creativeDownLeft;
+        y -= creativeDownBottom;
+        if(x >= 0 && x < creativeButtonSize && y >= 0
+                && y < creativeButtonSize * Block.CHEST_ROWS)
+            return true;
+        return false;
+    }
+
+    private boolean mouseIsInInventoryOrHotbar(int mouseX, int mouseY)
+    {
+        float mx = mouseGetSimX(mouseX);
+        float my = mouseGetSimY(mouseY);
+        float x = mx, y = my;
+        x -= inventoryLeft;
+        y -= inventoryBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return true;
+        x = mx - hotbarLeft;
+        y = my - hotbarBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize)
+            return true;
+        return false;
+    }
+
+    private int mouseGetInventoryOrHotbarRow(int mouseX, int mouseY)
+    {
+        float mx = mouseGetSimX(mouseX);
+        float my = mouseGetSimY(mouseY);
+        float x = mx, y = my;
+        x -= inventoryLeft;
+        y -= inventoryBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return (int)Math.floor(y / cellSize);
+        x = mx - hotbarLeft;
+        y = my - hotbarBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize)
+            return Block.CHEST_ROWS;
+        return -1;
+    }
+
+    private int mouseGetInventoryOrHotbarColumn(int mouseX, int mouseY)
+    {
+        float mx = mouseGetSimX(mouseX);
+        float my = mouseGetSimY(mouseY);
+        float x = mx, y = my;
+        x -= inventoryLeft;
+        y -= inventoryBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize * Block.CHEST_ROWS)
+            return (int)Math.floor(x / cellSize);
+        x = mx - hotbarLeft;
+        y = my - hotbarBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.CHEST_COLUMNS && y >= 0
+                && y < cellSize)
+            return (int)Math.floor(x / cellSize);
+        return -1;
+    }
+
+    private Block getCurrentHotbarBlock()
+    {
+        return this.blockType[getInventoryIndex(Block.CHEST_ROWS,
+                                                this.selectionX)];
+    }
+
+    /** @author jacob */
+    public static enum MouseMoveKind
+    {
+        /**
+         * 
+         */
+        Normal,
+        /**
+         * 
+         */
+        Grabbed,
+        /**
+         * 
+         */
+        GrabbedAndCentered
     }
 
     /** @param mouseX
@@ -778,15 +946,16 @@ public class Player implements GameObject
      *            mouse y position
      * @param mouseLButton
      *            if the mouse's left button is pressed
-     * @return true to move mouse to center */
-    public boolean
-        handleMouseMove(int mouseX, int mouseY, boolean mouseLButton)
+     * @return the mouse move kind */
+    public MouseMoveKind handleMouseMove(int mouseX,
+                                         int mouseY,
+                                         boolean mouseLButton)
     {
         if(this.paused)
         {
             this.wasPaused = true;
             this.deleteAnimTime = -1;
-            return false;
+            return MouseMoveKind.Normal;
         }
         switch(this.state)
         {
@@ -796,7 +965,7 @@ public class Player implements GameObject
             {
                 this.wasPaused = false;
                 this.deleteAnimTime = -1;
-                return true;
+                return MouseMoveKind.GrabbedAndCentered;
             }
             this.wasPaused = false;
             this.viewPhi += (mouseY - (Main.ScreenYRes / 2)) / 100.0;
@@ -819,9 +988,9 @@ public class Player implements GameObject
                     isSameBlock = false;
                 int deleteTime = -1;
                 float timeDivisor = -1;
-                if(this.curBlockType > 0 && b != null)
-                    timeDivisor = BlockType.toBlockType(this.curBlockType)
-                                           .getDigAbility(b.getNeedBreakToDig());
+                Block curHotbar = getCurrentHotbarBlock();
+                if(curHotbar != null && b != null)
+                    timeDivisor = curHotbar.getDigAbility(b.getNeedBreakToDig());
                 if(timeDivisor <= 0)
                     timeDivisor = 1;
                 if(b != null)
@@ -835,7 +1004,7 @@ public class Player implements GameObject
                 {
                     this.mouseDownTime = 0;
                     this.deleteAnimTime = -1;
-                    return true;
+                    return MouseMoveKind.GrabbedAndCentered;
                 }
                 this.deleteAnimTime = this.mouseDownTime / deletePeriod;
                 if(this.mouseDownTime >= deletePeriod)
@@ -852,7 +1021,7 @@ public class Player implements GameObject
                     Main.play(Main.destructAudio);
                 }
             }
-            return true;
+            return MouseMoveKind.GrabbedAndCentered;
         }
         case Workbench:
         {
@@ -863,172 +1032,137 @@ public class Player implements GameObject
                 this.lastMouseX = mouseX;
                 this.lastMouseY = mouseY;
                 mousePosToSelPosWorkbench(mouseX, mouseY);
+                this.dragX = mouseGetSimX(mouseX);
+                this.dragY = mouseGetSimY(mouseY);
             }
-            return false;
+            return (this.dragCount > 0) ? MouseMoveKind.Grabbed
+                    : MouseMoveKind.Normal;
         }
         case Chest:
         {
             this.wasPaused = true;
             this.deleteAnimTime = -1;
-            return false;
+            if(mouseX != this.lastMouseX || mouseY != this.lastMouseY)
+            {
+                this.lastMouseX = mouseX;
+                this.lastMouseY = mouseY;
+                this.dragX = mouseGetSimX(mouseX);
+                this.dragY = mouseGetSimY(mouseY);
+            }
+            return (this.dragCount > 0) ? MouseMoveKind.Grabbed
+                    : MouseMoveKind.Normal;
         }
         case Furnace:
         {
             this.wasPaused = true;
             this.deleteAnimTime = -1;
-            this.furnaceSelection = -1;
-            if(mouseIsInFireFurnace(mouseX, mouseY))
+            if(mouseX != this.lastMouseX || mouseY != this.lastMouseY)
             {
-                this.furnaceSelection = 0;
+                this.lastMouseX = mouseX;
+                this.lastMouseY = mouseY;
+                this.dragX = mouseGetSimX(mouseX);
+                this.dragY = mouseGetSimY(mouseY);
             }
-            else if(mouseIsInSourceFurnace(mouseX, mouseY))
-            {
-                this.furnaceSelection = 1;
-            }
-            else if(mouseIsInResultFurnace(mouseX, mouseY))
-            {
-                this.furnaceSelection = 2;
-            }
-            return false;
+            return (this.dragCount > 0) ? MouseMoveKind.Grabbed
+                    : MouseMoveKind.Normal;
         }
         }
-        return false;
+        return MouseMoveKind.Normal;
     }
 
     private void nextCurBlockType()
     {
-        if(this.curBlockType > 0)
-        {
-            for(int i = this.curBlockType + 1; i < BlockType.Count; i++)
-            {
-                if(this.blockCount[i] > 0)
-                {
-                    this.curBlockType = i;
-                    return;
-                }
-            }
-            this.curBlockType = 0;
-            return;
-        }
-        for(int i = 1; i < BlockType.Count; i++)
-        {
-            if(this.blockCount[i] > 0)
-            {
-                this.curBlockType = i;
-                return;
-            }
-        }
+        this.selectionX = (this.selectionX + 1) % Block.CHEST_COLUMNS;
     }
 
     private void prevCurBlockType()
     {
-        if(this.curBlockType > 0)
-        {
-            for(int i = this.curBlockType - 1; i > 0; i--)
-            {
-                if(this.blockCount[i] > 0)
-                {
-                    this.curBlockType = i;
-                    return;
-                }
-            }
-            this.curBlockType = 0;
-            return;
-        }
-        for(int i = BlockType.Count - 1; i > 0; i--)
-        {
-            if(this.blockCount[i] > 0)
-            {
-                this.curBlockType = i;
-                return;
-            }
-        }
+        this.selectionX = (this.selectionX + Block.CHEST_COLUMNS - 1)
+                % Block.CHEST_COLUMNS;
     }
 
-    /** give this player a block
-     * 
-     * @param bt
-     *            the type of block to give */
-    public void giveBlock(BlockType bt)
+    // returns the number of block given
+    private int giveBlock(Block b, int count, int row, int column)
     {
-        giveBlock(bt, true);
+        if(count <= 0)
+            return 0;
+        int index = getInventoryIndex(row, column);
+        if(this.blockCount[index] <= 0)
+        {
+            this.blockCount[index] = Math.min(count, Block.BLOCK_STACK_SIZE);
+            this.blockType[index] = b;
+            return this.blockCount[index];
+        }
+        if(this.blockType[index].equals(b))
+        {
+            int origCount = this.blockCount[index];
+            this.blockCount[index] = Math.min(count + origCount,
+                                              Block.BLOCK_STACK_SIZE);
+            return this.blockCount[index] - origCount;
+        }
+        return 0;
     }
 
     /** give this player a block
      * 
-     * @param bt
-     *            the type of block to give
+     * @param b
+     *            the block to give
      * @param setCurrentBlock
-     *            if <code>bt</code> should be set as the players currently
-     *            selected block */
-    public void giveBlock(BlockType bt, boolean setCurrentBlock)
+     *            if <code>b</code> should be set as the players currently
+     *            selected block
+     * @return if the block can be given to this player */
+    public boolean giveBlock(Block b, boolean setCurrentBlock)
     {
-        if(bt == BlockType.BTEmpty)
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return true;
+        for(int row = Block.CHEST_ROWS; row >= 0; row--)
         {
-            if(setCurrentBlock)
-                this.curBlockType = 0;
-            return;
-        }
-        int index = bt.ordinal();
-        if(index < 1 || index >= BlockType.Count)
-        {
-            if(setCurrentBlock)
-                this.curBlockType = 0;
-            return;
-        }
-        this.blockCount[index]++;
-        if(setCurrentBlock)
-            this.curBlockType = index;
-    }
-
-    /** @return the block taken from this player or <code>BlockType.BTEmpty</code> */
-    public BlockType takeBlock()
-    {
-        BlockType retval = BlockType.BTEmpty;
-        if(this.curBlockType <= 0)
-        {
-            return BlockType.BTEmpty;
-        }
-        retval = BlockType.toBlockType(this.curBlockType);
-        if(this.blockCount[this.curBlockType] > 1)
-        {
-            this.blockCount[this.curBlockType]--;
-        }
-        else
-        {
-            this.blockCount[this.curBlockType] = 0;
-            for(int i = this.curBlockType; i < BlockType.Count; i++)
+            for(int column = 0; column < Block.CHEST_COLUMNS; column++)
             {
-                if(this.blockCount[i] > 0)
+                if(giveBlock(b, 1, row, column) > 0)
                 {
-                    this.curBlockType = i;
-                    return retval;
+                    if(setCurrentBlock)
+                    {
+                        if(row == Block.CHEST_ROWS)
+                            this.selectionX = column;
+                    }
+                    return true;
                 }
             }
-            this.curBlockType = 0;
-            nextCurBlockType();
         }
+        return false;
+    }
+
+    /** @return the block taken from this player or <code>null</code> */
+    public Block takeBlock()
+    {
+        int index = getInventoryIndex(Block.CHEST_ROWS, this.selectionX);
+        if(this.blockCount[index] <= 0)
+            return null;
+        Block retval = this.blockType[index];
+        if(--this.blockCount[index] <= 0)
+            this.blockType[index] = null;
         return retval;
     }
 
-    /** @param bt
-     *            the kind of block to take
-     * @return the block taken from this player or
-     *         <code>BlockType.BTEmpty</code> */
-    public BlockType takeBlock(BlockType bt)
+    private Block takeBlock(Block type)
     {
-        if(bt == BlockType.BTEmpty)
-            return BlockType.BTEmpty;
-        int index = bt.ordinal();
-        if(index < 1 || index >= BlockType.Count)
-            return BlockType.BTEmpty;
-        if(index == this.curBlockType)
-            return takeBlock();
-        if(this.blockCount[index] > 0)
-            this.blockCount[index]--;
-        else
-            return BlockType.BTEmpty;
-        return bt;
+        if(type == null || type.getType() == BlockType.BTEmpty)
+            return null;
+        for(int row = Block.CHEST_ROWS; row >= 0; row--)
+        {
+            for(int column = 0; column < Block.CHEST_COLUMNS; column++)
+            {
+                int index = getInventoryIndex(row, column);
+                if(this.blockCount[index] <= 0)
+                    continue;
+                Block retval = this.blockType[index];
+                if(--this.blockCount[index] <= 0)
+                    this.blockType[index] = null;
+                return retval;
+            }
+        }
+        return null;
     }
 
     private void runWorkbenchReduce()
@@ -1036,9 +1170,12 @@ public class Player implements GameObject
         int count;
         Block.ReduceDescriptor rd = Block.reduce(this.workbench,
                                                  this.workbenchSize);
-        BlockType b = rd.b;
+        Block b = rd.b;
         count = rd.count;
-        if(!rd.isEmpty())
+        if(rd.isEmpty())
+            return;
+        if((this.dragCount <= 0 || this.dragType.equals(b))
+                && this.dragCount + count <= Block.BLOCK_STACK_SIZE)
         {
             for(int x = 0; x < this.workbenchSize; x++)
             {
@@ -1048,25 +1185,21 @@ public class Player implements GameObject
                             + this.workbenchSize * y]);
                 }
             }
-            for(int i = 0; i < count; i++)
-            {
-                giveBlock(b, true);
-            }
+            this.dragCount += count;
+            this.dragType = b;
         }
     }
 
     private boolean canPlaceBlock(Block selb, int bx, int by, int bz)
     {
         if(selb == null || !this.isShiftDown || this.state != State.Normal
-                || this.curBlockType <= 0
-                || BlockType.toBlockType(this.curBlockType) == null
-                || BlockType.toBlockType(this.curBlockType).isItem())
+                || getCurrentHotbarBlock() == null
+                || getCurrentHotbarBlock().isItem())
             return false;
         if(Math.floor(this.position.x) == bx
                 && Math.floor(this.position.y) == by
                 && Math.floor(this.position.z) == bz
-                && !BlockType.toBlockType(this.curBlockType)
-                             .isPlaceableWhileInside())
+                && !getCurrentHotbarBlock().isPlaceableWhileInside())
             return false;
         if(selb.getType() != BlockType.BTEmpty
                 && selb.getType() != BlockType.BTWater)
@@ -1085,14 +1218,13 @@ public class Player implements GameObject
             Block b1 = world.getBlockEval(x, y, z);
             Block b2 = world.getBlockEval(x, y - 1, z);
             boolean setPosition = false;
-            while((b1 != null && b1.adjustPlayerPosition(newpos.sub(new Vector(x,
-                                                                               y,
-                                                                               z)),
-                                                         distLimit) == null)
-                    || (b2 != null && b2.adjustPlayerPosition(newpos.sub(new Vector(x,
-                                                                                    y - 1,
-                                                                                    z)),
-                                                              distLimit) == null))
+            while(b1 != null
+                    && b2 != null
+                    && (b1.adjustPlayerPosition(newpos.sub(new Vector(x, y, z)),
+                                                distLimit) == null || b2.adjustPlayerPosition(newpos.sub(new Vector(x,
+                                                                                                                    y - 1,
+                                                                                                                    z)),
+                                                                                              distLimit) == null))
             {
                 y++;
                 newpos.y = y + distLimit + 1e-3f - (PlayerHeight - 1.0f)
@@ -1184,162 +1316,56 @@ public class Player implements GameObject
         }
     }
 
-    private void chestNextCurBlockType()
+    private boolean handleInventoryOrHotbarClick(final Main.MouseEvent event)
     {
-        Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
-        if(chest == null || chest.getType() != BlockType.BTChest)
+        if(!event.isDown || event.button != Main.MouseEvent.LEFT)
+            return false;
+        if(mouseIsInInventoryOrHotbar(event.mouseX, event.mouseY))
         {
-            chest = Block.NewChest();
-            this.state = State.Normal;
-            return;
-        }
-        if(this.chestCurBlockType > 0)
-        {
-            for(int i = this.chestCurBlockType + 1; i < BlockType.Count; i++)
+            int row = mouseGetInventoryOrHotbarRow(event.mouseX, event.mouseY);
+            int column = mouseGetInventoryOrHotbarColumn(event.mouseX,
+                                                         event.mouseY);
+            int index = getInventoryIndex(row, column);
+            if(this.dragCount <= 0)
             {
-                if(chest.chestGetBlockTypeCount(BlockType.toBlockType(i)) > 0)
+                if(this.blockCount[index] > 0)
                 {
-                    this.chestCurBlockType = i;
-                    return;
+                    this.dragCount = this.blockCount[index];
+                    this.dragType = this.blockType[index];
+                    this.blockCount[index] = 0;
+                    this.blockType[index] = null;
                 }
             }
-            this.chestCurBlockType = 0;
-            return;
-        }
-        for(int i = 1; i < BlockType.Count; i++)
-        {
-            if(chest.chestGetBlockTypeCount(BlockType.toBlockType(i)) > 0)
+            else if(this.blockCount[index] <= 0)
             {
-                this.chestCurBlockType = i;
-                return;
+                this.blockCount[index] = this.dragCount;
+                this.blockType[index] = this.dragType;
+                this.dragCount = 0;
+                this.dragType = null;
             }
-        }
-    }
-
-    private void chestPrevCurBlockType()
-    {
-        Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
-        if(chest == null || chest.getType() != BlockType.BTChest)
-        {
-            chest = Block.NewChest();
-            this.state = State.Normal;
-            return;
-        }
-        if(this.chestCurBlockType > 0)
-        {
-            for(int i = this.chestCurBlockType - 1; i > 0; i--)
+            else if(this.blockType[index].equals(this.dragType)) // pick
+                                                                 // up
+                                                                 // more
+                                                                 // blocks
             {
-                if(chest.chestGetBlockTypeCount(BlockType.toBlockType(i)) > 0)
-                {
-                    this.chestCurBlockType = i;
-                    return;
-                }
+                int transferCount = Math.min(this.blockCount[index],
+                                             Block.BLOCK_STACK_SIZE
+                                                     - this.dragCount);
+                this.dragCount += transferCount;
+                this.blockCount[index] -= transferCount;
+                if(this.blockCount[index] <= 0)
+                    this.blockType[index] = null;
             }
-            this.chestCurBlockType = 0;
-            return;
-        }
-        for(int i = BlockType.Count - 1; i > 0; i--)
-        {
-            if(chest.chestGetBlockTypeCount(BlockType.toBlockType(i)) > 0)
-            {
-                this.chestCurBlockType = i;
-                return;
-            }
-        }
-    }
-
-    private boolean chestGiveBlock(BlockType bt, boolean setCurrentBlock)
-    {
-        if(bt == BlockType.BTEmpty)
-        {
-            if(setCurrentBlock)
-                this.chestCurBlockType = 0;
             return true;
         }
-        Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
-        if(chest == null || chest.getType() != BlockType.BTChest)
-        {
-            chest = Block.NewChest();
-            this.state = State.Normal;
-            return false;
-        }
-        chest = new Block(chest);
-        chest.chestAddBlock(bt);
-        // world.addModNode(blockX, blockY, blockZ, chest);
-        // TODO finish
-        world.setBlock(this.blockX, this.blockY, this.blockZ, chest);
-        int index = bt.ordinal();
-        if(setCurrentBlock)
-            this.chestCurBlockType = index;
-        return true;
+        return false;
     }
 
-    private BlockType chestTakeBlock()
+    private static int getMaxCreativeOffset()
     {
-        Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
-        if(chest == null || chest.getType() != BlockType.BTChest)
-        {
-            chest = Block.NewChest();
-            this.state = State.Normal;
-            return BlockType.BTEmpty;
-        }
-        chest = new Block(chest);
-        BlockType retval = BlockType.BTEmpty;
-        retval = BlockType.toBlockType(this.chestCurBlockType);
-        if(this.chestCurBlockType <= 0
-                || chest.chestRemoveBlock(retval) == BlockType.BTEmpty)
-        {
-            this.chestCurBlockType = -1;
-            return BlockType.BTEmpty;
-        }
-        if(chest.chestGetBlockTypeCount(retval) > 0)
-        {
-            // world.addModNode(blockX, blockY, blockZ, chest);
-            // TODO finish
-            world.setBlock(this.blockX, this.blockY, this.blockZ, chest);
-        }
-        else
-        {
-            // world.addModNode(blockX, blockY, blockZ, chest);
-            // TODO finish
-            world.setBlock(this.blockX, this.blockY, this.blockZ, chest);
-            for(int i = this.chestCurBlockType; i < BlockType.Count; i++)
-            {
-                if(chest.chestGetBlockTypeCount(BlockType.toBlockType(i)) > 0)
-                {
-                    this.chestCurBlockType = i;
-                    return retval;
-                }
-            }
-            this.chestCurBlockType = 0;
-            chestNextCurBlockType();
-        }
-        return retval;
-    }
-
-    @SuppressWarnings("unused")
-    private BlockType chestTakeBlock(BlockType bt)
-    {
-        if(bt == BlockType.BTEmpty)
-            return BlockType.BTEmpty;
-        int index = bt.ordinal();
-        if(index < 1 || index >= BlockType.Count)
-            return BlockType.BTEmpty;
-        if(index == this.chestCurBlockType)
-            return chestTakeBlock();
-        Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
-        if(chest == null || chest.getType() != BlockType.BTChest)
-        {
-            chest = Block.NewChest();
-            this.state = State.Normal;
-            return BlockType.BTEmpty;
-        }
-        chest = new Block(chest);
-        BlockType retval = chest.chestRemoveBlock(bt);
-        // world.addModNode(blockX, blockY, blockZ, chest);
-        // TODO finish
-        world.setBlock(this.blockX, this.blockY, this.blockZ, chest);
-        return retval;
+        return Math.max(0, (BlockType.getCreativeModeInventorySize()
+                + CREATIVE_COLUMNS - 1)
+                / CREATIVE_COLUMNS - Block.CHEST_ROWS);
     }
 
     /** @param event
@@ -1363,11 +1389,10 @@ public class Player implements GameObject
                 Block oldb = getSelectedBlock();
                 if(canPlaceBlock(oldb, this.blockX, this.blockY, this.blockZ))
                 {
-                    BlockType bt = takeBlock();
-                    Block newb = Block.make(bt,
-                                            this.blockOrientation,
-                                            Block.getOrientationFromVector(bt.use3DOrientation() ? getForwardVector()
-                                                    : getMoveForwardVector()));
+                    Block newb = takeBlock();
+                    if(newb != null)
+                        newb = newb.makePlacedBlock(this.blockOrientation,
+                                                    Block.getOrientationFromVector(getForwardVector()));
                     if(newb != null)
                     {
                         // world.AddModNode(blockX, blockY, blockZ, newb);
@@ -1398,7 +1423,6 @@ public class Player implements GameObject
                 if(b != null && b.getType() == BlockType.BTChest)
                 {
                     this.state = State.Chest;
-                    this.chestCurBlockType = 0;
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTWorkbench)
@@ -1407,14 +1431,18 @@ public class Player implements GameObject
                     this.state = State.Workbench;
                     for(int x = 0; x < this.workbenchSize; x++)
                         for(int y = 0; y < this.workbenchSize; y++)
-                            this.workbench[x + y * this.workbenchSize] = BlockType.BTEmpty;
+                            this.workbench[x + y * this.workbenchSize] = null;
                     this.lastMouseX = -1;
                     this.lastMouseY = -1;
+                    this.dragCount = 0;
+                    this.dragType = null;
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTFurnace)
                 {
                     this.state = State.Furnace;
+                    this.dragCount = 0;
+                    this.dragType = null;
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTStoneButton)
@@ -1466,161 +1494,271 @@ public class Player implements GameObject
         case Workbench:
         {
             this.deleteAnimTime = -1;
-            if(event.isDown && event.button == Main.MouseEvent.LEFT)
+            if(!handleInventoryOrHotbarClick(event))
             {
-                if(mousePosToSelPosWorkbench(event.mouseX, event.mouseY))
+                if(event.isDown && event.button == Main.MouseEvent.LEFT)
                 {
-                    if(this.workbench[this.workbenchSelX + this.workbenchSize
-                            * this.workbenchSelY] == BlockType.BTEmpty)
+                    if(this.workbenchSize == 2 && Main.isCreativeMode)
                     {
-                        this.workbench[this.workbenchSelX + this.workbenchSize
-                                * this.workbenchSelY] = takeBlock();
+                        if(mouseIsInCreative(event.mouseX, event.mouseY))
+                        {
+                            int x = mouseGetCreativeX(event.mouseX,
+                                                      event.mouseY);
+                            int y = mouseGetCreativeY(event.mouseX,
+                                                      event.mouseY);
+                            int index = (y + this.creativeOffset)
+                                    * CREATIVE_COLUMNS + x;
+                            final Block b;
+                            if(index < BlockType.getCreativeModeInventorySize())
+                                b = BlockType.getCreativeModeInventoryBlock(index);
+                            else
+                                b = null;
+                            final int count;
+                            if(b == null)
+                                count = 0;
+                            else
+                                count = Block.BLOCK_STACK_SIZE;
+                            if(this.dragCount <= 0)
+                            {
+                                if(count > 0)
+                                {
+                                    this.dragCount = count;
+                                    this.dragType = b;
+                                }
+                            }
+                            else if(count <= 0)
+                            {
+                                this.dragCount = 0;
+                                this.dragType = null;
+                            }
+                            else if(b.equals(this.dragType))
+                                this.dragCount = Block.BLOCK_STACK_SIZE;
+                        }
+                        else if(mouseIsInCreativeUpButton(event.mouseX,
+                                                          event.mouseY))
+                        {
+                            if(this.creativeOffset > 0)
+                                this.creativeOffset--;
+                        }
+                        else if(mouseIsInCreativeDownButton(event.mouseX,
+                                                            event.mouseY))
+                        {
+                            if(this.creativeOffset < getMaxCreativeOffset())
+                                this.creativeOffset++;
+                        }
                     }
-                    else
+                    else if(mousePosToSelPosWorkbench(event.mouseX,
+                                                      event.mouseY))
                     {
-                        giveBlock(this.workbench[this.workbenchSelX
-                                          + this.workbenchSize
-                                          * this.workbenchSelY],
-                                  true);
-                        this.workbench[this.workbenchSelX + this.workbenchSize
-                                * this.workbenchSelY] = BlockType.BTEmpty;
+                        if(this.workbench[this.workbenchSelX
+                                + this.workbenchSize * this.workbenchSelY] == null)
+                        {
+                            if(this.dragCount > 0)
+                            {
+                                this.workbench[this.workbenchSelX
+                                        + this.workbenchSize
+                                        * this.workbenchSelY] = this.dragType;
+                                if(--this.dragCount <= 0)
+                                    this.dragType = null;
+                            }
+                        }
+                        else
+                        {
+                            if((this.dragCount <= 0 || this.dragType.equals(this.workbench[this.workbenchSelX
+                                    + this.workbenchSize * this.workbenchSelY]))
+                                    && this.dragCount < Block.BLOCK_STACK_SIZE)
+                            {
+                                this.dragCount++;
+                                this.dragType = this.workbench[this.workbenchSelX
+                                        + this.workbenchSize
+                                        * this.workbenchSelY];
+                                this.workbench[this.workbenchSelX
+                                        + this.workbenchSize
+                                        * this.workbenchSelY] = null;
+                            }
+                        }
+                    }
+                    else if(mouseIsInResultWorkbench(event.mouseX, event.mouseY))
+                    {
+                        runWorkbenchReduce();
                     }
                 }
-                else if(mouseIsInResultWorkbench(event.mouseX, event.mouseY))
+                else if(!event.isDown)
                 {
-                    runWorkbenchReduce();
                 }
-            }
-            else if(event.dWheel > 0)
-            {
-                nextCurBlockType();
-            }
-            else if(event.dWheel < 0)
-            {
-                prevCurBlockType();
-            }
-            else if(!event.isDown)
-            {
             }
             break;
         }
         case Chest:
         {
             this.deleteAnimTime = -1;
-            if(event.dWheel > 0)
+            if(!handleInventoryOrHotbarClick(event))
             {
-                nextCurBlockType();
-            }
-            else if(event.dWheel < 0)
-            {
-                prevCurBlockType();
-            }
-            else if(event.isDown && event.button == Main.MouseEvent.LEFT)
-            {
-                int moveCount = 1;
-                /*if(event.keysym.mod & KMOD_CTRL)
-                    moveCount = 5;*/
-                for(int i = 0; i < moveCount; i++)
-                    giveBlock(chestTakeBlock(), true);
-            }
-            else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
-            {
-                int moveCount = 1;
-                /*if(event.keysym.mod & KMOD_CTRL)
-                    moveCount = 5;*/
-                for(int i = 0; i < moveCount; i++)
-                    if(!chestGiveBlock(takeBlock(), true))
-                        return;
+                if(event.isDown && event.button == Main.MouseEvent.LEFT)
+                {
+                    if(mouseIsInChest(event.mouseX, event.mouseY))
+                    {
+                        int row = mouseGetChestRow(event.mouseX, event.mouseY);
+                        int column = mouseGetChestColumn(event.mouseX,
+                                                         event.mouseY);
+                        Block chest = world.getBlock(this.blockX,
+                                                     this.blockY,
+                                                     this.blockZ);
+                        if(chest == null
+                                || chest.getType() != BlockType.BTChest)
+                        {
+                            for(int i = 0; i < this.dragCount; i++)
+                                giveBlock(this.dragType, false);
+                            this.state = State.Normal;
+                            return;
+                        }
+                        chest = new Block(chest);
+                        if(this.dragCount <= 0)
+                        {
+                            if(chest.chestGetBlockCount(row, column) > 0)
+                            {
+                                this.dragType = chest.chestGetBlockType(row,
+                                                                        column);
+                                this.dragCount = chest.chestRemoveBlocks(this.dragType,
+                                                                         chest.chestGetBlockCount(row,
+                                                                                                  column),
+                                                                         row,
+                                                                         column);
+                                if(this.dragCount <= 0)
+                                    this.dragType = null;
+                            }
+                        }
+                        else if(chest.chestGetBlockCount(row, column) <= 0)
+                        {
+                            this.dragCount -= chest.chestAddBlocks(this.dragType,
+                                                                   this.dragCount,
+                                                                   row,
+                                                                   column);
+                            if(this.dragCount <= 0)
+                                this.dragType = null;
+                        }
+                        else
+                        // pick
+                        // up
+                        // more
+                        // blocks
+                        {
+                            int transferCount = Math.min(chest.chestGetBlockCount(row,
+                                                                                  column),
+                                                         Block.BLOCK_STACK_SIZE
+                                                                 - this.dragCount);
+                            transferCount = chest.chestRemoveBlocks(this.dragType,
+                                                                    transferCount,
+                                                                    row,
+                                                                    column);
+                            this.dragCount += transferCount;
+                        }
+                        // world.addModNode(blockX, blockY, blockZ, chest);
+                        // TODO finish
+                        world.setBlock(this.blockX,
+                                       this.blockY,
+                                       this.blockZ,
+                                       chest);
+                    }
+                }
+                else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
+                {
+                }
             }
             break;
         }
         case Furnace:
         {
             this.deleteAnimTime = -1;
-            if(event.dWheel > 0)
+            if(!handleInventoryOrHotbarClick(event))
             {
-                nextCurBlockType();
-            }
-            else if(event.dWheel < 0)
-            {
-                prevCurBlockType();
-            }
-            else if(event.isDown && event.button == Main.MouseEvent.LEFT)
-            {
-                if(mouseIsInFireFurnace(event.mouseX, event.mouseY))
+                if(event.isDown && event.button == Main.MouseEvent.LEFT)
                 {
-                    Block b = world.getBlock(this.blockX,
-                                             this.blockY,
-                                             this.blockZ);
-                    if(b != null && b.getType() == BlockType.BTFurnace)
-                        b = new Block(b);
-                    else
+                    if(mouseIsInFireFurnace(event.mouseX, event.mouseY))
                     {
-                        b = Block.NewFurnace();
-                        this.state = State.Normal;
-                        return;
+                        if(this.dragCount > 0)
+                        {
+                            Block b = world.getBlock(this.blockX,
+                                                     this.blockY,
+                                                     this.blockZ);
+                            if(b != null && b.getType() == BlockType.BTFurnace)
+                                b = new Block(b);
+                            else
+                            {
+                                for(int i = 0; i < this.dragCount; i++)
+                                    giveBlock(this.dragType, false);
+                                this.state = State.Normal;
+                                return;
+                            }
+                            if(this.dragType.getBurnTime() > 0)
+                            {
+                                b.furnaceAddFire(this.dragType);
+                                if(--this.dragCount <= 0)
+                                    this.dragType = null;
+                            }
+                            // world.addModNode(blockX, blockY, blockZ, b);
+                            // TODO finish
+                            world.setBlock(this.blockX,
+                                           this.blockY,
+                                           this.blockZ,
+                                           b);
+                        }
                     }
-                    BlockType bt = takeBlock();
-                    if(bt.getBurnTime() > 0)
+                    else if(mouseIsInSourceFurnace(event.mouseX, event.mouseY))
                     {
-                        b.furnaceAddFire(bt);
+                        if(this.dragCount > 0)
+                        {
+                            Block b = world.getBlock(this.blockX,
+                                                     this.blockY,
+                                                     this.blockZ);
+                            if(b != null && b.getType() == BlockType.BTFurnace)
+                                b = new Block(b);
+                            else
+                            {
+                                for(int i = 0; i < this.dragCount; i++)
+                                    giveBlock(this.dragType, false);
+                                this.state = State.Normal;
+                                return;
+                            }
+                            if(b.furnaceAddBlock(this.dragType))
+                                if(--this.dragCount <= 0)
+                                    this.dragType = null;
+                            // world.addModNode(blockX, blockY, blockZ, b);
+                            // TODO finish
+                            world.setBlock(this.blockX,
+                                           this.blockY,
+                                           this.blockZ,
+                                           b);
+                        }
                     }
-                    else
+                    else if(mouseIsInResultFurnace(event.mouseX, event.mouseY))
                     {
-                        giveBlock(bt, true);
+                        Block b = world.getBlock(this.blockX,
+                                                 this.blockY,
+                                                 this.blockZ);
+                        if(b != null && b.getType() == BlockType.BTFurnace)
+                            b = new Block(b);
+                        else
+                        {
+                            for(int i = 0; i < this.dragCount; i++)
+                                giveBlock(this.dragType, false);
+                            this.state = State.Normal;
+                            return;
+                        }
+                        if((this.dragCount <= 0 || this.dragType.equals(b.furnaceGetDestBlock()))
+                                && this.dragCount < Block.BLOCK_STACK_SIZE)
+                        {
+                            Block newB = b.furnaceRemoveBlock();
+                            if(newB != null)
+                            {
+                                this.dragCount++;
+                                this.dragType = newB;
+                            }
+                        }
+                        // world.addModNode(blockX, blockY, blockZ, b);
+                        // TODO finish
+                        world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     }
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
-                    world.setBlock(this.blockX, this.blockY, this.blockZ, b);
-                }
-                else if(mouseIsInSourceFurnace(event.mouseX, event.mouseY))
-                {
-                    Block b = world.getBlock(this.blockX,
-                                             this.blockY,
-                                             this.blockZ);
-                    if(b != null && b.getType() == BlockType.BTFurnace)
-                        b = new Block(b);
-                    else
-                    {
-                        b = Block.NewFurnace();
-                        this.state = State.Normal;
-                        return;
-                    }
-                    BlockType bt = takeBlock();
-                    if(bt.isSmeltable())
-                    {
-                        if(!b.furnaceAddBlock(bt))
-                            giveBlock(bt, true);
-                    }
-                    else
-                    {
-                        giveBlock(bt, true);
-                    }
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
-                    world.setBlock(this.blockX, this.blockY, this.blockZ, b);
-                }
-                else if(mouseIsInResultFurnace(event.mouseX, event.mouseY))
-                {
-                    Block b = world.getBlock(this.blockX,
-                                             this.blockY,
-                                             this.blockZ);
-                    if(b != null && b.getType() == BlockType.BTFurnace)
-                        b = new Block(b);
-                    else
-                    {
-                        b = Block.NewFurnace();
-                        this.state = State.Normal;
-                        return;
-                    }
-                    BlockType bt = b.furnaceRemoveBlock();
-                    if(bt != BlockType.BTEmpty)
-                    {
-                        giveBlock(bt, true);
-                    }
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
-                    world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                 }
             }
             break;
@@ -1708,7 +1846,8 @@ public class Player implements GameObject
         {
         case Normal:
         {
-            boolean isFlying = Main.isKeyDown(Main.KEY_F);
+            boolean isFlying = Main.isKeyDown(Main.KEY_F)
+                    && Main.isCreativeMode;
             boolean inWater = isInWater();
             boolean inLadder = isInLadder();
             Vector origvelocity = new Vector(this.velocity);
@@ -1835,6 +1974,52 @@ public class Player implements GameObject
         this.paused = paused;
     }
 
+    private void quitToNormal()
+    {
+        switch(this.state)
+        {
+        case Normal:
+            return;
+        case Workbench:
+        {
+            this.deleteAnimTime = -1;
+            for(int i = 0; i < this.dragCount; i++)
+                giveBlock(this.dragType, false);
+            this.state = State.Normal;
+            for(int x = 0; x < this.workbenchSize; x++)
+            {
+                for(int y = 0; y < this.workbenchSize; y++)
+                {
+                    if(this.workbench[x + this.workbenchSize * y] == null)
+                        continue;
+                    giveBlock(this.workbench[x + this.workbenchSize * y], false);
+                    this.workbench[x + this.workbenchSize * y] = null;
+                }
+            }
+            this.wasPaused = true;
+            break;
+        }
+        case Chest:
+        {
+            this.deleteAnimTime = -1;
+            for(int i = 0; i < this.dragCount; i++)
+                giveBlock(this.dragType, false);
+            this.state = State.Normal;
+            this.wasPaused = true;
+            break;
+        }
+        case Furnace:
+        {
+            this.deleteAnimTime = -1;
+            for(int i = 0; i < this.dragCount; i++)
+                giveBlock(this.dragType, false);
+            this.state = State.Normal;
+            this.wasPaused = true;
+            break;
+        }
+        }
+    }
+
     /** @param event
      *            the event to handle */
     public void handleKeyboardEvent(Main.KeyboardEvent event)
@@ -1866,7 +2051,7 @@ public class Player implements GameObject
                     this.state = State.Workbench;
                     for(int x = 0; x < this.workbenchSize; x++)
                         for(int y = 0; y < this.workbenchSize; y++)
-                            this.workbench[x + y * this.workbenchSize] = BlockType.BTEmpty;
+                            this.workbench[x + y * this.workbenchSize] = null;
                     this.lastMouseX = -1;
                     this.lastMouseY = -1;
                 }
@@ -1876,85 +2061,21 @@ public class Player implements GameObject
             {
                 this.deleteAnimTime = -1;
                 if(event.key == Main.KEY_ESCAPE || event.key == Main.KEY_Q)
-                {
-                    this.state = State.Normal;
-                    for(int x = 0; x < this.workbenchSize; x++)
-                    {
-                        for(int y = 0; y < this.workbenchSize; y++)
-                        {
-                            if(this.workbench[x + this.workbenchSize * y] == BlockType.BTEmpty)
-                                continue;
-                            giveBlock(this.workbench[x + this.workbenchSize * y],
-                                      false);
-                            this.workbench[x + this.workbenchSize * y] = BlockType.BTEmpty;
-                        }
-                    }
-                    this.wasPaused = true;
-                }
-                else if(event.key == Main.KEY_RETURN)
-                {
-                    runWorkbenchReduce();
-                }
+                    quitToNormal();
                 break;
             }
             case Chest:
             {
                 this.deleteAnimTime = -1;
                 if(event.key == Main.KEY_ESCAPE || event.key == Main.KEY_Q)
-                {
-                    this.state = State.Normal;
-                    this.wasPaused = true;
-                }
-                else if(event.key == Main.KEY_LEFT || event.key == Main.KEY_A)
-                {
-                    prevCurBlockType();
-                }
-                else if(event.key == Main.KEY_RIGHT || event.key == Main.KEY_D)
-                {
-                    nextCurBlockType();
-                }
-                else if(event.key == Main.KEY_UP || event.key == Main.KEY_W)
-                {
-                    chestNextCurBlockType();
-                }
-                else if(event.key == Main.KEY_DOWN || event.key == Main.KEY_S)
-                {
-                    chestPrevCurBlockType();
-                }
-                else if(event.key == Main.KEY_SPACE)
-                {
-                    int moveCount = 1;
-                    if(Main.isKeyDown(Main.KEY_CTRL))
-                        moveCount = 5;
-                    for(int i = 0; i < moveCount; i++)
-                        chestGiveBlock(takeBlock(), true);
-                }
-                else if(event.key == Main.KEY_DELETE)
-                {
-                    int moveCount = 1;
-                    if(Main.isKeyDown(Main.KEY_CTRL))
-                        moveCount = 5;
-                    for(int i = 0; i < moveCount; i++)
-                        giveBlock(chestTakeBlock(), true);
-                }
+                    quitToNormal();
                 break;
             }
             case Furnace:
             {
                 this.deleteAnimTime = -1;
                 if(event.key == Main.KEY_ESCAPE || event.key == Main.KEY_Q)
-                {
-                    this.state = State.Normal;
-                    this.wasPaused = true;
-                }
-                else if(event.key == Main.KEY_LEFT || event.key == Main.KEY_A)
-                {
-                    prevCurBlockType();
-                }
-                else if(event.key == Main.KEY_RIGHT || event.key == Main.KEY_D)
-                {
-                    nextCurBlockType();
-                }
+                    quitToNormal();
                 break;
             }
             }
@@ -1978,49 +2099,17 @@ public class Player implements GameObject
         this.velocity.write(o);
         o.writeFloat(this.viewPhi);
         o.writeFloat(this.viewTheta);
-        int count = 0;
-        for(int i = 1; i < BlockType.Count; i++)
+        if(this.state != State.Normal)
         {
-            BlockType bt = BlockType.toBlockType(i);
-            int bcount = this.blockCount[i];
-            if(this.state == State.Workbench)
-            {
-                for(int x = 0; x < this.workbenchSize; x++)
-                {
-                    for(int y = 0; y < this.workbenchSize; y++)
-                    {
-                        if(this.workbench[x + this.workbenchSize * y] == bt)
-                        {
-                            bcount++;
-                        }
-                    }
-                }
-            }
-            if(bcount > 0)
-                count++;
+            quitToNormal();
         }
-        o.writeShort(count);
-        for(int i = 1; i < BlockType.Count; i++)
+        for(int i = 0; i < (Block.CHEST_ROWS + 1) * Block.CHEST_COLUMNS; i++)
         {
-            BlockType bt = BlockType.toBlockType(i);
-            int bcount = this.blockCount[i];
-            if(this.state == State.Workbench)
+            o.writeInt(this.blockCount[i]);
+            if(this.blockCount[i] > 0)
             {
-                for(int x = 0; x < this.workbenchSize; x++)
-                {
-                    for(int y = 0; y < this.workbenchSize; y++)
-                    {
-                        if(this.workbench[x + this.workbenchSize * y] == bt)
-                        {
-                            bcount++;
-                        }
-                    }
-                }
+                this.blockType[i].write(o);
             }
-            if(bcount <= 0)
-                continue;
-            bt.write(o);
-            o.writeInt(bcount);
         }
     }
 
@@ -2044,18 +2133,16 @@ public class Player implements GameObject
         if(Float.isInfinite(retval.viewTheta) || Float.isNaN(retval.viewTheta)
                 || Math.abs(retval.viewTheta) > 1e-4 + Math.PI * 2)
             throw new IOException("theta out of range");
-        int count = i.readUnsignedShort();
-        if(count > BlockType.Count)
-            throw new IOException("block type count is too big");
-        while(count-- > 0)
+        for(int index = 0; index < (Block.CHEST_ROWS + 1) * Block.CHEST_COLUMNS; index++)
         {
-            int index = BlockType.read(i).value;
+            retval.blockCount[index] = i.readInt();
+            if(retval.blockCount[index] < 0
+                    || retval.blockCount[index] > Block.BLOCK_STACK_SIZE)
+                throw new IOException("inventory cell block count out of range");
             if(retval.blockCount[index] > 0)
-                throw new IOException("block type is duplicate");
-            int value = i.readInt();
-            if(value <= 0 || value >= 1000000000)
-                throw new IOException("value is out of range");
-            retval.blockCount[index] = value;
+                retval.blockType[index] = Block.read(i);
+            else
+                retval.blockType[index] = null;
         }
         return retval;
     }

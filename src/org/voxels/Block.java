@@ -22,6 +22,8 @@ import static org.voxels.World.world;
 import java.io.*;
 
 import org.voxels.TextureAtlas.TextureHandle;
+import org.voxels.generate.Tree;
+import org.voxels.generate.Tree.TreeType;
 
 /** block<BR/>
  * not thread safe
@@ -30,6 +32,10 @@ import org.voxels.TextureAtlas.TextureHandle;
 public class Block implements GameObject
 {
     private BlockType type;
+    /***/
+    public static final int CHEST_ROWS = 3;
+    /***/
+    public static final int CHEST_COLUMNS = 9;
 
     private static class Data
     {
@@ -37,7 +43,8 @@ public class Block implements GameObject
         public int intdata = 0;
         public int step = 0;
         public int[] BlockCounts = null;
-        public BlockType blockdata = BlockType.BTEmpty;
+        public Block[] BlockTypes = null;
+        public Block blockdata = null;
         public int srccount = 0;
         public int destcount = 0;
         public int orientation = -1;
@@ -51,11 +58,16 @@ public class Block implements GameObject
         {
             this.intdata = rt.intdata;
             this.BlockCounts = rt.BlockCounts;
+            this.BlockTypes = null;
             if(this.BlockCounts != null)
             {
-                this.BlockCounts = new int[BlockType.Count];
-                for(int i = 1; i < BlockType.Count; i++)
+                this.BlockCounts = new int[CHEST_ROWS * CHEST_COLUMNS];
+                this.BlockTypes = new Block[CHEST_ROWS * CHEST_COLUMNS];
+                for(int i = 1; i < CHEST_ROWS * CHEST_COLUMNS; i++)
+                {
                     this.BlockCounts[i] = rt.BlockCounts[i];
+                    this.BlockTypes[i] = rt.BlockTypes[i];
+                }
             }
             this.blockdata = rt.blockdata;
             this.srccount = rt.srccount;
@@ -170,7 +182,7 @@ public class Block implements GameObject
     /** @return new furnace */
     public static Block NewFurnace()
     {
-        return NewFurnace(0, BlockType.BTEmpty, 0, 0);
+        return NewFurnace(0, null, 0, 0);
     }
 
     /** @param fuelleft
@@ -183,7 +195,7 @@ public class Block implements GameObject
      *            the number of blocks already smelted
      * @return new furnace */
     public static Block NewFurnace(int fuelleft,
-                                   BlockType sourceblock,
+                                   Block sourceblock,
                                    int srccount,
                                    int destcount)
     {
@@ -207,18 +219,20 @@ public class Block implements GameObject
     public static Block NewChest()
     {
         Block retval = new Block(BlockType.BTChest);
-        retval.data.BlockCounts = new int[BlockType.Count];
-        for(int i = 1; i < BlockType.Count; i++)
-            retval.data.BlockCounts[i] = 0;
+        retval.data.BlockCounts = new int[CHEST_ROWS * CHEST_COLUMNS];
+        retval.data.BlockTypes = new Block[CHEST_ROWS * CHEST_COLUMNS];
         return retval;
     }
 
-    /** @return new sapling */
-    public static Block NewSapling()
+    /** @param treeType
+     *            the tree type
+     * @return new sapling */
+    public static Block NewSapling(TreeType treeType)
     {
         Block retval = new Block(BlockType.BTSapling);
         retval.data.runTime = world.getCurTime()
                 + BlockType.BTSapling.getGrowTime();
+        retval.data.intdata = treeType.ordinal();
         return retval;
     }
 
@@ -234,16 +248,47 @@ public class Block implements GameObject
         return new Block(BlockType.BTGravel);
     }
 
-    /** @return new wood block */
-    public static Block NewWood()
+    /** @param treeType
+     *            the tree type
+     * @param orientation
+     *            the block orientation : <br/>
+     *            <ul>
+     *            <li>0 : ±y sides without bark</li>
+     *            <li>1 : ±x sides without bark</li>
+     *            <li>2 : ±z sides without bark</li>
+     *            <li>3 : all sides with bark</li>
+     *            </ul>
+     * @return new wood block */
+    public static Block NewWood(Tree.TreeType treeType, int orientation)
     {
-        return new Block(BlockType.BTWood);
+        Block retval = new Block(BlockType.BTWood);
+        retval.data.intdata = treeType.ordinal();
+        retval.data.orientation = Math.max(0, Math.min(3, orientation));
+        return retval;
     }
 
-    /** @return new leaves block */
-    public static Block NewLeaves()
+    /** @param treeType
+     *            the tree type
+     * @param distFromWood
+     *            the distance from wood
+     * @return new leaves block that can decay */
+    public static Block NewLeaves(Tree.TreeType treeType, int distFromWood)
     {
-        return new Block(BlockType.BTLeaves);
+        Block retval = new Block(BlockType.BTLeaves);
+        retval.data.intdata = treeType.ordinal();
+        retval.data.step = Math.max(0, Math.min(4, distFromWood));
+        return retval;
+    }
+
+    /** @param treeType
+     *            the tree type
+     * @return new leaves block that can't decay */
+    public static Block NewLeaves(Tree.TreeType treeType)
+    {
+        Block retval = new Block(BlockType.BTLeaves);
+        retval.data.intdata = treeType.ordinal();
+        retval.data.step = -1;
+        return retval;
     }
 
     /** @return new plank */
@@ -595,6 +640,14 @@ public class Block implements GameObject
         retval.data.step = Math.max(0,
                                     Math.min(retval.data.intdata - 1, stepsleft));
         return retval;
+    }
+
+    /** create a new redstone repeater
+     * 
+     * @return the new redstone repeater */
+    public static Block NewRedstoneRepeater()
+    {
+        return NewRedstoneRepeater(false, 0, 1, -1);
     }
 
     /** create a new lever
@@ -995,7 +1048,7 @@ public class Block implements GameObject
         Vector p6 = localToWorld.apply(new Vector(1, 0, 1));
         Vector p7 = localToWorld.apply(new Vector(0, 1, 1));
         Vector p8 = localToWorld.apply(new Vector(1, 1, 1));
-        if((drawMask & 0x20) != 0) // -X
+        if((drawMask & DMaskNX) != 0)
         {
             final float minu = 0.0f, maxu = 0.25f, minv = 0.5f, maxv = 1.0f;
             // p1, p5, p7, p3
@@ -1021,7 +1074,7 @@ public class Block implements GameObject
                      isAsItem,
                      (this.type == BlockType.BTSun || this.type == BlockType.BTMoon));
         }
-        if((drawMask & 0x10) != 0) // +X
+        if((drawMask & DMaskPX) != 0)
         {
             final float minu = 0.0f, maxu = 0.25f, minv = 0.0f, maxv = 0.5f;
             // p2, p4, p8, p6
@@ -1047,7 +1100,7 @@ public class Block implements GameObject
                      isAsItem,
                      (this.type == BlockType.BTSun || this.type == BlockType.BTMoon));
         }
-        if((drawMask & 0x8) != 0) // -Y
+        if((drawMask & DMaskNY) != 0)
         {
             final float minu = 0.25f, maxu = 0.5f, minv = 0.5f, maxv = 1.0f;
             // p1, p2, p6, p5
@@ -1073,7 +1126,7 @@ public class Block implements GameObject
                      isAsItem,
                      (this.type == BlockType.BTSun || this.type == BlockType.BTMoon));
         }
-        if((drawMask & 0x4) != 0) // +Y
+        if((drawMask & DMaskPY) != 0)
         {
             final float minu = 0.25f, maxu = 0.5f, minv = 0.0f, maxv = 0.5f;
             // p3, p7, p8, p4
@@ -1099,7 +1152,7 @@ public class Block implements GameObject
                      isAsItem,
                      (this.type == BlockType.BTSun || this.type == BlockType.BTMoon));
         }
-        if((drawMask & 0x2) != 0) // -Z
+        if((drawMask & DMaskNZ) != 0)
         {
             final float minu = 0.5f, maxu = 0.75f, minv = 0.5f, maxv = 1.0f;
             // p1, p3, p4, p2
@@ -1125,7 +1178,7 @@ public class Block implements GameObject
                      isAsItem,
                      (this.type == BlockType.BTSun || this.type == BlockType.BTMoon));
         }
-        if((drawMask & 0x1) != 0) // +Z
+        if((drawMask & DMaskPZ) != 0)
         {
             final float minu = 0.5f, maxu = 0.75f, minv = 0.0f, maxv = 0.5f;
             // p5, p6, p8, p7
@@ -1330,7 +1383,7 @@ public class Block implements GameObject
         Vector p7 = blockToWorld.apply(new Vector(0, 1, 1));
         Vector p8 = blockToWorld.apply(new Vector(1, 1, 1));
         Vector pCenter = blockToWorld.apply(new Vector(0.5f, avgt, 0.5f));
-        if((drawMask & 0x20) != 0) // -X
+        if((drawMask & DMaskNX) != 0)
         {
             final float minu = 0.0f, maxu = 0.25f, minv = 0.5f, maxv = 1.0f;
             Vector nunv = p1, punv = p5, pupv = p7, nupv = p3;
@@ -1354,7 +1407,7 @@ public class Block implements GameObject
                           by,
                           bz);
         }
-        if((drawMask & 0x10) != 0) // +X
+        if((drawMask & DMaskPX) != 0)
         {
             final float minu = 0.0f, maxu = 0.25f, minv = 0.0f, maxv = 0.5f;
             Vector punv = p2, pupv = p4, nupv = p8, nunv = p6;
@@ -1378,7 +1431,7 @@ public class Block implements GameObject
                           by,
                           bz);
         }
-        if((drawMask & 0x8) != 0) // -Y
+        if((drawMask & DMaskNY) != 0)
         {
             final float minu = 0.25f, maxu = 0.5f, minv = 0.5f, maxv = 1.0f;
             // p1, p2, p6, p5
@@ -1404,7 +1457,7 @@ public class Block implements GameObject
                      false,
                      (this.type == BlockType.BTSun || this.type == BlockType.BTMoon));
         }
-        if((drawMask & 0x2) != 0) // -Z
+        if((drawMask & DMaskNZ) != 0)
         {
             final float minu = 0.5f, maxu = 0.75f, minv = 0.5f, maxv = 1.0f;
             Vector punv = p1, pupv = p3, nupv = p4, nunv = p2;
@@ -1428,7 +1481,7 @@ public class Block implements GameObject
                           by,
                           bz);
         }
-        if((drawMask & 0x1) != 0) // +Z
+        if((drawMask & DMaskPZ) != 0)
         {
             final float minu = 0.5f, maxu = 0.75f, minv = 0.0f, maxv = 0.5f;
             Vector nunv = p5, punv = p6, pupv = p8, nupv = p7;
@@ -1829,8 +1882,7 @@ public class Block implements GameObject
             switch(this.type)
             {
             case BTFurnace:
-                if(this.data.intdata > 0
-                        && this.data.blockdata != BlockType.BTEmpty
+                if(this.data.intdata > 0 && this.data.blockdata != null
                         && this.data.srccount > 0)
                     drawSolid(rs,
                               blockToWorld,
@@ -1901,7 +1953,8 @@ public class Block implements GameObject
                           bz,
                           isEntity,
                           isAsItem,
-                          this.type.textures[this.data.intdata]);
+                          this.type.textures[/*this.data.intdata*/0]); // TODO
+                                                                        // fix
                 break;
             case BTDeleteBlock:
                 internalDraw(rs,
@@ -1919,14 +1972,93 @@ public class Block implements GameObject
                              isAsItem);
                 break;
             case BTWood:
+                switch(this.data.orientation)
+                {
+                case 0:
+                    internalDraw(rs,
+                                 0x3F,
+                                 Matrix.identity(),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[this.data.intdata],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    break;
+                case 1:
+                    internalDraw(rs,
+                                 0x3F,
+                                 Matrix.translate(-0.5f, -0.5f, -0.5f)
+                                       .concat(Matrix.rotatez(Math.PI / 2))
+                                       .concat(Matrix.translate(0.5f,
+                                                                0.5f,
+                                                                0.5f)),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[this.data.intdata],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    break;
+                case 2:
+                    internalDraw(rs,
+                                 0x3F,
+                                 Matrix.translate(-0.5f, -0.5f, -0.5f)
+                                       .concat(Matrix.rotatex(Math.PI / 2))
+                                       .concat(Matrix.translate(0.5f,
+                                                                0.5f,
+                                                                0.5f)),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[this.data.intdata],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    break;
+                case 3:
+                    internalDraw(rs,
+                                 DMaskNX | DMaskNZ | DMaskPX | DMaskPZ,
+                                 Matrix.identity(),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[this.data.intdata],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 DMaskNZ | DMaskPZ,
+                                 Matrix.translate(-0.5f, -0.5f, -0.5f)
+                                       .concat(Matrix.rotatex(Math.PI / 2))
+                                       .concat(Matrix.translate(0.5f,
+                                                                0.5f,
+                                                                0.5f)),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[this.data.intdata],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    break;
+                }
+                break;
             case BTLeaves:
                 drawSolid(rs,
                           blockToWorld,
                           bx,
                           by,
                           bz,
-                          false,
-                          this.type.textures[0],
+                          Main.FancyGraphics,
+                          this.type.textures[Main.FancyGraphics ? 0 : 0],
                           isEntity,
                           isAsItem);
                 break;
@@ -2299,7 +2431,11 @@ public class Block implements GameObject
         int newScatteredSunlight = Math.max(newSunlight,
                                             Math.min(15, scatteredSunlight));
         int newLight = Math.max(0, Math.min(15, light));
-        if(isOpaque())
+        if(this.type == BlockType.BTLeaves)
+        {
+            newSunlight = 0;
+        }
+        else if(isOpaque())
         {
             newSunlight = 0;
             newScatteredSunlight = 0;
@@ -2346,8 +2482,7 @@ public class Block implements GameObject
             switch(this.type)
             {
             case BTFurnace:
-                if(this.data.intdata > 0
-                        && this.data.blockdata != BlockType.BTEmpty
+                if(this.data.intdata > 0 && this.data.blockdata != null
                         && this.data.srccount > 0)
                     return 13;
                 return 0;
@@ -2423,7 +2558,7 @@ public class Block implements GameObject
         switch(this.type)
         {
         case BTFurnace:
-            if(this.data.blockdata == BlockType.BTEmpty)
+            if(this.data.blockdata == null)
                 return false;
             if(this.data.srccount <= 0)
                 return false;
@@ -2482,7 +2617,7 @@ public class Block implements GameObject
             return;
         case BTFurnace:
         {
-            if(this.data.blockdata == BlockType.BTEmpty)
+            if(this.data.blockdata == null)
                 return;
             if(this.data.srccount <= 0)
                 return;
@@ -2701,6 +2836,12 @@ public class Block implements GameObject
         return false;
     }
 
+    /** @return this tree block's tree type */
+    public Tree.TreeType treeGetTreeType()
+    {
+        return Tree.TreeType.values()[this.data.intdata];
+    }
+
     /** called to evaluate general moves
      * 
      * @param bx
@@ -2798,11 +2939,10 @@ public class Block implements GameObject
         case BTFurnace:
         {
             int fuelleft = this.data.intdata;
-            BlockType sourceblock = this.data.blockdata;
+            Block sourceblock = this.data.blockdata;
             int destcount = this.data.destcount;
             int srccount = this.data.srccount;
-            if(fuelleft <= 0 || sourceblock == BlockType.BTEmpty
-                    || srccount <= 0)
+            if(fuelleft <= 0 || sourceblock == null || srccount <= 0)
                 return null;
             if(world.getCurTime() < this.data.runTime)
             {
@@ -3014,7 +3154,7 @@ public class Block implements GameObject
             {
                 if(this.data.runTime >= 0)
                 {
-                    Block retval = NewSapling();
+                    Block retval = NewSapling(treeGetTreeType());
                     retval.data.runTime = -1;
                     return retval;
                 }
@@ -3024,7 +3164,7 @@ public class Block implements GameObject
             {
                 if(this.data.runTime >= 0)
                 {
-                    Block retval = NewSapling();
+                    Block retval = NewSapling(treeGetTreeType());
                     retval.data.runTime = -1;
                     return retval;
                 }
@@ -3034,7 +3174,7 @@ public class Block implements GameObject
             {
                 if(this.data.runTime >= 0)
                 {
-                    Block retval = NewSapling();
+                    Block retval = NewSapling(treeGetTreeType());
                     retval.data.runTime = -1;
                     return retval;
                 }
@@ -3043,7 +3183,7 @@ public class Block implements GameObject
             }
             if(this.data.runTime < 0)
             {
-                Block retval = NewSapling();
+                Block retval = NewSapling(treeGetTreeType());
                 return retval;
             }
             if(world.getCurTime() >= this.data.runTime)
@@ -3710,7 +3850,8 @@ public class Block implements GameObject
         case BTGravel:
         {
             if(!isBlockSupported(bx, by, bz, 4))
-                return Entity.NewFallingBlock(new Vector(bx, by, bz), this.type);
+                return Entity.NewFallingBlock(new Vector(bx, by, bz),
+                                              new Block(this));
             return null;
         }
         case BTWood:
@@ -3733,7 +3874,7 @@ public class Block implements GameObject
                 return Entity.NewBlock(new Vector(0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
-                                       BlockType.BTRedstoneDustOff,
+                                       BlockType.BTRedstoneDustOff.make(-1),
                                        World.vRand(0.1f));
             return null;
         }
@@ -3747,7 +3888,7 @@ public class Block implements GameObject
                 return Entity.NewBlock(new Vector(0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
-                                       BlockType.BTRedstoneTorchOff,
+                                       BlockType.BTRedstoneTorchOff.make(-1),
                                        World.vRand(0.1f));
             return null;
         }
@@ -3759,7 +3900,7 @@ public class Block implements GameObject
                 return Entity.NewBlock(new Vector(0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
-                                       this.type,
+                                       this.type.make(-1),
                                        World.vRand(0.1f));
             return null;
         }
@@ -3793,7 +3934,7 @@ public class Block implements GameObject
                 return Entity.NewBlock(new Vector(0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
-                                       this.type,
+                                       this.type.make(-1),
                                        World.vRand(0.1f));
             return null;
         }
@@ -3806,7 +3947,7 @@ public class Block implements GameObject
                 return Entity.NewBlock(new Vector(0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
-                                       this.type,
+                                       this.type.make(-1),
                                        World.vRand(0.1f));
             return null;
         }
@@ -3816,7 +3957,7 @@ public class Block implements GameObject
                 return Entity.NewBlock(new Vector(0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
-                                       this.type,
+                                       this.type.make(-1),
                                        World.vRand(0.1f));
             return null;
         }
@@ -4536,6 +4677,23 @@ public class Block implements GameObject
         return rs;
     }
 
+    private static final float SQRT_3 = (float)Math.sqrt(3);
+
+    private RenderingStream drawBlockAsItem(RenderingStream rs,
+                                            Matrix blockToWorld)
+    {
+        Matrix tform = Matrix.translate(-0.5f, -0.5f, -0.5f)
+                             .concat(Matrix.rotatey(-Math.PI / 4))
+                             .concat(Matrix.rotatex(Math.PI / 6))
+                             .concat(Matrix.scale(0.8f / SQRT_3,
+                                                  0.8f / SQRT_3,
+                                                  0.1f / SQRT_3))
+                             .concat(Matrix.translate(0.5f, 0.5f, 0.1f))
+                             .concat(blockToWorld);
+        draw(rs, tform, false, true);
+        return rs;
+    }
+
     /** draws as an item
      * 
      * @param rs
@@ -4551,7 +4709,7 @@ public class Block implements GameObject
         case BTDeleteBlock:
         case BTSun:
         case BTMoon:
-            draw(rs, blockToWorld, false, true);
+            drawBlockAsItem(rs, blockToWorld);
             return rs;
         case BTLast:
             return rs;
@@ -4561,7 +4719,6 @@ public class Block implements GameObject
         case BTCobblestone:
         case BTGrass:
         case BTDirt:
-        case BTSapling:
         case BTBedrock:
         case BTWater:
         case BTLava:
@@ -4573,6 +4730,33 @@ public class Block implements GameObject
         case BTChest:
         case BTWorkbench:
         case BTFurnace:
+        case BTRedstoneOre:
+        case BTRedstoneBlock:
+        case BTCoalOre:
+        case BTIronOre:
+        case BTLapisLazuliOre:
+        case BTGoldOre:
+        case BTDiamondOre:
+        case BTEmeraldOre:
+        case BTObsidian:
+        case BTPiston:
+        case BTStickyPiston:
+        case BTPistonHead:
+        case BTStickyPistonHead:
+        case BTTNT:
+            drawBlockAsItem(rs, blockToWorld);
+            return rs;
+        case BTSapling:
+            drawItem(rs,
+                     Matrix.identity(),
+                     blockToWorld,
+                     0,
+                     0,
+                     0,
+                     this.type.textures[/*this.data.intdata*/0],
+                     false,
+                     true); // TODO finish
+            return rs;
         case BTPlank:
         case BTStick:
         case BTWoodPick:
@@ -4597,14 +4781,6 @@ public class Block implements GameObject
             b.draw(rs, tform, false, true);
             return rs;
         }
-        case BTRedstoneOre:
-        case BTRedstoneBlock:
-        {
-            Block b = new Block(this);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, blockToWorld, false, true);
-            return rs;
-        }
         case BTRedstoneTorchOff:
         case BTRedstoneTorchOn:
         {
@@ -4626,17 +4802,11 @@ public class Block implements GameObject
             return rs;
         }
         case BTCoal:
-        case BTCoalOre:
         case BTIronIngot:
-        case BTIronOre:
         case BTLapisLazuli:
-        case BTLapisLazuliOre:
         case BTGoldIngot:
-        case BTGoldOre:
         case BTDiamond:
-        case BTDiamondOre:
         case BTEmerald:
-        case BTEmeraldOre:
         {
             Block b = new Block(this);
             b.setLighting(0, 0, 15);
@@ -4700,14 +4870,8 @@ public class Block implements GameObject
             b.draw(rs, blockToWorld, false, true);
             return rs;
         }
-        case BTObsidian:
-        case BTPiston:
-        case BTStickyPiston:
-        case BTPistonHead:
-        case BTStickyPistonHead:
         case BTSlime:
         case BTGunpowder:
-        case BTTNT:
         case BTBlazeRod:
         case BTBlazePowder:
         {
@@ -4723,19 +4887,19 @@ public class Block implements GameObject
     /** a reduction returned by <code>Block.reduce</code>
      * 
      * @author jacob
-     * @see Block#reduce(BlockType[] array, int arraySize) */
+     * @see Block#reduce(Block[] array, int arraySize) */
     public static final class ReduceDescriptor
     {
-        /** the blocks' type */
-        public final BlockType b;
+        /** the block */
+        public final Block b;
         /** the blocks count */
         public final int count;
 
         /** @param b
-         *            the new blocks' type
+         *            the new block
          * @param count
          *            the number of new blocks */
-        public ReduceDescriptor(BlockType b, int count)
+        public ReduceDescriptor(Block b, int count)
         {
             this.b = b;
             this.count = count;
@@ -4744,25 +4908,86 @@ public class Block implements GameObject
         /** creates an empty <code>ReduceDescriptor</code> */
         public ReduceDescriptor()
         {
-            this(BlockType.BTEmpty, 0);
+            this(null, 0);
         }
 
         /** @return true if this reduction failed */
         public boolean isEmpty()
         {
-            if(this.b == BlockType.BTEmpty)
+            if(this.b == null)
                 return true;
             return false;
         }
     }
 
+    private static abstract class BlockDescriptor
+    {
+        public abstract boolean matches(Block b);
+
+        public abstract boolean isEmpty();
+
+        public BlockDescriptor()
+        {
+        }
+    }
+
+    private static class BlockDescriptorBlockType extends BlockDescriptor
+    {
+        private final BlockType bt;
+
+        @Override
+        public boolean matches(Block b)
+        {
+            if(b == null)
+                return isEmpty();
+            return b.getType() == this.bt;
+        }
+
+        public BlockDescriptorBlockType(BlockType bt)
+        {
+            this.bt = bt;
+        }
+
+        @Override
+        public boolean isEmpty()
+        {
+            return this.bt == BlockType.BTEmpty;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private static class BlockDescriptorTreeType extends
+        BlockDescriptorBlockType
+    {
+        private final Tree.TreeType tt;
+
+        @Override
+        public boolean matches(Block b)
+        {
+            if(b == null)
+                return isEmpty();
+            if(!super.matches(b))
+                return false;
+            return b.treeGetTreeType() == this.tt;
+        }
+
+        public BlockDescriptorTreeType(BlockType bt, Tree.TreeType tt)
+        {
+            super(bt);
+            this.tt = tt;
+        }
+    }
+
     private static class ReduceStruct
     {
-        public final BlockType array[];
+        public final BlockDescriptor array[];
         public final int size;
         public final ReduceDescriptor retval;
 
-        public ReduceStruct(BlockType array[], int size, BlockType b, int count)
+        public ReduceStruct(BlockDescriptor array[],
+                            int size,
+                            Block b,
+                            int count)
         {
             this.array = array;
             this.size = size;
@@ -4772,286 +4997,286 @@ public class Block implements GameObject
 
     private static final ReduceStruct reduceArray[] = new ReduceStruct[]
     {
-        new Block.ReduceStruct(new BlockType[]
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTEmpty,
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank
-        }, 3, BlockType.BTChest, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank)
+        }, 3, NewChest(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTEmpty,
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone
-        }, 3, BlockType.BTFurnace, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone)
+        }, 3, NewFurnace(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTWoodPick, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewWoodPick(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTStonePick, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewStonePick(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTPlank,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTWoodShovel, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewWoodShovel(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTCobblestone,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTStoneShovel, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewStoneShovel(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank
-        }, 2, BlockType.BTWorkbench, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank)
+        }, 2, NewWorkbench(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTWood
-        }, 1, BlockType.BTPlank, 4),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTWood)
+        }, 1, NewPlank(), 4),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTPlank,
-            BlockType.BTEmpty,
-            BlockType.BTPlank,
-            BlockType.BTEmpty
-        }, 2, BlockType.BTStick, 4),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewStick(), 4),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTRedstoneBlock
-        }, 1, BlockType.BTRedstoneDustOff, 9),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTRedstoneBlock)
+        }, 1, NewRedstoneDust(0, 0), 9),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTCobblestone
-        }, 1, BlockType.BTStoneButton, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTCobblestone)
+        }, 1, NewStoneButton(0, 0), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTPlank
-        }, 1, BlockType.BTWoodButton, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTPlank)
+        }, 1, NewWoodButton(0, 0), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneDustOff
-        }, 3, BlockType.BTRedstoneBlock, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff)
+        }, 3, NewRedstoneBlock(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty
-        }, 2, BlockType.BTRedstoneTorchOff, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewRedstoneTorch(false, -1), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTCoal,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty
-        }, 2, BlockType.BTTorch, 4),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTCoal),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewTorch(-1), 4),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTIronIngot,
-            BlockType.BTIronIngot,
-            BlockType.BTIronIngot,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTIronPick, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewIronPick(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTIronIngot,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTIronShovel, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewIronShovel(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTGoldIngot,
-            BlockType.BTGoldIngot,
-            BlockType.BTGoldIngot,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTGoldPick, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTGoldIngot),
+            new BlockDescriptorBlockType(BlockType.BTGoldIngot),
+            new BlockDescriptorBlockType(BlockType.BTGoldIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewGoldPick(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTGoldIngot,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTGoldShovel, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTGoldIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewGoldShovel(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTDiamond,
-            BlockType.BTDiamond,
-            BlockType.BTDiamond,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTDiamondPick, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTDiamond),
+            new BlockDescriptorBlockType(BlockType.BTDiamond),
+            new BlockDescriptorBlockType(BlockType.BTDiamond),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewDiamondPick(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTDiamond,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty
-        }, 3, BlockType.BTDiamondShovel, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTDiamond),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewDiamondShovel(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTStick,
-            BlockType.BTStick,
-            BlockType.BTStick,
-            BlockType.BTStick,
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTStick
-        }, 3, BlockType.BTLadder, 3),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick)
+        }, 3, NewLadder(-1), 3),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTRedstoneTorchOff,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTRedstoneTorchOff,
-            BlockType.BTStone,
-            BlockType.BTStone,
-            BlockType.BTStone
-        }, 3, BlockType.BTRedstoneRepeaterOff, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneTorchOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneTorchOff),
+            new BlockDescriptorBlockType(BlockType.BTStone),
+            new BlockDescriptorBlockType(BlockType.BTStone),
+            new BlockDescriptorBlockType(BlockType.BTStone)
+        }, 3, NewRedstoneRepeater(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTPlank,
-            BlockType.BTCobblestone,
-            BlockType.BTIronIngot,
-            BlockType.BTCobblestone,
-            BlockType.BTCobblestone,
-            BlockType.BTRedstoneDustOff,
-            BlockType.BTCobblestone
-        }, 3, BlockType.BTPiston, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone)
+        }, 3, NewPiston(-1, false), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTStick,
-            BlockType.BTEmpty,
-            BlockType.BTCobblestone,
-            BlockType.BTEmpty
-        }, 2, BlockType.BTLever, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewLever(false, -1), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTSlime,
-            BlockType.BTEmpty,
-            BlockType.BTPiston,
-            BlockType.BTEmpty
-        }, 2, BlockType.BTStickyPiston, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTSlime),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTPiston),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewStickyPiston(-1, false), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTGunpowder,
-            BlockType.BTSand,
-            BlockType.BTGunpowder,
-            BlockType.BTSand,
-            BlockType.BTGunpowder,
-            BlockType.BTSand,
-            BlockType.BTGunpowder,
-            BlockType.BTSand,
-            BlockType.BTGunpowder
-        }, 3, BlockType.BTTNT, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTGunpowder),
+            new BlockDescriptorBlockType(BlockType.BTSand),
+            new BlockDescriptorBlockType(BlockType.BTGunpowder),
+            new BlockDescriptorBlockType(BlockType.BTSand),
+            new BlockDescriptorBlockType(BlockType.BTGunpowder),
+            new BlockDescriptorBlockType(BlockType.BTSand),
+            new BlockDescriptorBlockType(BlockType.BTGunpowder),
+            new BlockDescriptorBlockType(BlockType.BTSand),
+            new BlockDescriptorBlockType(BlockType.BTGunpowder)
+        }, 3, NewTNT(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTBlazeRod
-        }, 1, BlockType.BTBlazePowder, 2),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTBlazeRod)
+        }, 1, NewBlazePowder(), 2),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTStone,
-            BlockType.BTStone
-        }, 2, BlockType.BTStonePressurePlate, 1),
-        new ReduceStruct(new BlockType[]
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStone),
+            new BlockDescriptorBlockType(BlockType.BTStone)
+        }, 2, NewStonePressurePlate(), 1),
+        new ReduceStruct(new BlockDescriptor[]
         {
-            BlockType.BTEmpty,
-            BlockType.BTEmpty,
-            BlockType.BTPlank,
-            BlockType.BTPlank
-        }, 2, BlockType.BTWoodPressurePlate, 1),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank)
+        }, 2, NewWoodPressurePlate(), 1),
     };
     private static final int reduceCount = reduceArray.length;
 
@@ -5064,14 +5289,14 @@ public class Block implements GameObject
      *            the block dimensions
      * @return the reduction results. never returns <code>null</code>.
      * @see ReduceDescriptor */
-    public static ReduceDescriptor reduce(BlockType[] array, int arraySize)
+    public static ReduceDescriptor reduce(Block[] array, int arraySize)
     {
         int minx = arraySize, maxx = 0, miny = arraySize, maxy = 0;
         for(int x = 0; x < arraySize; x++)
         {
             for(int y = 0; y < arraySize; y++)
             {
-                if(array[x + y * arraySize] != BlockType.BTEmpty)
+                if(array[x + y * arraySize] != null)
                 {
                     if(minx > x)
                         minx = x;
@@ -5097,17 +5322,18 @@ public class Block implements GameObject
             {
                 for(int y = 0; y < reduceArray[i].size; y++)
                 {
-                    BlockType rb = reduceArray[i].array[x
+                    BlockDescriptor bd = reduceArray[i].array[x
                             + (reduceArray[i].size - y - 1)
                             * reduceArray[i].size];
-                    if(rb != BlockType.BTEmpty)
+                    if(!bd.isEmpty())
                     {
                         if(x > maxx - minx || y > maxy - miny)
                         {
                             matches = false;
                             break;
                         }
-                        if(array[(x + minx) + arraySize * (y + miny)] != rb)
+                        if(!bd.matches(array[(x + minx) + arraySize
+                                * (y + miny)]))
                         {
                             matches = false;
                             break;
@@ -5117,7 +5343,7 @@ public class Block implements GameObject
                     {
                         if(x <= maxx - minx && y <= maxy - miny)
                         {
-                            if(array[(x + minx) + arraySize * (y + miny)] != BlockType.BTEmpty)
+                            if(array[(x + minx) + arraySize * (y + miny)] != null)
                             {
                                 matches = false;
                                 break;
@@ -5136,58 +5362,132 @@ public class Block implements GameObject
         return new ReduceDescriptor();
     }
 
-    /** @param bt
-     *            type to look up for
-     * @return the number of blocks of type <code>bt</code> in this chest block */
-    public int chestGetBlockTypeCount(BlockType bt)
+    private static int chestGetSlotIndex(int row, int column)
     {
-        assert this.type == BlockType.BTChest && this.data.BlockCounts != null
-                && this.data.BlockCounts.length == BlockType.Count : "illegal block state";
-        if(bt == BlockType.BTEmpty)
-            return 0;
-        int index = bt.value;
-        if(index < 1 || index >= BlockType.Count)
-            return 0;
-        return this.data.BlockCounts[index];
+        return row + CHEST_ROWS * column;
     }
 
-    /** add a block to this chest block<BR/>
-     * not thread safe
-     * 
-     * @param bt
-     *            the type of the block to add */
-    public void chestAddBlock(BlockType bt)
+    /** @param row
+     *            the slot's row
+     * @param column
+     *            the slot's column
+     * @return the number of blocks in this chest slot */
+    public int chestGetBlockCount(int row, int column)
     {
         assert this.type == BlockType.BTChest && this.data.BlockCounts != null
-                && this.data.BlockCounts.length == BlockType.Count : "illegal block state";
-        if(bt == BlockType.BTEmpty)
-            return;
-        int index = bt.value;
-        if(index < 1 || index >= BlockType.Count)
-            return;
-        this.data.BlockCounts[index]++;
+                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
+                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+        if(row < 0 || row >= CHEST_ROWS || column < 0
+                || column >= CHEST_COLUMNS)
+            return 0;
+        return this.data.BlockCounts[chestGetSlotIndex(row, column)];
     }
 
-    /** remove a block from this chest block <BR/>
-     * not thread safe
-     * 
-     * @param bt
-     *            the type to remove
-     * @return the removed type or <code>BlockType.BTEmpty</code> if there's
-     *         none left */
-    public BlockType chestRemoveBlock(BlockType bt)
+    /** @param row
+     *            the slot's row
+     * @param column
+     *            the slot's column
+     * @return the kind of block in this chest slot */
+    public Block chestGetBlockType(int row, int column)
     {
         assert this.type == BlockType.BTChest && this.data.BlockCounts != null
-                && this.data.BlockCounts.length == BlockType.Count : "illegal block state";
-        if(bt == BlockType.BTEmpty)
-            return BlockType.BTEmpty;
-        int index = bt.value;
-        if(index < 1 || index >= BlockType.Count)
-            return BlockType.BTEmpty;
+                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
+                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+        if(row < 0 || row >= CHEST_ROWS || column < 0
+                || column >= CHEST_COLUMNS)
+            return null;
+        return this.data.BlockTypes[chestGetSlotIndex(row, column)];
+    }
+
+    /**
+     * 
+     */
+    public static final int BLOCK_STACK_SIZE = 64;
+
+    /** add some blocks to this chest block<BR/>
+     * not thread safe
+     * 
+     * @param b
+     *            the type of blocks to add
+     * @param count
+     *            the number of blocks to add
+     * @param row
+     *            the slot's row
+     * @param column
+     *            the slot's column
+     * @return the number of blocks successfully added */
+    public int chestAddBlocks(Block b, int count, int row, int column)
+    {
+        assert this.type == BlockType.BTChest && this.data.BlockCounts != null
+                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
+                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return count;
+        if(row < 0 || row >= CHEST_ROWS || column < 0
+                || column >= CHEST_COLUMNS || count <= 0)
+            return 0;
+        int index = chestGetSlotIndex(row, column);
+        if(this.data.BlockCounts[index] >= BLOCK_STACK_SIZE)
+            return 0;
+        if(this.data.BlockCounts[index] == 0)
+        {
+            this.data.BlockTypes[index] = b;
+            if(count > BLOCK_STACK_SIZE)
+            {
+                this.data.BlockCounts[index] = BLOCK_STACK_SIZE;
+                return BLOCK_STACK_SIZE;
+            }
+            this.data.BlockCounts[index] = count;
+            return count;
+        }
+        if(!this.data.BlockTypes[index].equals(b))
+            return 0;
+        if(this.data.BlockCounts[index] + count > BLOCK_STACK_SIZE)
+        {
+            int retval = BLOCK_STACK_SIZE - this.data.BlockCounts[index];
+            this.data.BlockCounts[index] = BLOCK_STACK_SIZE;
+            return retval;
+        }
+        this.data.BlockCounts[index] += count;
+        return count;
+    }
+
+    /** remove some blocks from this chest block <BR/>
+     * not thread safe
+     * 
+     * @param b
+     *            the type of blocks to remove
+     * @param count
+     *            the number of blocks to remove
+     * @param row
+     *            the slot's row
+     * @param column
+     *            the slot's column
+     * @return the number of blocks removed */
+    public int chestRemoveBlocks(Block b, int count, int row, int column)
+    {
+        assert this.type == BlockType.BTChest && this.data.BlockCounts != null
+                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
+                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return count;
+        if(row < 0 || row >= CHEST_ROWS || column < 0
+                || column >= CHEST_COLUMNS || count <= 0)
+            return 0;
+        int index = chestGetSlotIndex(row, column);
         if(this.data.BlockCounts[index] <= 0)
-            return BlockType.BTEmpty;
-        this.data.BlockCounts[index]--;
-        return bt;
+            return 0;
+        if(!this.data.BlockTypes[index].equals(b))
+            return 0;
+        if(this.data.BlockCounts[index] <= count)
+        {
+            int retval = this.data.BlockCounts[index];
+            this.data.BlockCounts[index] = 0;
+            this.data.BlockTypes[index] = null;
+            return retval;
+        }
+        this.data.BlockCounts[index] -= count;
+        return count;
     }
 
     /** @return the number of blocks already smelted */
@@ -5204,16 +5504,28 @@ public class Block implements GameObject
     }
 
     /** @return the type of block being smelted */
-    public BlockType furnaceGetSrcBlockType()
+    public Block furnaceGetSrcBlock()
     {
         return this.data.blockdata;
     }
 
-    /** @return the type of block being smelted into */
-    public BlockType furnaceGetDestBlockType()
+    /** @return the block resulting from smelting this block or <code>null</code> */
+    public Block getSmeltResult()
     {
-        if(this.data.blockdata == BlockType.BTEmpty)
-            return BlockType.BTEmpty;
+        return this.getType().getSmeltResult().make(-1);
+    }
+
+    /** @return if this block is smeltable */
+    public boolean isSmeltable()
+    {
+        return this.getType().isSmeltable();
+    }
+
+    /** @return the type of block being smelted into */
+    public Block furnaceGetDestBlock()
+    {
+        if(this.data.blockdata == null)
+            return null;
         return this.data.blockdata.getSmeltResult();
     }
 
@@ -5225,35 +5537,35 @@ public class Block implements GameObject
 
     /** add more fuel to furnace
      * 
-     * @param bt
+     * @param b
      *            block to add to this furnace */
-    public void furnaceAddFire(BlockType bt)
+    public void furnaceAddFire(Block b)
     {
-        this.data.intdata += bt.getBurnTime();
+        this.data.intdata += b.getBurnTime();
     }
 
     /** add a block to smelt to this furnace
      * 
-     * @param bt
+     * @param b
      *            the type of block to smelt
-     * @return true if <code>bt</code> is smeltable */
-    public boolean furnaceAddBlock(BlockType bt)
+     * @return true if <code>b</code> can be added */
+    public boolean furnaceAddBlock(Block b)
     {
-        if(this.data.blockdata != BlockType.BTEmpty
-                && bt != this.data.blockdata)
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return true;
+        if(this.data.blockdata != null && !b.equals(this.data.blockdata))
             return false;
-        if(!bt.isSmeltable())
+        if(!b.isSmeltable())
             return false;
-        this.data.blockdata = bt;
+        this.data.blockdata = b;
         this.data.srccount++;
         return true;
     }
 
     /** remove a smelted block from this furnace
      * 
-     * @return the type of the smelted block or <code>BlockType.BTEmpty</code>
-     *         if this furnace is empty */
-    public BlockType furnaceRemoveBlock()
+     * @return the smelted block or <code>null</code> if this furnace is empty */
+    public Block furnaceRemoveBlock()
     {
         if(this.data.destcount > 1)
         {
@@ -5262,19 +5574,19 @@ public class Block implements GameObject
         }
         else if(this.data.destcount == 1)
         {
-            BlockType retval = this.data.blockdata.getSmeltResult();
+            Block retval = this.data.blockdata.getSmeltResult();
             if(this.data.srccount <= 0)
-                this.data.blockdata = BlockType.BTEmpty;
+                this.data.blockdata = null;
             this.data.destcount = 0;
             return retval;
         }
-        return BlockType.BTEmpty;
+        return null;
     }
 
     /** @return if this furnace is burning */
     public boolean furnaceIsBurning()
     {
-        if(this.data.blockdata == BlockType.BTEmpty)
+        if(this.data.blockdata == null)
             return false;
         if(this.data.srccount <= 0)
             return false;
@@ -5562,9 +5874,9 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               this.type,
+                                               this.type.make(-1),
                                                World.vRand(0.1f)));
-            if(this.data.blockdata == BlockType.BTEmpty)
+            if(this.data.blockdata == null)
                 return;
             for(int i = 0; i < this.data.srccount; i++)
             {
@@ -5574,7 +5886,7 @@ public class Block implements GameObject
                                                    this.data.blockdata,
                                                    World.vRand(0.1f)));
             }
-            if(this.data.blockdata.getSmeltResult() == BlockType.BTEmpty)
+            if(this.data.blockdata.getSmeltResult() == null)
                 return;
             for(int i = 0; i < this.data.destcount; i++)
             {
@@ -5589,22 +5901,15 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               this.type,
+                                               this.type.make(-1),
                                                World.vRand(0.1f)));
-            for(int i = 1; i < BlockType.Count; i++)
-            {
-                while(true)
-                {
-                    BlockType bt = chestRemoveBlock(BlockType.toBlockType(i));
-                    if(bt == BlockType.BTEmpty)
-                        break;
+            for(int i = 0; i < CHEST_COLUMNS * CHEST_ROWS; i++)
+                for(int j = 0; j < this.data.BlockCounts[i]; j++)
                     world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
-                                                       bt,
+                                                       this.data.BlockTypes[i],
                                                        World.vRand(0.1f)));
-                }
-            }
             return;
         case BTCoal:
         case BTCobblestone:
@@ -5629,13 +5934,11 @@ public class Block implements GameObject
         case BTRedstoneDustOff:
         case BTRedstoneTorchOff:
         case BTSand:
-        case BTSapling:
         case BTStick:
         case BTStoneButton:
         case BTStonePick:
         case BTStoneShovel:
         case BTTorch:
-        case BTWood:
         case BTWoodButton:
         case BTWoodPick:
         case BTWoodShovel:
@@ -5654,7 +5957,21 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               this.type,
+                                               this.type.make(-1),
+                                               World.vRand(0.1f)));
+            return;
+        case BTSapling:
+            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                          y + 0.5f,
+                                                          z + 0.5f),
+                                               NewSapling(treeGetTreeType()),
+                                               World.vRand(0.1f)));
+            return;
+        case BTWood:
+            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                          y + 0.5f,
+                                                          z + 0.5f),
+                                               NewWood(treeGetTreeType(), 0),
                                                World.vRand(0.1f)));
             return;
         case BTRedstoneOre:
@@ -5664,7 +5981,7 @@ public class Block implements GameObject
                 world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
-                                                   BlockType.BTRedstoneDustOff,
+                                                   NewRedstoneDust(0, 0),
                                                    World.vRand(0.1f)));
             return;
         }
@@ -5672,28 +5989,28 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTCoal,
+                                               NewCoal(),
                                                World.vRand(0.1f)));
             return;
         case BTDiamondOre:
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTDiamond,
+                                               NewDiamond(),
                                                World.vRand(0.1f)));
             return;
         case BTEmeraldOre:
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTEmerald,
+                                               NewEmerald(),
                                                World.vRand(0.1f)));
             return;
         case BTGrass:
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTDirt,
+                                               NewDirt(),
                                                World.vRand(0.1f)));
             return;
         case BTLapisLazuliOre:
@@ -5703,7 +6020,7 @@ public class Block implements GameObject
                 world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
-                                                   BlockType.BTLapisLazuli,
+                                                   NewLapisLazuli(),
                                                    World.vRand(0.1f)));
             return;
         }
@@ -5714,7 +6031,7 @@ public class Block implements GameObject
                 world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
-                                                   this.type,
+                                                   this.type.make(-1),
                                                    World.vRand(0.1f)));
             return;
         }
@@ -5722,28 +6039,28 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTRedstoneRepeaterOff,
+                                               BlockType.BTRedstoneRepeaterOff.make(-1),
                                                World.vRand(0.1f)));
             return;
         case BTRedstoneDustOn:
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTRedstoneDustOff,
+                                               BlockType.BTRedstoneDustOff.make(-1),
                                                World.vRand(0.1f)));
             return;
         case BTRedstoneTorchOn:
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTRedstoneTorchOff,
+                                               BlockType.BTRedstoneTorchOff.make(-1),
                                                World.vRand(0.1f)));
             return;
         case BTStone:
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               BlockType.BTCobblestone,
+                                               NewCobblestone(),
                                                World.vRand(0.1f)));
             return;
         case BTLeaves:
@@ -5753,7 +6070,7 @@ public class Block implements GameObject
                 world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
-                                                   BlockType.BTSapling,
+                                                   NewSapling(treeGetTreeType()),
                                                    World.vRand(0.1f)));
             }
             return;
@@ -5764,7 +6081,7 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               this.type,
+                                               this.type.make(-1),
                                                World.vRand(0.1f)));
             if(this.data.intdata == 0)
                 return;
@@ -5789,8 +6106,9 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                           y + 0.5f,
                                                           z + 0.5f),
-                                               (this.type == BlockType.BTStickyPistonHead) ? BlockType.BTStickyPiston
-                                                       : BlockType.BTPiston,
+                                               (this.type == BlockType.BTStickyPistonHead) ? NewStickyPiston(-1,
+                                                                                                             false)
+                                                       : NewPiston(-1, false),
                                                World.vRand(0.1f)));
             Block body = world.getBlockEval(bx, by, bz);
             if(body == null)
@@ -6444,7 +6762,6 @@ public class Block implements GameObject
         case BTIronShovel:
         case BTLapisLazuli:
         case BTLapisLazuliOre:
-        case BTLeaves:
         case BTPlank:
         case BTRedstoneBlock:
         case BTRedstoneOre:
@@ -6453,27 +6770,27 @@ public class Block implements GameObject
         case BTStone:
         case BTStonePick:
         case BTStoneShovel:
-        case BTWood:
         case BTWoodPick:
         case BTWoodShovel:
         case BTWorkbench:
         case BTObsidian:
             return;
+        case BTLeaves:
+            o.writeByte(this.data.intdata);
+            o.writeByte(this.data.step);
+            return;
+        case BTWood:
+            o.writeByte(this.data.intdata);
+            o.writeByte(this.data.orientation);
+            return;
         case BTChest:
         {
-            int count = 0;
-            for(int i = 1; i < BlockType.Count; i++)
+            for(int i = 0; i < CHEST_ROWS * CHEST_COLUMNS; i++)
             {
-                if(this.data.BlockCounts[i] > 0)
-                    count++;
-            }
-            o.writeShort(count);
-            for(int i = 1; i < BlockType.Count; i++)
-            {
+                o.writeInt(this.data.BlockCounts[i]);
                 if(this.data.BlockCounts[i] > 0)
                 {
-                    BlockType.toBlockType(i).write(o);
-                    o.writeInt(this.data.BlockCounts[i]);
+                    this.data.BlockTypes[i].write(o);
                 }
             }
             return;
@@ -6483,9 +6800,11 @@ public class Block implements GameObject
             o.writeInt(this.data.intdata);
             o.writeInt(this.data.srccount);
             o.writeInt(this.data.destcount);
-            this.data.blockdata.write(o);
+            o.writeBoolean(this.data.blockdata != null);
+            if(this.data.blockdata != null)
+                this.data.blockdata.write(o);
             if(this.data.intdata > 0 && this.data.srccount > 0
-                    && this.data.blockdata != BlockType.BTEmpty)
+                    && this.data.blockdata != null)
             {
                 double reltime = this.data.runTime - world.getCurTime();
                 o.writeDouble(reltime);
@@ -6539,6 +6858,7 @@ public class Block implements GameObject
         }
         case BTSapling:
         {
+            o.writeInt(this.data.intdata);
             if(this.data.runTime < 0)
             {
                 o.writeDouble(-1.0);
@@ -6614,7 +6934,6 @@ public class Block implements GameObject
         case BTIronShovel:
         case BTLapisLazuli:
         case BTLapisLazuliOre:
-        case BTLeaves:
         case BTPlank:
         case BTRedstoneBlock:
         case BTRedstoneOre:
@@ -6623,27 +6942,42 @@ public class Block implements GameObject
         case BTStone:
         case BTStonePick:
         case BTStoneShovel:
-        case BTWood:
         case BTWoodPick:
         case BTWoodShovel:
         case BTWorkbench:
         case BTObsidian:
             return;
+        case BTLeaves:
+            this.data.intdata = i.readUnsignedByte();
+            if(this.data.intdata >= Tree.TreeType.values().length)
+                throw new IOException("leaves tree type out of range");
+            this.data.step = i.readByte();
+            if(this.data.step != -1
+                    && (this.data.step < 0 || this.data.step > 4))
+                throw new IOException("leaves distance from wood out of range");
+            return;
+        case BTWood:
+            this.data.intdata = i.readUnsignedByte();
+            if(this.data.intdata >= Tree.TreeType.values().length)
+                throw new IOException("wood tree type out of range");
+            this.data.orientation = i.readUnsignedByte();
+            if(this.data.intdata > 3)
+                throw new IOException("wood orientation out of range");
+            return;
         case BTChest:
         {
-            this.data.BlockCounts = new int[BlockType.Count];
-            int count = i.readUnsignedShort();
-            if(count > BlockType.Count)
-                throw new IOException("Chest block count is too big");
-            while(count-- > 0)
+            this.data.BlockCounts = new int[CHEST_ROWS * CHEST_COLUMNS];
+            this.data.BlockTypes = new Block[CHEST_ROWS * CHEST_COLUMNS];
+            for(int index = 0; index < CHEST_ROWS * CHEST_COLUMNS; index++)
             {
-                int index = BlockType.read(i).value;
-                if(this.data.BlockCounts[index] > 0)
-                    throw new IOException("Chest block type is duplicate");
                 int value = i.readInt();
-                if(value <= 0 || value >= 1000000000)
-                    throw new IOException("Chest value is out of range");
+                if(value < 0 || value > BLOCK_STACK_SIZE)
+                    throw new IOException("Chest slot block count is out of range");
                 this.data.BlockCounts[index] = value;
+                if(value > 0)
+                    this.data.BlockTypes[index] = Block.read(i);
+                else
+                    this.data.BlockTypes[index] = null;
             }
             return;
         }
@@ -6661,8 +6995,11 @@ public class Block implements GameObject
             this.data.intdata = fuel;
             this.data.srccount = srccount;
             this.data.destcount = destcount;
-            this.data.blockdata = BlockType.read(i);
-            if(this.data.blockdata == BlockType.BTEmpty)
+            if(i.readBoolean())
+                this.data.blockdata = Block.read(i);
+            else
+                this.data.blockdata = null;
+            if(this.data.blockdata == null)
             {
                 if(srccount != 0 || destcount != 0)
                     throw new IOException("Furnace block count is non-zero when the block type is empty");
@@ -6675,7 +7012,7 @@ public class Block implements GameObject
                     throw new IOException("Furnace has block count of zero when the block type is non-empty");
             }
             if(this.data.intdata > 0 && this.data.srccount > 0
-                    && this.data.blockdata != BlockType.BTEmpty)
+                    && this.data.blockdata != null)
             {
                 double value = i.readDouble();
                 if(Double.isInfinite(value) || Double.isNaN(value)
@@ -6754,6 +7091,8 @@ public class Block implements GameObject
         }
         case BTSapling:
         {
+            if(this.data.intdata >= Tree.TreeType.values().length)
+                throw new IOException("sapling tree type out of range");
             double value = i.readDouble();
             if(Double.isInfinite(value)
                     || Double.isNaN(value)
@@ -6838,594 +7177,902 @@ public class Block implements GameObject
         return this.type.isExplodable();
     }
 
-    /** check if <code>this</code> located at &lt;<code>bx</code>,
-     * <code>by</code>, <code>bz</code>&gt; draws identically to <code>b</code>
-     * located at &lt;<code>bbx</code>, <code>bby</code>, <code>bbz</code>&gt;
-     * 
-     * @param bx
-     *            this block's x coordinate
-     * @param by
-     *            this block's y coordinate
-     * @param bz
-     *            this block's z coordinate
-     * @param b
-     *            the other block
-     * @param bbx
-     *            <code>b</code>'s x coordinate
-     * @param bby
-     *            <code>b</code>'s y coordinate
-     * @param bbz
-     *            <code>b</code>'s z coordinate
-     * @return if <code>this</code> located at &lt;<code>bx</code>,
-     *         <code>by</code>, <code>bz</code>&gt; draws identically to
-     *         <code>b</code> located at &lt;<code>bbx</code>, <code>bby</code>,
-     *         <code>bbz</code>&gt; */
-    public boolean drawsSame(int bx,
-                             int by,
-                             int bz,
-                             Block b,
-                             int bbx,
-                             int bby,
-                             int bbz)
-    {
-        if(this.type != b.type)
-            return false;
-        if(this.lighting == null || b.lighting == null
-                || this.curSunlightFactor != b.curSunlightFactor)
-            return false;
-        for(int i = 0; i < this.lighting.length; i++)
-        {
-            if(this.lighting[i] != b.lighting[i])
-                return false;
-        }
-        switch(this.type.drawType)
-        {
-        case BDTButton:
-        case BDTItem:
-        case BDTNone:
-        case BDTSolidAllSides:
-        case BDTTorch:
-            break;
-        case BDTCustom:
-            break;
-        case BDTLiquid:
-            // TODO finish
-            return false;
-        case BDTSolid:
-        {
-            Block nx = world.getBlock(bx - 1, by, bz);
-            Block px = world.getBlock(bx + 1, by, bz);
-            Block ny = world.getBlock(bx, by - 1, bz);
-            Block py = world.getBlock(bx, by + 1, bz);
-            Block nz = world.getBlock(bx, by, bz - 1);
-            Block pz = world.getBlock(bx, by, bz + 1);
-            int drawMask = 0;
-            if(nx != null && !nx.isOpaque())
-                drawMask |= DMaskNX;
-            if(px != null && !px.isOpaque())
-                drawMask |= DMaskPX;
-            if(ny != null && !ny.isOpaque())
-                drawMask |= DMaskNY;
-            if(py != null && !py.isOpaque())
-                drawMask |= DMaskPY;
-            if(nz != null && !nz.isOpaque())
-                drawMask |= DMaskNZ;
-            if(pz != null && !pz.isOpaque())
-                drawMask |= DMaskPZ;
-            Block nx2 = world.getBlock(bbx - 1, bby, bbz);
-            Block px2 = world.getBlock(bbx + 1, bby, bbz);
-            Block ny2 = world.getBlock(bbx, bby - 1, bbz);
-            Block py2 = world.getBlock(bbx, bby + 1, bbz);
-            Block nz2 = world.getBlock(bbx, bby, bbz - 1);
-            Block pz2 = world.getBlock(bbx, bby, bbz + 1);
-            int drawMask2 = 0;
-            if(nx2 != null && !nx2.isOpaque())
-                drawMask2 |= DMaskNX;
-            if(px2 != null && !px2.isOpaque())
-                drawMask2 |= DMaskPX;
-            if(ny2 != null && !ny2.isOpaque())
-                drawMask2 |= DMaskNY;
-            if(py2 != null && !py2.isOpaque())
-                drawMask2 |= DMaskPY;
-            if(nz2 != null && !nz2.isOpaque())
-                drawMask2 |= DMaskNZ;
-            if(pz2 != null && !pz2.isOpaque())
-                drawMask2 |= DMaskPZ;
-            if(drawMask != drawMask2)
-                return false;
-        }
-        }
-        switch(this.type)
-        {
-        case BTLast:
-        case BTSun:
-        case BTMoon:
-            return true;
-        case BTDeleteBlock:
-            return this.data.intdata == b.data.intdata;
-        case BTBedrock:
-        case BTBlazePowder:
-        case BTBlazeRod:
-        case BTChest:
-        case BTCoal:
-        case BTCoalOre:
-        case BTCobblestone:
-        case BTDiamond:
-        case BTDiamondOre:
-        case BTDiamondPick:
-        case BTDiamondShovel:
-        case BTDirt:
-        case BTEmerald:
-        case BTEmeraldOre:
-        case BTEmpty:
-        case BTGlass:
-        case BTGoldIngot:
-        case BTGoldOre:
-        case BTGoldPick:
-        case BTGoldShovel:
-        case BTGrass:
-        case BTGravel:
-        case BTGunpowder:
-        case BTIronIngot:
-        case BTIronOre:
-        case BTIronPick:
-        case BTIronShovel:
-        case BTLapisLazuli:
-        case BTLapisLazuliOre:
-        case BTObsidian:
-        case BTPlank:
-        case BTRedstoneBlock:
-        case BTRedstoneOre:
-        case BTSand:
-        case BTSapling:
-        case BTSlime:
-        case BTStick:
-        case BTStone:
-        case BTStonePick:
-        case BTStoneShovel:
-        case BTTNT:
-        case BTWoodPick:
-        case BTWoodShovel:
-        case BTWorkbench:
-        case BTStonePressurePlate:
-        case BTWoodPressurePlate:
-            return true;
-        case BTWood:
-        case BTLeaves:
-        {
-            Block nx = world.getBlock(bx - 1, by, bz);
-            Block px = world.getBlock(bx + 1, by, bz);
-            Block ny = world.getBlock(bx, by - 1, bz);
-            Block py = world.getBlock(bx, by + 1, bz);
-            Block nz = world.getBlock(bx, by, bz - 1);
-            Block pz = world.getBlock(bx, by, bz + 1);
-            int drawMask = 0;
-            if(nx != null && !nx.isOpaque())
-                drawMask |= DMaskNX;
-            if(px != null && !px.isOpaque())
-                drawMask |= DMaskPX;
-            if(ny != null && !ny.isOpaque())
-                drawMask |= DMaskNY;
-            if(py != null && !py.isOpaque())
-                drawMask |= DMaskPY;
-            if(nz != null && !nz.isOpaque())
-                drawMask |= DMaskNZ;
-            if(pz != null && !pz.isOpaque())
-                drawMask |= DMaskPZ;
-            Block nx2 = world.getBlock(bbx - 1, bby, bbz);
-            Block px2 = world.getBlock(bbx + 1, bby, bbz);
-            Block ny2 = world.getBlock(bbx, bby - 1, bbz);
-            Block py2 = world.getBlock(bbx, bby + 1, bbz);
-            Block nz2 = world.getBlock(bbx, bby, bbz - 1);
-            Block pz2 = world.getBlock(bbx, bby, bbz + 1);
-            int drawMask2 = 0;
-            if(nx2 != null && !nx2.isOpaque())
-                drawMask2 |= DMaskNX;
-            if(px2 != null && !px2.isOpaque())
-                drawMask2 |= DMaskPX;
-            if(ny2 != null && !ny2.isOpaque())
-                drawMask2 |= DMaskNY;
-            if(py2 != null && !py2.isOpaque())
-                drawMask2 |= DMaskPY;
-            if(nz2 != null && !nz2.isOpaque())
-                drawMask2 |= DMaskNZ;
-            if(pz2 != null && !pz2.isOpaque())
-                drawMask2 |= DMaskPZ;
-            if(drawMask != drawMask2)
-                return false;
-            return true;
-        }
-        case BTFurnace:
-        {
-            Block nx = world.getBlock(bx - 1, by, bz);
-            Block px = world.getBlock(bx + 1, by, bz);
-            Block ny = world.getBlock(bx, by - 1, bz);
-            Block py = world.getBlock(bx, by + 1, bz);
-            Block nz = world.getBlock(bx, by, bz - 1);
-            Block pz = world.getBlock(bx, by, bz + 1);
-            int drawMask = 0;
-            if(nx != null && !nx.isOpaque())
-                drawMask |= DMaskNX;
-            if(px != null && !px.isOpaque())
-                drawMask |= DMaskPX;
-            if(ny != null && !ny.isOpaque())
-                drawMask |= DMaskNY;
-            if(py != null && !py.isOpaque())
-                drawMask |= DMaskPY;
-            if(nz != null && !nz.isOpaque())
-                drawMask |= DMaskNZ;
-            if(pz != null && !pz.isOpaque())
-                drawMask |= DMaskPZ;
-            Block nx2 = world.getBlock(bbx - 1, bby, bbz);
-            Block px2 = world.getBlock(bbx + 1, bby, bbz);
-            Block ny2 = world.getBlock(bbx, bby - 1, bbz);
-            Block py2 = world.getBlock(bbx, bby + 1, bbz);
-            Block nz2 = world.getBlock(bbx, bby, bbz - 1);
-            Block pz2 = world.getBlock(bbx, bby, bbz + 1);
-            int drawMask2 = 0;
-            if(nx2 != null && !nx2.isOpaque())
-                drawMask2 |= DMaskNX;
-            if(px2 != null && !px2.isOpaque())
-                drawMask2 |= DMaskPX;
-            if(ny2 != null && !ny2.isOpaque())
-                drawMask2 |= DMaskNY;
-            if(py2 != null && !py2.isOpaque())
-                drawMask2 |= DMaskPY;
-            if(nz2 != null && !nz2.isOpaque())
-                drawMask2 |= DMaskNZ;
-            if(pz2 != null && !pz2.isOpaque())
-                drawMask2 |= DMaskPZ;
-            if(drawMask != drawMask2)
-                return false;
-            return furnaceIsBurning() == b.furnaceIsBurning();
-        }
-        case BTLadder:
-        case BTPistonHead:
-        case BTStickyPistonHead:
-        case BTRedstoneTorchOff:
-        case BTRedstoneTorchOn:
-        case BTTorch:
-            return this.data.orientation == b.data.orientation;
-        case BTLever:
-        case BTPiston:
-        case BTStickyPiston:
-        case BTStoneButton:
-        case BTWoodButton:
-        case BTRedstoneDustOff:
-        case BTRedstoneDustOn:
-            return this.data.orientation == b.data.orientation
-                    && this.data.intdata == b.data.intdata;
-        case BTRedstoneRepeaterOff:
-        case BTRedstoneRepeaterOn:
-        {
-            if(this.data.orientation != b.data.orientation)
-                return false;
-            boolean isThisLocked = redstoneRepeaterIsLatched(bx, by, bz);
-            boolean isBLocked = redstoneRepeaterIsLatched(bbx, bby, bbz);
-            if(isThisLocked != isBLocked)
-                return false;
-            if(isThisLocked)
-                return true;
-            return this.data.intdata == b.data.intdata;
-        }
-        case BTLava:
-        case BTWater:
-        {
-            // TODO finish
-            return false;
-        }
-        }
-        return false;
-    }
-
-    private int concatHash(int oldHash, int newHash)
-    {
-        return oldHash + 37 * newHash;
-    }
-
-    /** @param bx
-     *            this block's x coordinate
-     * @param by
-     *            this block's y coordinate
-     * @param bz
-     *            this block's z coordinate
-     * @return the hash code for this block */
-    public int getDrawHashcode(int bx, int by, int bz)
-    {
-        int hash = this.type.value;
-        if(this.lighting != null)
-        {
-            for(int i = 0; i < this.lighting.length; i++)
-            {
-                hash = concatHash(hash, this.lighting[i]);
-            }
-        }
-        switch(this.type.drawType)
-        {
-        case BDTButton:
-        case BDTItem:
-        case BDTNone:
-        case BDTSolidAllSides:
-        case BDTTorch:
-            break;
-        case BDTCustom:
-            break;
-        case BDTLiquid:
-            // TODO finish
-            break;
-        case BDTSolid:
-        {
-            Block nx = world.getBlock(bx - 1, by, bz);
-            Block px = world.getBlock(bx + 1, by, bz);
-            Block ny = world.getBlock(bx, by - 1, bz);
-            Block py = world.getBlock(bx, by + 1, bz);
-            Block nz = world.getBlock(bx, by, bz - 1);
-            Block pz = world.getBlock(bx, by, bz + 1);
-            int drawMask = 0;
-            if(nx != null && !nx.isOpaque())
-                drawMask |= DMaskNX;
-            if(px != null && !px.isOpaque())
-                drawMask |= DMaskPX;
-            if(ny != null && !ny.isOpaque())
-                drawMask |= DMaskNY;
-            if(py != null && !py.isOpaque())
-                drawMask |= DMaskPY;
-            if(nz != null && !nz.isOpaque())
-                drawMask |= DMaskNZ;
-            if(pz != null && !pz.isOpaque())
-                drawMask |= DMaskPZ;
-            hash = concatHash(hash, drawMask);
-            break;
-        }
-        }
-        switch(this.type)
-        {
-        case BTLast:
-        case BTSun:
-        case BTMoon:
-            return hash;
-        case BTDeleteBlock:
-            hash = concatHash(hash, this.data.intdata);
-            return hash;
-        case BTBedrock:
-        case BTBlazePowder:
-        case BTBlazeRod:
-        case BTChest:
-        case BTCoal:
-        case BTCoalOre:
-        case BTCobblestone:
-        case BTDiamond:
-        case BTDiamondOre:
-        case BTDiamondPick:
-        case BTDiamondShovel:
-        case BTDirt:
-        case BTEmerald:
-        case BTEmeraldOre:
-        case BTEmpty:
-        case BTGlass:
-        case BTGoldIngot:
-        case BTGoldOre:
-        case BTGoldPick:
-        case BTGoldShovel:
-        case BTGrass:
-        case BTGravel:
-        case BTGunpowder:
-        case BTIronIngot:
-        case BTIronOre:
-        case BTIronPick:
-        case BTIronShovel:
-        case BTLapisLazuli:
-        case BTLapisLazuliOre:
-        case BTObsidian:
-        case BTPlank:
-        case BTRedstoneBlock:
-        case BTRedstoneOre:
-        case BTSand:
-        case BTSapling:
-        case BTSlime:
-        case BTStick:
-        case BTStone:
-        case BTStonePick:
-        case BTStoneShovel:
-        case BTTNT:
-        case BTWoodPick:
-        case BTWoodShovel:
-        case BTWorkbench:
-        case BTStonePressurePlate:
-        case BTWoodPressurePlate:
-            return hash;
-        case BTWood:
-        case BTLeaves:
-        {
-            Block nx = world.getBlock(bx - 1, by, bz);
-            Block px = world.getBlock(bx + 1, by, bz);
-            Block ny = world.getBlock(bx, by - 1, bz);
-            Block py = world.getBlock(bx, by + 1, bz);
-            Block nz = world.getBlock(bx, by, bz - 1);
-            Block pz = world.getBlock(bx, by, bz + 1);
-            int drawMask = 0;
-            if(nx != null && !nx.isOpaque())
-                drawMask |= DMaskNX;
-            if(px != null && !px.isOpaque())
-                drawMask |= DMaskPX;
-            if(ny != null && !ny.isOpaque())
-                drawMask |= DMaskNY;
-            if(py != null && !py.isOpaque())
-                drawMask |= DMaskPY;
-            if(nz != null && !nz.isOpaque())
-                drawMask |= DMaskNZ;
-            if(pz != null && !pz.isOpaque())
-                drawMask |= DMaskPZ;
-            hash = concatHash(hash, drawMask);
-            return hash;
-        }
-        case BTFurnace:
-        {
-            Block nx = world.getBlock(bx - 1, by, bz);
-            Block px = world.getBlock(bx + 1, by, bz);
-            Block ny = world.getBlock(bx, by - 1, bz);
-            Block py = world.getBlock(bx, by + 1, bz);
-            Block nz = world.getBlock(bx, by, bz - 1);
-            Block pz = world.getBlock(bx, by, bz + 1);
-            int drawMask = 0;
-            if(nx != null && !nx.isOpaque())
-                drawMask |= DMaskNX;
-            if(px != null && !px.isOpaque())
-                drawMask |= DMaskPX;
-            if(ny != null && !ny.isOpaque())
-                drawMask |= DMaskNY;
-            if(py != null && !py.isOpaque())
-                drawMask |= DMaskPY;
-            if(nz != null && !nz.isOpaque())
-                drawMask |= DMaskNZ;
-            if(pz != null && !pz.isOpaque())
-                drawMask |= DMaskPZ;
-            hash = concatHash(hash, drawMask);
-            hash = concatHash(hash, furnaceIsBurning() ? 1 : 0);
-            return hash;
-        }
-        case BTLadder:
-        case BTPistonHead:
-        case BTStickyPistonHead:
-        case BTRedstoneTorchOff:
-        case BTRedstoneTorchOn:
-        case BTTorch:
-            hash = concatHash(hash, this.data.orientation);
-            return hash;
-        case BTLever:
-        case BTPiston:
-        case BTStickyPiston:
-        case BTStoneButton:
-        case BTWoodButton:
-        case BTRedstoneDustOff:
-        case BTRedstoneDustOn:
-            hash = concatHash(hash, this.data.orientation);
-            hash = concatHash(hash, this.data.intdata);
-            return hash;
-        case BTRedstoneRepeaterOff:
-        case BTRedstoneRepeaterOn:
-        {
-            hash = concatHash(hash, this.data.orientation);
-            boolean isThisLocked = redstoneRepeaterIsLatched(bx, by, bz);
-            if(isThisLocked)
-            {
-                hash = concatHash(hash, 12345);
-                return hash;
-            }
-            hash = concatHash(hash, this.data.intdata);
-            return hash;
-        }
-        case BTLava:
-        case BTWater:
-        {
-            // TODO finish
-            hash = concatHash(hash, this.data.intdata);
-            hash = concatHash(hash, bx);
-            hash = concatHash(hash, by);
-            hash = concatHash(hash, bz);
-            return hash;
-        }
-        }
-        hash = concatHash(hash, 67281763);
-        return hash;
-    }
-
-    /** @param bx
-     *            this block's x coordinate
-     * @param by
-     *            this block's y coordinate
-     * @param bz
-     *            this block's z coordinate
-     * @return if this block is cacheable */
-    public boolean isCacheable(int bx, int by, int bz)
-    {
-        if(this.lighting == null)
-            return false;
-        switch(this.type)
-        {
-        case BTLast:
-        case BTSun:
-        case BTMoon:
-        case BTDeleteBlock:
-            return true;
-        case BTBedrock:
-        case BTBlazePowder:
-        case BTBlazeRod:
-        case BTChest:
-        case BTCoal:
-        case BTCoalOre:
-        case BTCobblestone:
-        case BTDiamond:
-        case BTDiamondOre:
-        case BTDiamondPick:
-        case BTDiamondShovel:
-        case BTDirt:
-        case BTEmerald:
-        case BTEmeraldOre:
-        case BTEmpty:
-        case BTGlass:
-        case BTGoldIngot:
-        case BTGoldOre:
-        case BTGoldPick:
-        case BTGoldShovel:
-        case BTGrass:
-        case BTGravel:
-        case BTGunpowder:
-        case BTIronIngot:
-        case BTIronOre:
-        case BTIronPick:
-        case BTIronShovel:
-        case BTLapisLazuli:
-        case BTLapisLazuliOre:
-        case BTLeaves:
-        case BTObsidian:
-        case BTPlank:
-        case BTRedstoneBlock:
-        case BTRedstoneOre:
-        case BTSand:
-        case BTSapling:
-        case BTSlime:
-        case BTStick:
-        case BTStone:
-        case BTStonePick:
-        case BTStoneShovel:
-        case BTTNT:
-        case BTWood:
-        case BTWoodPick:
-        case BTWoodShovel:
-        case BTWorkbench:
-        case BTFurnace:
-        case BTLadder:
-        case BTPistonHead:
-        case BTStickyPistonHead:
-        case BTRedstoneTorchOff:
-        case BTRedstoneTorchOn:
-        case BTTorch:
-        case BTLever:
-        case BTPiston:
-        case BTStickyPiston:
-        case BTStoneButton:
-        case BTWoodButton:
-        case BTRedstoneDustOff:
-        case BTRedstoneDustOn:
-        case BTRedstoneRepeaterOff:
-        case BTRedstoneRepeaterOn:
-        case BTStonePressurePlate:
-        case BTWoodPressurePlate:
-            return true;
-        case BTLava:
-        case BTWater:
-            // TODO finish
-            return false;
-        }
-        return false;
-    }
-
+    // /** check if <code>this</code> located at &lt;<code>bx</code>,
+    // * <code>by</code>, <code>bz</code>&gt; draws identically to
+    // <code>b</code>
+    // * located at &lt;<code>bbx</code>, <code>bby</code>, <code>bbz</code>&gt;
+    // *
+    // * @param bx
+    // * this block's x coordinate
+    // * @param by
+    // * this block's y coordinate
+    // * @param bz
+    // * this block's z coordinate
+    // * @param b
+    // * the other block
+    // * @param bbx
+    // * <code>b</code>'s x coordinate
+    // * @param bby
+    // * <code>b</code>'s y coordinate
+    // * @param bbz
+    // * <code>b</code>'s z coordinate
+    // * @return if <code>this</code> located at &lt;<code>bx</code>,
+    // * <code>by</code>, <code>bz</code>&gt; draws identically to
+    // * <code>b</code> located at &lt;<code>bbx</code>, <code>bby</code>,
+    // * <code>bbz</code>&gt; */
+    // public boolean drawsSame(int bx,
+    // int by,
+    // int bz,
+    // Block b,
+    // int bbx,
+    // int bby,
+    // int bbz)
+    // {
+    // if(this.type != b.type)
+    // return false;
+    // if(this.lighting == null || b.lighting == null
+    // || this.curSunlightFactor != b.curSunlightFactor)
+    // return false;
+    // for(int i = 0; i < this.lighting.length; i++)
+    // {
+    // if(this.lighting[i] != b.lighting[i])
+    // return false;
+    // }
+    // switch(this.type.drawType)
+    // {
+    // case BDTButton:
+    // case BDTItem:
+    // case BDTNone:
+    // case BDTSolidAllSides:
+    // case BDTTorch:
+    // break;
+    // case BDTCustom:
+    // break;
+    // case BDTLiquid:
+    // // TODO finish
+    // return false;
+    // case BDTSolid:
+    // {
+    // Block nx = world.getBlock(bx - 1, by, bz);
+    // Block px = world.getBlock(bx + 1, by, bz);
+    // Block ny = world.getBlock(bx, by - 1, bz);
+    // Block py = world.getBlock(bx, by + 1, bz);
+    // Block nz = world.getBlock(bx, by, bz - 1);
+    // Block pz = world.getBlock(bx, by, bz + 1);
+    // int drawMask = 0;
+    // if(nx != null && !nx.isOpaque())
+    // drawMask |= DMaskNX;
+    // if(px != null && !px.isOpaque())
+    // drawMask |= DMaskPX;
+    // if(ny != null && !ny.isOpaque())
+    // drawMask |= DMaskNY;
+    // if(py != null && !py.isOpaque())
+    // drawMask |= DMaskPY;
+    // if(nz != null && !nz.isOpaque())
+    // drawMask |= DMaskNZ;
+    // if(pz != null && !pz.isOpaque())
+    // drawMask |= DMaskPZ;
+    // Block nx2 = world.getBlock(bbx - 1, bby, bbz);
+    // Block px2 = world.getBlock(bbx + 1, bby, bbz);
+    // Block ny2 = world.getBlock(bbx, bby - 1, bbz);
+    // Block py2 = world.getBlock(bbx, bby + 1, bbz);
+    // Block nz2 = world.getBlock(bbx, bby, bbz - 1);
+    // Block pz2 = world.getBlock(bbx, bby, bbz + 1);
+    // int drawMask2 = 0;
+    // if(nx2 != null && !nx2.isOpaque())
+    // drawMask2 |= DMaskNX;
+    // if(px2 != null && !px2.isOpaque())
+    // drawMask2 |= DMaskPX;
+    // if(ny2 != null && !ny2.isOpaque())
+    // drawMask2 |= DMaskNY;
+    // if(py2 != null && !py2.isOpaque())
+    // drawMask2 |= DMaskPY;
+    // if(nz2 != null && !nz2.isOpaque())
+    // drawMask2 |= DMaskNZ;
+    // if(pz2 != null && !pz2.isOpaque())
+    // drawMask2 |= DMaskPZ;
+    // if(drawMask != drawMask2)
+    // return false;
+    // }
+    // }
+    // switch(this.type)
+    // {
+    // case BTLast:
+    // case BTSun:
+    // case BTMoon:
+    // return true;
+    // case BTDeleteBlock:
+    // return this.data.intdata == b.data.intdata;
+    // case BTBedrock:
+    // case BTBlazePowder:
+    // case BTBlazeRod:
+    // case BTChest:
+    // case BTCoal:
+    // case BTCoalOre:
+    // case BTCobblestone:
+    // case BTDiamond:
+    // case BTDiamondOre:
+    // case BTDiamondPick:
+    // case BTDiamondShovel:
+    // case BTDirt:
+    // case BTEmerald:
+    // case BTEmeraldOre:
+    // case BTEmpty:
+    // case BTGlass:
+    // case BTGoldIngot:
+    // case BTGoldOre:
+    // case BTGoldPick:
+    // case BTGoldShovel:
+    // case BTGrass:
+    // case BTGravel:
+    // case BTGunpowder:
+    // case BTIronIngot:
+    // case BTIronOre:
+    // case BTIronPick:
+    // case BTIronShovel:
+    // case BTLapisLazuli:
+    // case BTLapisLazuliOre:
+    // case BTObsidian:
+    // case BTPlank:
+    // case BTRedstoneBlock:
+    // case BTRedstoneOre:
+    // case BTSand:
+    // case BTSapling:
+    // case BTSlime:
+    // case BTStick:
+    // case BTStone:
+    // case BTStonePick:
+    // case BTStoneShovel:
+    // case BTTNT:
+    // case BTWoodPick:
+    // case BTWoodShovel:
+    // case BTWorkbench:
+    // case BTStonePressurePlate:
+    // case BTWoodPressurePlate:
+    // return true;
+    // case BTWood:
+    // case BTLeaves:
+    // {
+    // // TODO finish
+    // Block nx = world.getBlock(bx - 1, by, bz);
+    // Block px = world.getBlock(bx + 1, by, bz);
+    // Block ny = world.getBlock(bx, by - 1, bz);
+    // Block py = world.getBlock(bx, by + 1, bz);
+    // Block nz = world.getBlock(bx, by, bz - 1);
+    // Block pz = world.getBlock(bx, by, bz + 1);
+    // int drawMask = 0;
+    // if(nx != null && !nx.isOpaque())
+    // drawMask |= DMaskNX;
+    // if(px != null && !px.isOpaque())
+    // drawMask |= DMaskPX;
+    // if(ny != null && !ny.isOpaque())
+    // drawMask |= DMaskNY;
+    // if(py != null && !py.isOpaque())
+    // drawMask |= DMaskPY;
+    // if(nz != null && !nz.isOpaque())
+    // drawMask |= DMaskNZ;
+    // if(pz != null && !pz.isOpaque())
+    // drawMask |= DMaskPZ;
+    // Block nx2 = world.getBlock(bbx - 1, bby, bbz);
+    // Block px2 = world.getBlock(bbx + 1, bby, bbz);
+    // Block ny2 = world.getBlock(bbx, bby - 1, bbz);
+    // Block py2 = world.getBlock(bbx, bby + 1, bbz);
+    // Block nz2 = world.getBlock(bbx, bby, bbz - 1);
+    // Block pz2 = world.getBlock(bbx, bby, bbz + 1);
+    // int drawMask2 = 0;
+    // if(nx2 != null && !nx2.isOpaque())
+    // drawMask2 |= DMaskNX;
+    // if(px2 != null && !px2.isOpaque())
+    // drawMask2 |= DMaskPX;
+    // if(ny2 != null && !ny2.isOpaque())
+    // drawMask2 |= DMaskNY;
+    // if(py2 != null && !py2.isOpaque())
+    // drawMask2 |= DMaskPY;
+    // if(nz2 != null && !nz2.isOpaque())
+    // drawMask2 |= DMaskNZ;
+    // if(pz2 != null && !pz2.isOpaque())
+    // drawMask2 |= DMaskPZ;
+    // if(drawMask != drawMask2)
+    // return false;
+    // return true;
+    // }
+    // case BTFurnace:
+    // {
+    // Block nx = world.getBlock(bx - 1, by, bz);
+    // Block px = world.getBlock(bx + 1, by, bz);
+    // Block ny = world.getBlock(bx, by - 1, bz);
+    // Block py = world.getBlock(bx, by + 1, bz);
+    // Block nz = world.getBlock(bx, by, bz - 1);
+    // Block pz = world.getBlock(bx, by, bz + 1);
+    // int drawMask = 0;
+    // if(nx != null && !nx.isOpaque())
+    // drawMask |= DMaskNX;
+    // if(px != null && !px.isOpaque())
+    // drawMask |= DMaskPX;
+    // if(ny != null && !ny.isOpaque())
+    // drawMask |= DMaskNY;
+    // if(py != null && !py.isOpaque())
+    // drawMask |= DMaskPY;
+    // if(nz != null && !nz.isOpaque())
+    // drawMask |= DMaskNZ;
+    // if(pz != null && !pz.isOpaque())
+    // drawMask |= DMaskPZ;
+    // Block nx2 = world.getBlock(bbx - 1, bby, bbz);
+    // Block px2 = world.getBlock(bbx + 1, bby, bbz);
+    // Block ny2 = world.getBlock(bbx, bby - 1, bbz);
+    // Block py2 = world.getBlock(bbx, bby + 1, bbz);
+    // Block nz2 = world.getBlock(bbx, bby, bbz - 1);
+    // Block pz2 = world.getBlock(bbx, bby, bbz + 1);
+    // int drawMask2 = 0;
+    // if(nx2 != null && !nx2.isOpaque())
+    // drawMask2 |= DMaskNX;
+    // if(px2 != null && !px2.isOpaque())
+    // drawMask2 |= DMaskPX;
+    // if(ny2 != null && !ny2.isOpaque())
+    // drawMask2 |= DMaskNY;
+    // if(py2 != null && !py2.isOpaque())
+    // drawMask2 |= DMaskPY;
+    // if(nz2 != null && !nz2.isOpaque())
+    // drawMask2 |= DMaskNZ;
+    // if(pz2 != null && !pz2.isOpaque())
+    // drawMask2 |= DMaskPZ;
+    // if(drawMask != drawMask2)
+    // return false;
+    // return furnaceIsBurning() == b.furnaceIsBurning();
+    // }
+    // case BTLadder:
+    // case BTPistonHead:
+    // case BTStickyPistonHead:
+    // case BTRedstoneTorchOff:
+    // case BTRedstoneTorchOn:
+    // case BTTorch:
+    // return this.data.orientation == b.data.orientation;
+    // case BTLever:
+    // case BTPiston:
+    // case BTStickyPiston:
+    // case BTStoneButton:
+    // case BTWoodButton:
+    // case BTRedstoneDustOff:
+    // case BTRedstoneDustOn:
+    // return this.data.orientation == b.data.orientation
+    // && this.data.intdata == b.data.intdata;
+    // case BTRedstoneRepeaterOff:
+    // case BTRedstoneRepeaterOn:
+    // {
+    // if(this.data.orientation != b.data.orientation)
+    // return false;
+    // boolean isThisLocked = redstoneRepeaterIsLatched(bx, by, bz);
+    // boolean isBLocked = redstoneRepeaterIsLatched(bbx, bby, bbz);
+    // if(isThisLocked != isBLocked)
+    // return false;
+    // if(isThisLocked)
+    // return true;
+    // return this.data.intdata == b.data.intdata;
+    // }
+    // case BTLava:
+    // case BTWater:
+    // {
+    // // TODO finish
+    // return false;
+    // }
+    // }
+    // return false;
+    // }
+    //
+    // private int concatHash(int oldHash, int newHash)
+    // {
+    // return oldHash + 37 * newHash;
+    // }
+    //
+    // /** @param bx
+    // * this block's x coordinate
+    // * @param by
+    // * this block's y coordinate
+    // * @param bz
+    // * this block's z coordinate
+    // * @return the hash code for this block */
+    // public int getDrawHashcode(int bx, int by, int bz)
+    // {
+    // int hash = this.type.value;
+    // if(this.lighting != null)
+    // {
+    // for(int i = 0; i < this.lighting.length; i++)
+    // {
+    // hash = concatHash(hash, this.lighting[i]);
+    // }
+    // }
+    // switch(this.type.drawType)
+    // {
+    // case BDTButton:
+    // case BDTItem:
+    // case BDTNone:
+    // case BDTSolidAllSides:
+    // case BDTTorch:
+    // break;
+    // case BDTCustom:
+    // break;
+    // case BDTLiquid:
+    // // TODO finish
+    // break;
+    // case BDTSolid:
+    // {
+    // Block nx = world.getBlock(bx - 1, by, bz);
+    // Block px = world.getBlock(bx + 1, by, bz);
+    // Block ny = world.getBlock(bx, by - 1, bz);
+    // Block py = world.getBlock(bx, by + 1, bz);
+    // Block nz = world.getBlock(bx, by, bz - 1);
+    // Block pz = world.getBlock(bx, by, bz + 1);
+    // int drawMask = 0;
+    // if(nx != null && !nx.isOpaque())
+    // drawMask |= DMaskNX;
+    // if(px != null && !px.isOpaque())
+    // drawMask |= DMaskPX;
+    // if(ny != null && !ny.isOpaque())
+    // drawMask |= DMaskNY;
+    // if(py != null && !py.isOpaque())
+    // drawMask |= DMaskPY;
+    // if(nz != null && !nz.isOpaque())
+    // drawMask |= DMaskNZ;
+    // if(pz != null && !pz.isOpaque())
+    // drawMask |= DMaskPZ;
+    // hash = concatHash(hash, drawMask);
+    // break;
+    // }
+    // }
+    // switch(this.type)
+    // {
+    // case BTLast:
+    // case BTSun:
+    // case BTMoon:
+    // return hash;
+    // case BTDeleteBlock:
+    // hash = concatHash(hash, this.data.intdata);
+    // return hash;
+    // case BTBedrock:
+    // case BTBlazePowder:
+    // case BTBlazeRod:
+    // case BTChest:
+    // case BTCoal:
+    // case BTCoalOre:
+    // case BTCobblestone:
+    // case BTDiamond:
+    // case BTDiamondOre:
+    // case BTDiamondPick:
+    // case BTDiamondShovel:
+    // case BTDirt:
+    // case BTEmerald:
+    // case BTEmeraldOre:
+    // case BTEmpty:
+    // case BTGlass:
+    // case BTGoldIngot:
+    // case BTGoldOre:
+    // case BTGoldPick:
+    // case BTGoldShovel:
+    // case BTGrass:
+    // case BTGravel:
+    // case BTGunpowder:
+    // case BTIronIngot:
+    // case BTIronOre:
+    // case BTIronPick:
+    // case BTIronShovel:
+    // case BTLapisLazuli:
+    // case BTLapisLazuliOre:
+    // case BTObsidian:
+    // case BTPlank:
+    // case BTRedstoneBlock:
+    // case BTRedstoneOre:
+    // case BTSand:
+    // case BTSapling:
+    // case BTSlime:
+    // case BTStick:
+    // case BTStone:
+    // case BTStonePick:
+    // case BTStoneShovel:
+    // case BTTNT:
+    // case BTWoodPick:
+    // case BTWoodShovel:
+    // case BTWorkbench:
+    // case BTStonePressurePlate:
+    // case BTWoodPressurePlate:
+    // return hash;
+    // case BTWood:
+    // case BTLeaves:
+    // {
+    // // TODO finish
+    // Block nx = world.getBlock(bx - 1, by, bz);
+    // Block px = world.getBlock(bx + 1, by, bz);
+    // Block ny = world.getBlock(bx, by - 1, bz);
+    // Block py = world.getBlock(bx, by + 1, bz);
+    // Block nz = world.getBlock(bx, by, bz - 1);
+    // Block pz = world.getBlock(bx, by, bz + 1);
+    // int drawMask = 0;
+    // if(nx != null && !nx.isOpaque())
+    // drawMask |= DMaskNX;
+    // if(px != null && !px.isOpaque())
+    // drawMask |= DMaskPX;
+    // if(ny != null && !ny.isOpaque())
+    // drawMask |= DMaskNY;
+    // if(py != null && !py.isOpaque())
+    // drawMask |= DMaskPY;
+    // if(nz != null && !nz.isOpaque())
+    // drawMask |= DMaskNZ;
+    // if(pz != null && !pz.isOpaque())
+    // drawMask |= DMaskPZ;
+    // hash = concatHash(hash, drawMask);
+    // return hash;
+    // }
+    // case BTFurnace:
+    // {
+    // Block nx = world.getBlock(bx - 1, by, bz);
+    // Block px = world.getBlock(bx + 1, by, bz);
+    // Block ny = world.getBlock(bx, by - 1, bz);
+    // Block py = world.getBlock(bx, by + 1, bz);
+    // Block nz = world.getBlock(bx, by, bz - 1);
+    // Block pz = world.getBlock(bx, by, bz + 1);
+    // int drawMask = 0;
+    // if(nx != null && !nx.isOpaque())
+    // drawMask |= DMaskNX;
+    // if(px != null && !px.isOpaque())
+    // drawMask |= DMaskPX;
+    // if(ny != null && !ny.isOpaque())
+    // drawMask |= DMaskNY;
+    // if(py != null && !py.isOpaque())
+    // drawMask |= DMaskPY;
+    // if(nz != null && !nz.isOpaque())
+    // drawMask |= DMaskNZ;
+    // if(pz != null && !pz.isOpaque())
+    // drawMask |= DMaskPZ;
+    // hash = concatHash(hash, drawMask);
+    // hash = concatHash(hash, furnaceIsBurning() ? 1 : 0);
+    // return hash;
+    // }
+    // case BTLadder:
+    // case BTPistonHead:
+    // case BTStickyPistonHead:
+    // case BTRedstoneTorchOff:
+    // case BTRedstoneTorchOn:
+    // case BTTorch:
+    // hash = concatHash(hash, this.data.orientation);
+    // return hash;
+    // case BTLever:
+    // case BTPiston:
+    // case BTStickyPiston:
+    // case BTStoneButton:
+    // case BTWoodButton:
+    // case BTRedstoneDustOff:
+    // case BTRedstoneDustOn:
+    // hash = concatHash(hash, this.data.orientation);
+    // hash = concatHash(hash, this.data.intdata);
+    // return hash;
+    // case BTRedstoneRepeaterOff:
+    // case BTRedstoneRepeaterOn:
+    // {
+    // hash = concatHash(hash, this.data.orientation);
+    // boolean isThisLocked = redstoneRepeaterIsLatched(bx, by, bz);
+    // if(isThisLocked)
+    // {
+    // hash = concatHash(hash, 12345);
+    // return hash;
+    // }
+    // hash = concatHash(hash, this.data.intdata);
+    // return hash;
+    // }
+    // case BTLava:
+    // case BTWater:
+    // {
+    // // TODO finish
+    // hash = concatHash(hash, this.data.intdata);
+    // hash = concatHash(hash, bx);
+    // hash = concatHash(hash, by);
+    // hash = concatHash(hash, bz);
+    // return hash;
+    // }
+    // }
+    // hash = concatHash(hash, 67281763);
+    // return hash;
+    // }
+    //
+    // /** @param bx
+    // * this block's x coordinate
+    // * @param by
+    // * this block's y coordinate
+    // * @param bz
+    // * this block's z coordinate
+    // * @return if this block is cacheable */
+    // public boolean isCacheable(int bx, int by, int bz)
+    // {
+    // if(this.lighting == null)
+    // return false;
+    // switch(this.type)
+    // {
+    // case BTLast:
+    // case BTSun:
+    // case BTMoon:
+    // case BTDeleteBlock:
+    // return true;
+    // case BTBedrock:
+    // case BTBlazePowder:
+    // case BTBlazeRod:
+    // case BTChest:
+    // case BTCoal:
+    // case BTCoalOre:
+    // case BTCobblestone:
+    // case BTDiamond:
+    // case BTDiamondOre:
+    // case BTDiamondPick:
+    // case BTDiamondShovel:
+    // case BTDirt:
+    // case BTEmerald:
+    // case BTEmeraldOre:
+    // case BTEmpty:
+    // case BTGlass:
+    // case BTGoldIngot:
+    // case BTGoldOre:
+    // case BTGoldPick:
+    // case BTGoldShovel:
+    // case BTGrass:
+    // case BTGravel:
+    // case BTGunpowder:
+    // case BTIronIngot:
+    // case BTIronOre:
+    // case BTIronPick:
+    // case BTIronShovel:
+    // case BTLapisLazuli:
+    // case BTLapisLazuliOre:
+    // case BTLeaves:
+    // case BTObsidian:
+    // case BTPlank:
+    // case BTRedstoneBlock:
+    // case BTRedstoneOre:
+    // case BTSand:
+    // case BTSapling:
+    // case BTSlime:
+    // case BTStick:
+    // case BTStone:
+    // case BTStonePick:
+    // case BTStoneShovel:
+    // case BTTNT:
+    // case BTWood:
+    // case BTWoodPick:
+    // case BTWoodShovel:
+    // case BTWorkbench:
+    // case BTFurnace:
+    // case BTLadder:
+    // case BTPistonHead:
+    // case BTStickyPistonHead:
+    // case BTRedstoneTorchOff:
+    // case BTRedstoneTorchOn:
+    // case BTTorch:
+    // case BTLever:
+    // case BTPiston:
+    // case BTStickyPiston:
+    // case BTStoneButton:
+    // case BTWoodButton:
+    // case BTRedstoneDustOff:
+    // case BTRedstoneDustOn:
+    // case BTRedstoneRepeaterOff:
+    // case BTRedstoneRepeaterOn:
+    // case BTStonePressurePlate:
+    // case BTWoodPressurePlate:
+    // return true;
+    // case BTLava:
+    // case BTWater:
+    // // TODO finish
+    // return false;
+    // }
+    // return false;
+    // }
     /**
      * 
      */
     public void pressurePlatePress()
     {
         this.data.intdata = 4;
+    }
+
+    /** @param isWood
+     *            if the replacing block is wood and not leaves
+     * @return the replaceability of this block */
+    public BlockType.Replaceability getReplaceability(boolean isWood)
+    {
+        return this.type.getReplaceability(isWood);
+    }
+
+    @Override
+    public boolean equals(Object rt_in)
+    {
+        if(rt_in == null)
+            return this.type == BlockType.BTEmpty;
+        if(!(rt_in instanceof Block))
+            return false;
+        Block rt = (Block)rt_in;
+        if(this.type != rt.type)
+            return false;
+        switch(this.type)
+        {
+        case BTLast:
+        case BTSun:
+        case BTMoon:
+        case BTDeleteBlock:
+            return true;
+        case BTBedrock:
+        case BTEmpty:
+            return true;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTDiamond:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTGlass:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTObsidian:
+        case BTPlank:
+        case BTRedstoneBlock:
+        case BTRedstoneOre:
+        case BTSand:
+        case BTSlime:
+        case BTStick:
+        case BTStone:
+        case BTStonePick:
+        case BTStoneShovel:
+        case BTTNT:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTWorkbench:
+            return true;
+        case BTChest:
+        {
+            for(int i = 0; i < CHEST_ROWS * CHEST_COLUMNS; i++)
+            {
+                if(this.data.BlockCounts[i] != rt.data.BlockCounts[i])
+                    return false;
+                if(this.data.BlockCounts[i] > 0
+                        && !this.data.BlockTypes[i].equals(rt.data.BlockTypes[i]))
+                    return false;
+            }
+            return true;
+        }
+        case BTFurnace:
+            if(this.data.intdata != rt.data.intdata
+                    || this.data.srccount != rt.data.srccount
+                    || this.data.destcount != rt.data.destcount)
+                return false;
+            if(this.data.blockdata == null && rt.data.blockdata != null
+                    && !rt.data.blockdata.equals(this.data.blockdata))
+                return false;
+            if(this.data.blockdata != null
+                    && !this.data.blockdata.equals(rt.data.blockdata))
+                return false;
+            return true;
+        case BTLadder:
+            return this.data.orientation == rt.data.orientation;
+        case BTLava:
+        case BTWater:
+            return this.data.intdata == rt.data.intdata;
+        case BTSapling:
+            if(this.data.intdata != rt.data.intdata)
+                return false;
+            return this.data.runTime == rt.data.runTime;
+        case BTLeaves:
+            return this.data.intdata == rt.data.intdata;
+        case BTWood:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            return this.data.intdata == rt.data.intdata;
+        case BTLever:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            return this.data.intdata == rt.data.intdata;
+        case BTPiston:
+        case BTStickyPiston:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            return this.data.intdata == rt.data.intdata;
+        case BTPistonHead:
+        case BTStickyPistonHead:
+            return this.data.orientation == rt.data.orientation;
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            return this.data.intdata == rt.data.intdata;
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            return this.data.intdata == rt.data.intdata;
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+            return this.data.orientation == rt.data.orientation;
+        case BTStoneButton:
+        case BTWoodButton:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            return this.data.intdata == rt.data.intdata;
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
+            return this.data.intdata == rt.data.intdata;
+        case BTTorch:
+            return this.data.orientation == rt.data.orientation;
+        }
+        throw new UnsupportedOperationException(); // TODO finish
+    }
+
+    @Override
+    public int hashCode()
+    {
+        int hash = this.type.value;
+        switch(this.type)
+        {
+        case BTLast:
+        case BTSun:
+        case BTMoon:
+        case BTDeleteBlock:
+            return hash;
+        case BTBedrock:
+        case BTEmpty:
+            return hash;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTDiamond:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTGlass:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTObsidian:
+        case BTPlank:
+        case BTRedstoneBlock:
+        case BTRedstoneOre:
+        case BTSand:
+        case BTSlime:
+        case BTStick:
+        case BTStone:
+        case BTStonePick:
+        case BTStoneShovel:
+        case BTTNT:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTWorkbench:
+            return hash;
+        case BTChest:
+        {
+            for(int i = 0; i < CHEST_ROWS * CHEST_COLUMNS; i++)
+            {
+                hash += 1273648 * this.data.BlockCounts[i];
+                if(this.data.BlockCounts[i] > 0)
+                    hash += 3 * this.data.BlockTypes[i].hashCode();
+            }
+            return hash;
+        }
+        case BTFurnace:
+            hash += 2176438 * this.data.intdata + 127364 * this.data.srccount
+                    + 61873268 * this.data.destcount;
+            if(this.data.blockdata != null)
+                hash += 3 * this.data.blockdata.hashCode();
+            return hash;
+        case BTLadder:
+            hash += 126364 * this.data.orientation;
+            return hash;
+        case BTLava:
+        case BTWater:
+            return hash + 12643 * this.data.intdata;
+        case BTSapling:
+        {
+            hash += this.data.intdata * 7219843;
+            long v = Double.doubleToLongBits(this.data.runTime);
+            hash += 2183746 * (int)(v ^ (v >>> 32));
+            return hash;
+        }
+        case BTLeaves:
+            return hash + 162873468 * this.data.intdata;
+        case BTWood:
+            hash += 126364 * this.data.orientation;
+            return hash + 162873468 * this.data.intdata;
+        case BTLever:
+            hash += 126364 * this.data.orientation;
+            return hash + 162873468 * this.data.intdata;
+        case BTPiston:
+        case BTStickyPiston:
+            hash += 126364 * this.data.orientation;
+            return hash + 162873468 * this.data.intdata;
+        case BTPistonHead:
+        case BTStickyPistonHead:
+            hash += 126364 * this.data.orientation;
+            return hash;
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+            hash += 126364 * this.data.orientation;
+            return hash + 162873468 * this.data.intdata;
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+            hash += 126364 * this.data.orientation;
+            return hash + 162873468 * this.data.intdata;
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+            hash += 126364 * this.data.orientation;
+            return hash;
+        case BTStoneButton:
+        case BTWoodButton:
+            hash += 126364 * this.data.orientation;
+            return hash + 162873468 * this.data.intdata;
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
+            return hash + 162873468 * this.data.intdata;
+        case BTTorch:
+            hash += 126364 * this.data.orientation;
+            return hash;
+        }
+        throw new UnsupportedOperationException(); // TODO finish
+    }
+
+    /** @param needBreakToDig
+     *            true if the block being dug needs to be broken to dig it out
+     * @return the ability of this tool to dig */
+    public float getDigAbility(boolean needBreakToDig)
+    {
+        return this.type.getDigAbility(needBreakToDig);
+    }
+
+    /** @return the length of time that this block will fuel a furnace */
+    public int getBurnTime()
+    {
+        return this.type.getBurnTime();
+    }
+
+    /** @param orientation
+     *            the orientation for the side of the block clicked on
+     * @param vieworientation
+     *            the orientation for the direction the player is facing
+     * @return new block or null */
+    public Block makePlacedBlock(int orientation, int vieworientation)
+    {
+        switch(this.type)
+        {
+        case BTWood:
+            return NewWood(treeGetTreeType(), orientation);
+        default:
+            return this.type.make(orientation, vieworientation);
+        }
+    }
+
+    {
     }
 }

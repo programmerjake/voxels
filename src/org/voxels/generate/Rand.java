@@ -18,6 +18,7 @@ package org.voxels.generate;
 
 import static org.voxels.PlayerList.players;
 
+import java.io.*;
 import java.util.Random;
 
 import org.voxels.*;
@@ -25,41 +26,189 @@ import org.voxels.*;
 /** Land generator
  * 
  * @author jacob */
-public class Rand
+public final class Rand
 {
-    private final int seed;
+    /** @author jacob */
+    public static final class Settings
+    {
+        /**
+         * 
+         */
+        public boolean isSuperflat;
+        private static final int version = 0;
 
-    private Rand(int seed)
+        /**
+         * 
+         */
+        public Settings()
+        {
+            this.isSuperflat = false;
+        }
+
+        /** write to a <code>DataOutput</code>
+         * 
+         * @param o
+         *            <code>OutputStream</code> to write to
+         * @throws IOException
+         *             the exception thrown */
+        public void write(DataOutput o) throws IOException
+        {
+            o.writeInt(version);
+            o.writeBoolean(this.isSuperflat);
+        }
+
+        private void
+            internalReadVer0(DataInput i, int curVersion) throws IOException
+        {
+            if(curVersion != 0)
+                throw new IOException("invalid Rand.Settings version");
+            this.isSuperflat = i.readBoolean();
+        }
+
+        /** read from a <code>DataInput</code>
+         * 
+         * @param i
+         *            <code>DataInput</code> to read from
+         * @return the read <code>Settings</code>
+         * @throws IOException
+         *             the exception thrown */
+        public static Settings read(DataInput i) throws IOException
+        {
+            Settings retval = new Settings();
+            int curVersion = i.readInt();
+            retval.internalReadVer0(i, curVersion);
+            return retval;
+        }
+    }
+
+    /** @author jacob */
+    public static final class SettingsCreatorMenu extends MenuScreen
+    {
+        /**
+         * 
+         */
+        public final Settings settings;
+
+        /**
+         * 
+         */
+        public SettingsCreatorMenu()
+        {
+            super(Color.V(0.75f));
+            this.settings = new Settings();
+            add(new CheckMenuItem("Superflat",
+                                  Color.RGB(0f, 0f, 0f),
+                                  this.getBackgroundColor(),
+                                  Color.RGB(0f, 0f, 0f),
+                                  Color.RGB(0.0f, 0.0f, 1.0f),
+                                  this)
+            {
+                @Override
+                public void setChecked(boolean checked)
+                {
+                    SettingsCreatorMenu.this.settings.isSuperflat = checked;
+                }
+
+                @Override
+                public boolean isChecked()
+                {
+                    return SettingsCreatorMenu.this.settings.isSuperflat;
+                }
+            });
+            add(new SpacerMenuItem(Color.V(0), this));
+            add(new TextMenuItem("Create World",
+                                 Color.RGB(0.0f, 0.0f, 0.0f),
+                                 this.getBackgroundColor(),
+                                 Color.RGB(0.0f, 0.0f, 0.0f),
+                                 Color.RGB(0.0f, 0.0f, 1.0f),
+                                 this)
+            {
+                @Override
+                public void onMouseOver(float mouseX, float mouseY)
+                {
+                    select();
+                }
+
+                @Override
+                public void onClick(float mouseX, float mouseY)
+                {
+                    this.container.close();
+                }
+            });
+        }
+
+        @Override
+        protected void drawBackground(Matrix tform)
+        {
+            super.drawBackground(tform);
+            String str = "New World Settings";
+            float xScale = 2f / 40f;
+            Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
+                            .concat(Matrix.translate(-xScale / 2f
+                                                             * Text.sizeW(str)
+                                                             / Text.sizeW("A"),
+                                                     0.7f,
+                                                     0))
+                            .concat(tform),
+                      Color.RGB(0, 0, 0),
+                      str);
+        }
+    }
+
+    private final int seed;
+    /**
+     * 
+     */
+    public final boolean isSuperflat;
+
+    private Rand(int seed, Settings settings)
     {
         this.seed = seed;
+        this.isSuperflat = settings.isSuperflat;
     }
 
-    private Rand()
+    private Rand(Settings settings)
     {
         this.seed = new Random().nextInt();
+        this.isSuperflat = settings.isSuperflat;
     }
 
-    /** @return new land generator */
-    public static Rand create()
+    /** @param settings
+     *            the land generator settings
+     * @return new land generator */
+    public static Rand create(Settings settings)
     {
+        Settings s = settings;
+        if(s == null)
+            s = new Settings();
         Rand retval = null;
         int rockHeight;
+        float temperature, rainfall;
         do
         {
-            retval = new Rand();
+            retval = new Rand(s);
             rockHeight = retval.getRockHeight(0, 0);
+            temperature = retval.getBiomeTemperature(0, 0);
+            rainfall = retval.getBiomeRainfall(0, 0);
         }
-        while(rockHeight < WaterHeight || retval.getHasTree(0, 0)
-                || retval.isInCave(0, rockHeight, 0));
+        while(rockHeight < WaterHeight || temperature > 0.2
+                || rainfall < 0.9 // TODO finish
+                || retval.isInCave(0, rockHeight, 0)
+                || retval.getTree(0, 0) != null);
         return retval;
     }
 
     /** @param seed
      *            seed for land generator
+     * @param settings
+     *            the land generator settings
      * @return new land generator */
-    public static Rand create(int seed)
+    public static Rand create(int seed, Settings settings)
     {
-        return new Rand(seed);
+        Settings s = settings;
+        if(s == null)
+            s = new Settings();
+        return new Rand(seed, s);
     }
 
     /** @return this land generator's seed */
@@ -74,13 +223,14 @@ public class Rand
     {
         RockHeight,
         LakeBedType,
-        GenTree,
-        TreeSize,
+        Tree,
         Lava,
         OreType,
         Cave,
         CaveDecoration,
         CaveDecorationChest,
+        BiomeTemperature,
+        BiomeRainfall,
         Vect/* Vect must be last */
     }
 
@@ -125,7 +275,7 @@ public class Rand
         randv = 12345 * randv + this.seed;
         randv &= mask;
         randv = (randv ^ multiplier) & mask;
-        for(int i = 0; i < 1; i++)
+        for(int i = 0; i < 5; i++)
         {
             randv *= multiplier;
             randv += 0xB;
@@ -191,6 +341,85 @@ public class Rand
         float v0 = v00 * nfy + v01 * fy;
         float v1 = v10 * nfy + v11 * fy;
         return v0 * nfx + v1 * fx;
+    }
+
+    private float getFractalNoise(float x_in,
+                                  float y_in,
+                                  float z_in,
+                                  RandClass rc,
+                                  int iterations,
+                                  float roughness)
+    {
+        float retval = 0;
+        float factor = 1.0f;
+        float x = x_in, y = y_in, z = z_in;
+        for(int i = 0; i < iterations; i++)
+        {
+            int xmin = (int)Math.floor(x);
+            int xmax = xmin + 1;
+            int ymin = (int)Math.floor(y);
+            int ymax = ymin + 1;
+            int zmin = (int)Math.floor(z);
+            int zmax = zmin + 1;
+            float v000 = genRand(xmin, ymin + i * 1000, zmin, rc);
+            float v100 = genRand(xmax, ymin + i * 1000, zmin, rc);
+            float v010 = genRand(xmin, ymax + i * 1000, zmin, rc);
+            float v110 = genRand(xmax, ymax + i * 1000, zmin, rc);
+            float v001 = genRand(xmin, ymin + i * 1000, zmax, rc);
+            float v101 = genRand(xmax, ymin + i * 1000, zmax, rc);
+            float v011 = genRand(xmin, ymax + i * 1000, zmax, rc);
+            float v111 = genRand(xmax, ymax + i * 1000, zmax, rc);
+            float fx = x - xmin;
+            float fy = y - ymin;
+            float fz = z - zmin;
+            float nfx = 1 - fx;
+            float nfy = 1 - fy;
+            float nfz = 1 - fz;
+            float v00 = v000 * nfz + v001 * fz;
+            float v10 = v100 * nfz + v101 * fz;
+            float v01 = v010 * nfz + v011 * fz;
+            float v11 = v110 * nfz + v111 * fz;
+            float v0 = v00 * nfy + v01 * fy;
+            float v1 = v10 * nfy + v11 * fy;
+            retval += (v0 * nfx + v1 * fx) * factor;
+            factor *= roughness;
+            x *= 2;
+            y *= 2;
+            z *= 2;
+        }
+        return retval;
+    }
+
+    /** @param x
+     *            the x coordinate
+     * @param z
+     *            the z coordinate
+     * @return the biome temperature */
+    public float getBiomeTemperature(int x, int z)
+    {
+        return Math.max(Math.min(getFractalNoise(x / 1024f,
+                                                 0,
+                                                 z / 1024f,
+                                                 RandClass.BiomeTemperature,
+                                                 4,
+                                                 0.3f),
+                                 1.0f), 0.0f);
+    }
+
+    /** @param x
+     *            the x coordinate
+     * @param z
+     *            the z coordinate
+     * @return the biome rain fall */
+    public float getBiomeRainfall(int x, int z)
+    {
+        return Math.max(Math.min(getFractalNoise(x / 1024f,
+                                                 0,
+                                                 z / 1024f,
+                                                 RandClass.BiomeRainfall,
+                                                 4,
+                                                 0.3f),
+                                 1.0f), 0.0f);
     }
 
     private float getRockHeightNoiseH(float x, float z, int i)
@@ -270,7 +499,7 @@ public class Rand
 
     private int internalGetRockHeight(int x, int z)
     {
-        final int maxY = World.Height - 1, minY = -World.Depth;
+        final int maxY = Math.min(World.Height, World.Depth) - 1, minY = -World.Depth;
         final boolean USE_NEW_METHOD = true;
         float retval;
         if(!USE_NEW_METHOD)
@@ -308,6 +537,8 @@ public class Rand
             retval = maxY;
         else if(retval < minY)
             retval = minY;
+        if(this.isSuperflat)
+            retval = (retval + 1) / 4 - 1;
         return (int)retval;
     }
 
@@ -707,6 +938,8 @@ public class Rand
 
     private synchronized boolean isInCave(int x, int y, int z)
     {
+        if(y > getRockHeight(x, z))
+            return false;
         int cx = x - (x % InCaveChunk.size + InCaveChunk.size)
                 % InCaveChunk.size;
         int cy = y - (y % InCaveChunk.size + InCaveChunk.size)
@@ -722,26 +955,120 @@ public class Rand
     {
         public static final int size = 4;
         public int cx, cz;
-        private boolean hasTree[] = new boolean[size * size];
+        private Tree tree[] = new Tree[size * size];
 
         public TreeChunk(int cx, int cz)
         {
             this.cx = cx;
             this.cz = cz;
+            for(int i = size * size - 1; i >= 0; i--)
+                this.tree[i] = null;
         }
 
-        public boolean getHasTree(int x, int z)
+        public Tree getTree(int x, int z)
         {
-            return this.hasTree[x + z * size];
+            return this.tree[x + z * size];
         }
 
-        public void setHasTree(int x, int z, boolean v)
+        public void setTree(int x, int z, Tree v)
         {
-            this.hasTree[x + z * size] = v;
+            this.tree[x + z * size] = v;
         }
     }
 
-    private static final float makeTreeProb = 0.01f;
+    private float[] treeProbabilityArray = new float[Tree.TreeType.values().length];
+
+    private float getProbabilityConcentration(float fact,
+                                              float smoothness,
+                                              float cx,
+                                              float cy,
+                                              float x,
+                                              float y)
+    {
+        return fact * smoothness
+                / (smoothness + (x - cx) * (x - cx) + (y - cy) * (y - cy));
+    }
+
+    @SuppressWarnings("unused")
+    private float[] getTreeProbability(int x, int z)
+    {
+        float[] retval = this.treeProbabilityArray;
+        for(int i = 0; i < retval.length; i++)
+            retval[i] = 0;
+        float temperature = getBiomeTemperature(x, z);
+        float rainfall = getBiomeRainfall(x, z);
+        float oakProb = 0;
+        float birchProb = 0;
+        float spruceProb = 0;
+        float jungleProb = 0;
+        if(Main.DEBUG && false)
+        {
+            spruceProb = 0.01f; // TODO finish
+        }
+        else
+        {
+            // forest
+            oakProb += getProbabilityConcentration(0.005f,
+                                                   0.5f,
+                                                   0.3f,
+                                                   0.44f,
+                                                   temperature,
+                                                   rainfall);
+            birchProb += getProbabilityConcentration(0.005f,
+                                                     0.5f,
+                                                     0.3f,
+                                                     0.44f,
+                                                     temperature,
+                                                     rainfall);
+            // desert
+            // plains
+            // swamp land
+            oakProb += getProbabilityConcentration(0.005f,
+                                                   0.5f,
+                                                   0.3f,
+                                                   1f,
+                                                   temperature,
+                                                   rainfall);
+            // jungle
+            oakProb += getProbabilityConcentration(0.005f,
+                                                   0.5f,
+                                                   0.8f,
+                                                   1f,
+                                                   temperature,
+                                                   rainfall);
+            jungleProb += getProbabilityConcentration(0.005f,
+                                                      0.5f,
+                                                      0.8f,
+                                                      1f,
+                                                      temperature,
+                                                      rainfall);
+            // tundra
+            oakProb += getProbabilityConcentration(0.0005f,
+                                                   0.5f,
+                                                   0f,
+                                                   0f,
+                                                   temperature,
+                                                   rainfall);
+            // taiga
+            spruceProb += getProbabilityConcentration(0.01f,
+                                                      0.5f,
+                                                      0f,
+                                                      1f,
+                                                      temperature,
+                                                      rainfall);
+            oakProb += getProbabilityConcentration(0.001f,
+                                                   0.5f,
+                                                   0f,
+                                                   1f,
+                                                   temperature,
+                                                   rainfall);
+        }
+        retval[Tree.TreeType.Oak.ordinal()] = oakProb;
+        retval[Tree.TreeType.Spruce.ordinal()] = spruceProb;
+        retval[Tree.TreeType.Birch.ordinal()] = birchProb;
+        retval[Tree.TreeType.Jungle.ordinal()] = jungleProb;
+        return retval;
+    }
 
     private TreeChunk makeTreeChunk(int cx, int cz)
     {
@@ -750,12 +1077,26 @@ public class Rand
         {
             for(int z = 0; z < TreeChunk.size; z++)
             {
-                tc.setHasTree(x, z, false);
+                tc.setTree(x, z, null);
                 int RockHeight = getRockHeight(x + cx, z + cz);
-                if(RockHeight > WaterHeight)
-                    if(genRand(x + cx, 0, z + cz, RandClass.GenTree) < makeTreeProb
-                            && !isInCave(x + cx, RockHeight, z + cz))
-                        tc.setHasTree(x, z, true);
+                if(RockHeight >= WaterHeight
+                        && !isInCave(x + cx, RockHeight, z + cz)
+                        && !waterInArea(x, WaterHeight, z))
+                {
+                    float[] treeProb = getTreeProbability(x, z);
+                    for(int treeKind = 0; treeKind < Tree.TreeType.values().length; treeKind++)
+                    {
+                        if(genRand(x + cx, treeKind, z + cz, RandClass.Tree) < treeProb[treeKind])
+                        {
+                            tc.setTree(x,
+                                       z,
+                                       new Tree(Tree.TreeType.values()[treeKind],
+                                                genRand(x + cx, treeKind + 1, z
+                                                        + cz, RandClass.Tree)));
+                            break;
+                        }
+                    }
+                }
             }
         }
         return tc;
@@ -771,7 +1112,7 @@ public class Rand
 
     private TreeChunk[] treeChunkHashTable = new TreeChunk[hashPrime];
 
-    private synchronized boolean getHasTree(int x, int z)
+    private synchronized Tree getTree(int x, int z)
     {
         int cx = x - (x % TreeChunk.size + TreeChunk.size) % TreeChunk.size;
         int cz = z - (z % TreeChunk.size + TreeChunk.size) % TreeChunk.size;
@@ -780,33 +1121,31 @@ public class Rand
                 || this.treeChunkHashTable[hash].cx != cx
                 || this.treeChunkHashTable[hash].cz != cz)
             this.treeChunkHashTable[hash] = makeTreeChunk(cx, cz);
-        return this.treeChunkHashTable[hash].getHasTree(x - cx, z - cz);
+        return this.treeChunkHashTable[hash].getTree(x - cx, z - cz);
     }
 
     @SuppressWarnings("unused")
-    private synchronized Tree.TreeBlockKind internalGetTreeBlockKind(int x,
-                                                                     int y,
-                                                                     int z)
+    private synchronized Block internalGetTreeBlockKind(int x, int y, int z)
     {
-        final int searchdist = Tree.maximumExtent;
-        Tree.TreeBlockKind retval = Tree.TreeBlockKind.None;
-        for(int dx = -searchdist; dx <= searchdist; dx++)
+        final int searchDist = Tree.maxXZExtent;
+        Block retval = null;
+        for(int dx = -searchDist; dx <= searchDist; dx++)
         {
-            for(int dz = -searchdist; dz <= searchdist; dz++)
+            for(int dz = -searchDist; dz <= searchDist; dz++)
             {
                 int cx = dx + x, cz = dz + z;
-                if(getHasTree(cx, cz))
+                Tree tree = getTree(cx, cz);
+                if(tree != null)
                 {
                     int rockHeight = getRockHeight(cx, cz);
-                    float treeHeightT = genRand(cx, 0, cz, RandClass.TreeSize);
-                    int treeHeight = Tree.getTreeHeight(treeHeightT);
-                    retval = Tree.TreeBlockKind.combine(retval,
-                                                        Tree.getTreeShape(-dx,
-                                                                          y
-                                                                                  - rockHeight,
-                                                                          -dz,
-                                                                          treeHeight));
-                    if(retval == Tree.TreeBlockKind.Wood)
+                    Block b = tree.getBlock(-dx, y - rockHeight, -dz);
+                    if(b == null)
+                        continue;
+                    if(retval == null)
+                        retval = b;
+                    else if(retval.getReplaceability(b.getType() == BlockType.BTWood) == BlockType.Replaceability.Replace)
+                        retval = b;
+                    if(retval.getReplaceability(true) != BlockType.Replaceability.Replace)
                         return retval;
                 }
             }
@@ -818,8 +1157,7 @@ public class Rand
     {
         public static final int size = 4;
         public int cx, cy, cz;
-        private Tree.TreeBlockKind v[] = new Tree.TreeBlockKind[size * size
-                * size];
+        private Block v[] = new Block[size * size * size];
 
         public TreeBlockKindChunk(int cx, int cy, int cz)
         {
@@ -828,18 +1166,16 @@ public class Rand
             this.cz = cz;
         }
 
-        public Tree.TreeBlockKind get(int x_in, int y_in, int z_in)
+        public Block get(int x_in, int y_in, int z_in)
         {
             int x = x_in - this.cx;
             int y = y_in - this.cy;
             int z = z_in - this.cz;
-            Tree.TreeBlockKind retval = this.v[x + size * (y + size * z)];
-            if(retval == null)
-                return Tree.TreeBlockKind.None;
+            Block retval = this.v[x + size * (y + size * z)];
             return retval;
         }
 
-        public void put(int x_in, int y_in, int z_in, Tree.TreeBlockKind v)
+        public void put(int x_in, int y_in, int z_in, Block v)
         {
             int x = x_in - this.cx;
             int y = y_in - this.cy;
@@ -852,18 +1188,17 @@ public class Rand
 
     private synchronized void fillTreeBlockKindChunk(TreeBlockKindChunk c)
     {
-        final int searchdist = Tree.maximumExtent;
-        for(int dx = -searchdist; dx <= searchdist + TreeBlockKindChunk.size; dx++)
+        final int searchDist = Tree.maxXZExtent;
+        for(int dx = -searchDist; dx <= searchDist + TreeBlockKindChunk.size; dx++)
         {
-            for(int dz = -searchdist; dz <= searchdist
+            for(int dz = -searchDist; dz <= searchDist
                     + TreeBlockKindChunk.size; dz++)
             {
                 int cx = dx + c.cx, cz = dz + c.cz;
-                if(getHasTree(cx, cz))
+                Tree tree = getTree(cx, cz);
+                if(tree != null)
                 {
                     int rockHeight = getRockHeight(cx, cz);
-                    float treeHeightT = genRand(cx, 0, cz, RandClass.TreeSize);
-                    int treeHeight = Tree.getTreeHeight(treeHeightT);
                     for(int x = c.cx; x < c.cx + TreeBlockKindChunk.size; x++)
                     {
                         for(int y = c.cy; y < c.cy + TreeBlockKindChunk.size; y++)
@@ -871,17 +1206,17 @@ public class Rand
                             for(int z = c.cz; z < c.cz
                                     + TreeBlockKindChunk.size; z++)
                             {
-                                c.put(x,
-                                      y,
-                                      z,
-                                      Tree.TreeBlockKind.combine(c.get(x, y, z),
-                                                                 Tree.getTreeShape(x
-                                                                                           - cx,
-                                                                                   y
-                                                                                           - rockHeight,
-                                                                                   z
-                                                                                           - cz,
-                                                                                   treeHeight)));
+                                Block retval = c.get(x, y, z);
+                                Block b = tree.getBlock(x - cx,
+                                                        y - rockHeight,
+                                                        z - cz);
+                                if(b == null)
+                                    continue;
+                                if(retval == null)
+                                    retval = b;
+                                else if(retval.getReplaceability(b.getType() == BlockType.BTWood) == BlockType.Replaceability.Replace)
+                                    retval = b;
+                                c.put(x, y, z, retval);
                             }
                         }
                     }
@@ -906,8 +1241,7 @@ public class Rand
         return node;
     }
 
-    private synchronized Tree.TreeBlockKind
-        getTreeBlockKind(int x, int y, int z)
+    private synchronized Block getTreeBlockKind(int x, int y, int z)
     {
         int cx = x - (x % TreeBlockKindChunk.size + TreeBlockKindChunk.size)
                 % TreeBlockKindChunk.size;
@@ -916,7 +1250,8 @@ public class Rand
         int cz = z - (z % TreeBlockKindChunk.size + TreeBlockKindChunk.size)
                 % TreeBlockKindChunk.size;
         TreeBlockKindChunk c = getTreeBlockKindChunk(cx, cy, cz);
-        return c.get(x, y, z);
+        Block retval = c.get(x, y, z);
+        return retval;
     }
 
     enum DecorationType
@@ -950,16 +1285,25 @@ public class Rand
             if(ftype - type > 0.25)
                 return new Block();
             Block retval = Block.NewChest();
-            for(int i = 1; i < BlockType.Count; i++)
+            int i = 0;
+            for(BlockType.AddedBlockDescriptor d : BlockType.getAllCaveChestBlocks(y))
             {
-                BlockType bt = BlockType.toBlockType(i);
                 int count = (int)Math.floor(genRand(x,
-                                                    i,
+                                                    i++,
                                                     z,
                                                     RandClass.CaveDecorationChest)
-                        * (bt.getChestGenCount(y) + 1));
-                for(int j = 0; j < count; j++)
-                    retval.chestAddBlock(bt);
+                        * (d.maxCount + 1));
+                for(int row = Block.CHEST_ROWS - 1; row >= 0; row--)
+                {
+                    if(count <= 0)
+                        break;
+                    for(int column = 0; column < Block.CHEST_COLUMNS; column++)
+                    {
+                        if(count <= 0)
+                            break;
+                        count -= retval.chestAddBlocks(d.b, count, row, column);
+                    }
+                }
             }
             return retval;
         }
@@ -1030,19 +1374,11 @@ public class Rand
                         block = Block.NewBedrock();
                     else if(isInCave(x, y, z))
                     {
-                        Tree.TreeBlockKind tbk = getTreeBlockKind(x, y, z);
-                        switch(tbk)
-                        {
-                        case Leaves:
-                            block = Block.NewLeaves();
-                            break;
-                        case None:
+                        Block tb = getTreeBlockKind(x, y, z);
+                        if(tb == null)
                             block = getCaveDecoration(x, y, z);
-                            break;
-                        case Wood:
-                            block = Block.NewWood();
-                            break;
-                        }
+                        else
+                            block = tb;
                     }
                     else if(isLava(x, y, z))
                         block = Block.NewStationaryLava();
@@ -1117,19 +1453,10 @@ public class Rand
                         block = Block.NewStationaryWater();
                     else
                     {
-                        Tree.TreeBlockKind tbk = getTreeBlockKind(x, y, z);
-                        switch(tbk)
-                        {
-                        case Leaves:
-                            block = Block.NewLeaves();
-                            break;
-                        case None:
-                            block = new Block();
-                            break;
-                        case Wood:
-                            block = Block.NewWood();
-                            break;
-                        }
+                        Block tb = getTreeBlockKind(x, y, z);
+                        if(tb == null)
+                            tb = new Block();
+                        block = tb;
                     }
                     generatedChunk.setBlock(x, y, z, block);
                 }
