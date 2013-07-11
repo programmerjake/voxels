@@ -18,12 +18,13 @@ package org.voxels;
 
 enum BlockDrawType
 {
-	BDTNone,
-	BDTSolid,
-	BDTSolidAllSides,
-	BDTItem,
-	BDTCustom,
-	BDTTorch,
-	BDTLiquid,
-	BDTButton,
+    BDTNone,
+    BDTSolid,
+    BDTSolidAllSides,
+    BDTItem,
+    BDTTool,
+    BDTCustom,
+    BDTTorch,
+    BDTLiquid,
+    BDTButton,
 }

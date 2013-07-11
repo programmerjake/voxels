@@ -21,6 +21,8 @@ import static org.voxels.World.world;
 
 import java.io.*;
 
+import org.voxels.BlockType.ToolLevel;
+import org.voxels.BlockType.ToolType;
 import org.voxels.TextureAtlas.TextureHandle;
 import org.voxels.generate.Tree;
 import org.voxels.generate.Tree.TreeType;
@@ -95,10 +97,10 @@ public class Block implements GameObject
     private static final int DMaskNZ = 0x2;
     private static final int DMaskPZ = 0x1;
 
-    /** @return true if this block is opaque */
+    /** @return if this block is opaque */
     public boolean isOpaque()
     {
-        return this.type.isOpaque;
+        return this.type.isOpaque();
     }
 
     /** creates an empty block */
@@ -230,8 +232,6 @@ public class Block implements GameObject
     public static Block NewSapling(TreeType treeType)
     {
         Block retval = new Block(BlockType.BTSapling);
-        retval.data.runTime = world.getCurTime()
-                + BlockType.BTSapling.getGrowTime();
         retval.data.intdata = treeType.ordinal();
         return retval;
     }
@@ -267,6 +267,11 @@ public class Block implements GameObject
         return retval;
     }
 
+    /**
+     * 
+     */
+    public static final int MAX_LEAVES_DISTANCE = 4;
+
     /** @param treeType
      *            the tree type
      * @param distFromWood
@@ -276,7 +281,8 @@ public class Block implements GameObject
     {
         Block retval = new Block(BlockType.BTLeaves);
         retval.data.intdata = treeType.ordinal();
-        retval.data.step = Math.max(0, Math.min(4, distFromWood));
+        retval.data.step = Math.max(0, Math.min(MAX_LEAVES_DISTANCE + 1,
+                                                distFromWood));
         return retval;
     }
 
@@ -291,10 +297,14 @@ public class Block implements GameObject
         return retval;
     }
 
-    /** @return new plank */
-    public static Block NewPlank()
+    /** @param treeType
+     *            the tree type
+     * @return new plank */
+    public static Block NewPlank(Tree.TreeType treeType)
     {
-        return new Block(BlockType.BTPlank);
+        Block retval = new Block(BlockType.BTPlank);
+        retval.data.intdata = treeType.ordinal();
+        return retval;
     }
 
     /** @return new stick */
@@ -761,6 +771,68 @@ public class Block implements GameObject
         return new Block(BlockType.BTWoodPressurePlate);
     }
 
+    /** @param depth
+     *            the depth (1 - 8)
+     * @return new snow */
+    public static Block NewSnow(int depth)
+    {
+        Block retval = new Block(BlockType.BTSnow);
+        retval.data.intdata = Math.max(1, Math.min(8, depth));
+        return retval;
+    }
+
+    /** @param orientation
+     *            orientation of the new vines
+     * @return new vines */
+    public static Block NewVines(int orientation)
+    {
+        Block retval = new Block(BlockType.BTVines);
+        retval.data.orientation = Math.max(0, Math.min(3, orientation));
+        return retval;
+    }
+
+    /** @return new wood axe */
+    public static Block NewWoodAxe()
+    {
+        return new Block(BlockType.BTWoodAxe);
+    }
+
+    /** @return new stone axe */
+    public static Block NewStoneAxe()
+    {
+        return new Block(BlockType.BTStoneAxe);
+    }
+
+    /** @return new iron axe */
+    public static Block NewIronAxe()
+    {
+        return new Block(BlockType.BTIronAxe);
+    }
+
+    /** @return new gold axe */
+    public static Block NewGoldAxe()
+    {
+        return new Block(BlockType.BTGoldAxe);
+    }
+
+    /** @return new diamond axe */
+    public static Block NewDiamondAxe()
+    {
+        return new Block(BlockType.BTDiamondAxe);
+    }
+
+    /** @return new bucket */
+    public static Block NewBucket()
+    {
+        return new Block(BlockType.BTBucket);
+    }
+
+    /** @return new shears */
+    public static Block NewShears()
+    {
+        return new Block(BlockType.BTShears);
+    }
+
     private static RenderingStream drawFace(RenderingStream rs,
                                             TextureHandle texture,
                                             Vector p1,
@@ -785,7 +857,7 @@ public class Block implements GameObject
     {
         float c1, c2, c3, c4;
         Vector normal = p2.sub(p1).cross(p3.sub(p1)).normalize();
-        if(isAsItem)
+        if(isAsItem || isItemGlowing)
         {
             c1 = normal.dot(new Vector(0, 1, 0));
             if(c1 < 0)
@@ -1867,6 +1939,85 @@ public class Block implements GameObject
         return tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
     }
 
+    /** @return the use count for this tool */
+    public int toolGetUseCount()
+    {
+        return this.data.intdata;
+    }
+
+    /** @return the maximum use count for this tool */
+    public int toolGetMaxUseCount()
+    {
+        return this.type.getDurability();
+    }
+
+    private static final TextureHandle toolUsageBackground = TextureAtlas.addImage(new Image(Color.V(0.4f)));
+    private static final TextureHandle[] toolUsageForeground = new TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image(Color.RGB(1.0f, 0.5f, 0.0f))),
+        TextureAtlas.addImage(new Image(Color.RGB(1.0f, 1.0f, 0.0f))),
+        TextureAtlas.addImage(new Image(Color.RGB(0.0f, 1.0f, 0.0f))),
+    };
+
+    private RenderingStream drawToolUsage(RenderingStream rs,
+                                          Matrix blockToWorld)
+    {
+        if(toolGetUseCount() <= 0)
+            return rs;
+        float relativeUseLeft = 1.0f - (float)toolGetUseCount()
+                / toolGetMaxUseCount();
+        float dividerPos = 1 / 16f + 14 / 16f * relativeUseLeft;
+        rs.pushMatrixStack();
+        rs.concatMatrix(blockToWorld);
+        drawFace(rs,
+                 toolUsageBackground,
+                 new Vector(15 / 16f, 3 / 16f, 0.05f),
+                 new Vector(15 / 16f, 1 / 16f, 0.05f),
+                 new Vector(dividerPos, 1 / 16f, 0.05f),
+                 new Vector(dividerPos, 3 / 16f, 0.05f),
+                 0,
+                 0,
+                 0,
+                 1,
+                 1,
+                 1,
+                 1,
+                 0,
+                 0,
+                 0,
+                 0,
+                 true,
+                 false,
+                 true,
+                 false);
+        drawFace(rs,
+                 toolUsageForeground[Math.max(0,
+                                              Math.min(toolUsageForeground.length - 1,
+                                                       (int)Math.floor(relativeUseLeft
+                                                               * toolUsageForeground.length)))],
+                 new Vector(dividerPos, 1 / 16f, 0.05f),
+                 new Vector(dividerPos, 3 / 16f, 0.05f),
+                 new Vector(1 / 16f, 3 / 16f, 0.05f),
+                 new Vector(1 / 16f, 1 / 16f, 0.05f),
+                 0,
+                 0,
+                 0,
+                 1,
+                 1,
+                 1,
+                 1,
+                 0,
+                 0,
+                 0,
+                 0,
+                 true,
+                 false,
+                 true,
+                 false);
+        rs.popMatrixStack();
+        return rs;
+    }
+
     private RenderingStream draw(RenderingStream rs,
                                  Matrix blockToWorld,
                                  boolean isEntity,
@@ -2064,6 +2215,7 @@ public class Block implements GameObject
                           isAsItem);
                 break;
             case BTLadder:
+            case BTVines:
                 drawItem(rs,
                          Matrix.translate(-0.5f, -0.5f, -0.49f)
                                .concat(Matrix.rotatey(Math.PI / 2.0
@@ -2322,6 +2474,41 @@ public class Block implements GameObject
                              isAsItem);
                 break;
             }
+            case BTSnow:
+            {
+                internalDraw(rs,
+                             0x3F,
+                             Matrix.scale(1.0f, this.data.intdata / 8.0f, 1.0f),
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             this.type.textures[0],
+                             false,
+                             isEntity,
+                             isAsItem);
+                break;
+            }
+            case BTGrass:
+            {
+                boolean isSnowGrass = false;
+                if(!isEntity && !isAsItem)
+                {
+                    Block py = world.getBlockEval(bx, by + 1, bz);
+                    if(py != null && py.getType() == BlockType.BTSnow)
+                        isSnowGrass = true;
+                }
+                drawSolid(rs,
+                          blockToWorld,
+                          bx,
+                          by,
+                          bz,
+                          false,
+                          this.type.textures[isSnowGrass ? 1 : 0],
+                          isEntity,
+                          isAsItem);
+                break;
+            }
             default:
                 break;
             }
@@ -2395,7 +2582,17 @@ public class Block implements GameObject
         case BDTSolidAllSides:
             drawSolid(rs, blockToWorld, bx, by, bz, true, isEntity, isAsItem);
             break;
-        default:
+        case BDTTool:
+            drawItem(rs,
+                     Matrix.identity(),
+                     blockToWorld,
+                     bx,
+                     by,
+                     bz,
+                     this.type.textures[0],
+                     isEntity,
+                     isAsItem);
+            drawToolUsage(rs, blockToWorld);
             break;
         }
         return rs;
@@ -2819,6 +3016,15 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return;
         }
     }
@@ -2840,7 +3046,8 @@ public class Block implements GameObject
     /** @return this tree block's tree type */
     public Tree.TreeType treeGetTreeType()
     {
-        return Tree.TreeType.values()[this.data.intdata];
+        Tree.TreeType[] values = Tree.TreeType.values();
+        return values[this.data.intdata];
     }
 
     /** called to evaluate general moves
@@ -3137,6 +3344,204 @@ public class Block implements GameObject
             }
         }
         case BTLeaves:
+        {
+            int v = MAX_LEAVES_DISTANCE;
+            for(int dir = 0; dir < 6; dir++)
+            {
+                Block b = world.getBlockEval(bx + getOrientationDX(dir), by
+                        + getOrientationDY(dir), bz + getOrientationDZ(dir));
+                if(b == null)
+                    return null;
+                if(b.getType() == BlockType.BTLeaves)
+                {
+                    v = Math.min(v, b.data.step);
+                }
+                else if(b.getType() == BlockType.BTWood)
+                {
+                    if(this.data.step != 0)
+                        return NewLeaves(treeGetTreeType(), 0);
+                    return null;
+                }
+            }
+            v++;
+            if(v != this.data.step)
+                return NewLeaves(treeGetTreeType(), v);
+            return null;
+        }
+        case BTPlank:
+        case BTRedstoneBlock:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTStick:
+        case BTStone:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStoneShovel:
+        case BTTorch:
+        case BTWood:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTLadder:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTLever:
+        case BTObsidian:
+        case BTPiston:
+        case BTStickyPiston:
+        case BTPistonHead:
+        case BTStickyPistonHead:
+        case BTSlime:
+        case BTGunpowder:
+        case BTTNT:
+        case BTBlazeRod:
+        case BTBlazePowder:
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            break;
+        case BTSnow:
+        {
+            if(!isBlockSupported(bx, by, bz, 4))
+                return new Block();
+            return null;
+        }
+        case BTVines:
+        {
+            if(isBlockSupported(bx, by, bz, this.data.orientation))
+                return null;
+            Block py = world.getBlockEval(bx, by + 1, bz);
+            if(py == null)
+                return null;
+            if(py.getType() == BlockType.BTVines
+                    && py.data.orientation == this.data.orientation)
+                return null;
+            return new Block();
+        }
+        }
+        return null;
+    }
+
+    /** called to evaluate random moves
+     * 
+     * @param bx
+     *            block x coordinate
+     * @param by
+     *            block y coordinate
+     * @param bz
+     *            block z coordinate
+     * @return the block that this block changes to or null if it doesn't change */
+    public Block moveRandom(int bx, int by, int bz)
+    {
+        switch(this.type)
+        {
+        case BTLast:
+        case BTDeleteBlock:
+        case BTMoon:
+        case BTSun:
+            return null;
+        case BTBedrock:
+            return null;
+        case BTEmpty:
+        {
+            Block py = world.getBlockEval(bx, by + 1, bz);
+            if(py != null)
+            {
+                if(py.getType() == BlockType.BTVines)
+                {
+                    return new Block(py);
+                }
+            }
+            return null;
+        }
+        case BTChest:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTDiamond:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTEmerald:
+        case BTEmeraldOre:
+            break;
+        case BTDirt:
+        {
+            {
+                Block py = world.getBlockEval(bx, by + 1, bz);
+                if(py == null)
+                    break;
+                if(py.isOpaque())
+                    break;
+                if(Math.max(py.light, py.scatteredSunlight) < 4)
+                    break;
+            }
+            final int dist = 3;
+            for(int dx = -dist; dx <= dist; dx++)
+            {
+                for(int dy = -dist; dy <= dist; dy++)
+                {
+                    for(int dz = -dist; dz <= dist; dz++)
+                    {
+                        Block b = world.getBlockEval(bx + dx, by + dy, bz + dz);
+                        if(b != null && b.getType() == BlockType.BTGrass)
+                        {
+                            return NewGrass();
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        case BTGrass:
+        {
+            Block py = world.getBlockEval(bx, by + 1, bz);
+            if(py == null)
+                break;
+            if(py.isOpaque())
+                return NewDirt();
+            if(Math.max(py.light, py.scatteredSunlight) < 4)
+                return NewDirt();
+            break;
+        }
+        case BTFurnace:
+        case BTGlass:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGravel:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+            break;
+        case BTLava:
+        case BTWater:
+            break;
+        case BTLeaves:
+        {
+            if(this.data.step > MAX_LEAVES_DISTANCE)
+            {
+                digBlock(bx, by, bz, true, ToolType.None);
+                return new Block();
+            }
+            return null;
+        }
         case BTPlank:
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -3152,50 +3557,14 @@ public class Block implements GameObject
             Block ny = world.getBlockEval(bx, by - 1, bz);
             if(ny.getType() != BlockType.BTDirt
                     && ny.getType() != BlockType.BTGrass)
-            {
-                if(this.data.runTime >= 0)
-                {
-                    Block retval = NewSapling(treeGetTreeType());
-                    retval.data.runTime = -1;
-                    return retval;
-                }
                 return null;
-            }
             if(py.getType() != BlockType.BTEmpty)
-            {
-                if(this.data.runTime >= 0)
-                {
-                    Block retval = NewSapling(treeGetTreeType());
-                    retval.data.runTime = -1;
-                    return retval;
-                }
                 return null;
-            }
             if(world.getLighting(bx + 0.5f, by + 0.5f, bz + 0.5f) <= 7 / 15.0)
-            {
-                if(this.data.runTime >= 0)
-                {
-                    Block retval = NewSapling(treeGetTreeType());
-                    retval.data.runTime = -1;
-                    return retval;
-                }
-                world.addTimedInvalidate(bx, by, bz, 10);
                 return null;
-            }
-            if(this.data.runTime < 0)
-            {
-                Block retval = NewSapling(treeGetTreeType());
-                return retval;
-            }
-            if(world.getCurTime() >= this.data.runTime)
-            {
-                Block retval = new Block();
-                world.addNewTree(bx, by, bz, this);
-                return retval;
-            }
-            world.addTimedInvalidate(bx, by, bz, world.getCurTime()
-                    - this.data.runTime);
-            return null;
+            Block retval = new Block();
+            world.addNewTree(bx, by, bz, this);
+            return retval;
         }
         case BTStick:
         case BTStone:
@@ -3224,6 +3593,21 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+            break;
+        case BTSnow:
+        {
+            if(this.light > 11)
+                return new Block();
+            break;
+        }
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             break;
         }
         return null;
@@ -3315,6 +3699,7 @@ public class Block implements GameObject
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
         case BTRedstoneDustOn:
+        case BTSnow:
             return null;
         case BTWoodButton:
         case BTStoneButton:
@@ -3496,7 +3881,17 @@ public class Block implements GameObject
                 retval.data.intdata--;
                 return retval;
             }
+            return null;
         }
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            return null;
         }
         return null;
     }
@@ -3670,7 +4065,7 @@ public class Block implements GameObject
             {
                 PushType p = nextBlock.getPushType();
                 if(p == PushType.DropAsEntity)
-                    nextBlock.digBlock(x, y, z);
+                    nextBlock.digBlock(x, y, z, true, ToolType.None);
                 players.push(x, y, z, dx, dy, dz);
             }
             world.setBlock(x, y, z, thisBlock);
@@ -3719,8 +4114,8 @@ public class Block implements GameObject
         case BTChest:
         case BTWorkbench:
         case BTFurnace:
-            return PushType.Pushed;
         case BTPlank:
+            return PushType.Pushed;
         case BTStick:
         case BTWoodPick:
         case BTStonePick:
@@ -3779,7 +4174,17 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return PushType.DropAsEntity;
+        case BTSnow:
+        case BTVines:
+            return PushType.Remove;
         }
         return PushType.NonPushable;
     }
@@ -3967,6 +4372,15 @@ public class Block implements GameObject
         case BTStickyPiston:
         case BTPistonHead:
         case BTStickyPistonHead:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return null;
         }
         return retval;
@@ -4020,7 +4434,6 @@ public class Block implements GameObject
         return -1;
     }
 
-    @SuppressWarnings("unused")
     private int getRayEnterSide(Vector origin, Vector direction)
     {
         Vector dir = new Vector(direction);
@@ -4252,6 +4665,17 @@ public class Block implements GameObject
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
             return 1;
+        case BTSnow:
+            return this.data.intdata / 8.0f;
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            return 1;
         }
         return 0;
     }
@@ -4292,6 +4716,7 @@ public class Block implements GameObject
             return 0;
         case BTWater:
         case BTLava:
+        case BTSnow:
         {
             float height = getHeight();
             if(hitpos.y <= height)
@@ -4388,8 +4813,11 @@ public class Block implements GameObject
         case BTDiamondShovel:
             return 0;
         case BTLadder:
+        case BTVines:
             if(getRayExitSide(hitpos, dir) == this.data.orientation)
                 return getRayExitDist(hitpos, dir);
+            if(getRayEnterSide(hitpos, dir) == this.data.orientation)
+                return 0;
             return -1;
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
@@ -4416,6 +4844,14 @@ public class Block implements GameObject
             if(getRayExitSide(hitpos, dir) == 4)
                 return getRayExitDist(hitpos, dir);
             return -1;
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            return 0;
         }
         return -1;
     }
@@ -4518,6 +4954,7 @@ public class Block implements GameObject
         case BTSun:
         case BTMoon:
         case BTLast:
+            draw(rs, blockToWorld, true, false);
             return rs;
         case BTEmpty:
             return rs;
@@ -4531,8 +4968,6 @@ public class Block implements GameObject
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTBedrock:
-        case BTWater:
-        case BTLava:
         case BTSand:
         case BTGravel:
         case BTWood:
@@ -4541,9 +4976,9 @@ public class Block implements GameObject
         case BTChest:
         case BTWorkbench:
         case BTFurnace:
+        case BTPlank:
             draw(rs, blockToWorld, true, false);
             return rs;
-        case BTPlank:
         case BTStick:
         case BTWoodPick:
         case BTStonePick:
@@ -4553,6 +4988,16 @@ public class Block implements GameObject
             drawImgAsEntity(rs,
                             blockToWorld,
                             this.type.textures[this.data.intdata]);
+            return rs;
+        }
+        case BTWater:
+        {
+            drawImgAsEntity(rs, blockToWorld, this.type.textures[2]);
+            return rs;
+        }
+        case BTLava:
+        {
+            drawImgAsEntity(rs, blockToWorld, this.type.textures[1]);
             return rs;
         }
         case BTRedstoneDustOff:
@@ -4622,10 +5067,16 @@ public class Block implements GameObject
         case BTDiamondShovel:
         case BTLadder:
         case BTSlime:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
         {
-            drawImgAsEntity(rs,
-                            blockToWorld,
-                            this.type.textures[this.data.intdata]);
+            drawImgAsEntity(rs, blockToWorld, this.type.textures[0]);
             return rs;
         }
         case BTRedstoneRepeaterOff:
@@ -4647,6 +5098,9 @@ public class Block implements GameObject
                  false);
             return rs;
         }
+        case BTSnow:
+            drawImgAsEntity(rs, blockToWorld, this.type.textures[1]);
+            return rs;
         case BTLever:
         {
             Block b = NewLever(false, 4);
@@ -4721,8 +5175,6 @@ public class Block implements GameObject
         case BTGrass:
         case BTDirt:
         case BTBedrock:
-        case BTWater:
-        case BTLava:
         case BTSand:
         case BTGravel:
         case BTWood:
@@ -4745,6 +5197,7 @@ public class Block implements GameObject
         case BTPistonHead:
         case BTStickyPistonHead:
         case BTTNT:
+        case BTPlank:
             drawBlockAsItem(rs, blockToWorld);
             return rs;
         case BTSapling:
@@ -4753,12 +5206,13 @@ public class Block implements GameObject
                  false,
                  true);
             return rs;
-        case BTPlank:
         case BTStick:
         case BTWoodPick:
         case BTStonePick:
         case BTWoodShovel:
         case BTStoneShovel:
+        case BTShears:
+        case BTBucket:
         {
             Block b = new Block(this);
             b.setLighting(0, 0, 15);
@@ -4835,6 +5289,13 @@ public class Block implements GameObject
             b.draw(rs, blockToWorld, false, true);
             return rs;
         }
+        case BTVines:
+        {
+            Block b = NewVines(1);
+            b.setLighting(0, 0, 15);
+            b.draw(rs, blockToWorld, false, true);
+            return rs;
+        }
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
         {
@@ -4870,10 +5331,54 @@ public class Block implements GameObject
         case BTGunpowder:
         case BTBlazeRod:
         case BTBlazePowder:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
         {
             Block b = new Block(this);
             b.setLighting(0, 0, 15);
             b.draw(rs, blockToWorld, false, true);
+            return rs;
+        }
+        case BTSnow:
+        {
+            drawItem(rs,
+                     Matrix.identity(),
+                     blockToWorld,
+                     0,
+                     0,
+                     0,
+                     this.type.textures[1],
+                     false,
+                     true);
+            return rs;
+        }
+        case BTLava:
+        {
+            drawItem(rs,
+                     Matrix.identity(),
+                     blockToWorld,
+                     0,
+                     0,
+                     0,
+                     this.type.textures[1],
+                     false,
+                     true);
+            return rs;
+        }
+        case BTWater:
+        {
+            drawItem(rs,
+                     Matrix.identity(),
+                     blockToWorld,
+                     0,
+                     0,
+                     0,
+                     this.type.textures[2],
+                     false,
+                     true);
             return rs;
         }
         }
@@ -4951,7 +5456,6 @@ public class Block implements GameObject
         }
     }
 
-    @SuppressWarnings("unused")
     private static class BlockDescriptorTreeType extends
         BlockDescriptorBlockType
     {
@@ -5074,8 +5578,20 @@ public class Block implements GameObject
         }, 2, NewWorkbench(), 1),
         new ReduceStruct(new BlockDescriptor[]
         {
-            new BlockDescriptorBlockType(BlockType.BTWood)
-        }, 1, NewPlank(), 4),
+            new BlockDescriptorTreeType(BlockType.BTWood, TreeType.Oak)
+        }, 1, NewPlank(TreeType.Oak), 4),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorTreeType(BlockType.BTWood, TreeType.Spruce)
+        }, 1, NewPlank(TreeType.Spruce), 4),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorTreeType(BlockType.BTWood, TreeType.Birch)
+        }, 1, NewPlank(TreeType.Birch), 4),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorTreeType(BlockType.BTWood, TreeType.Jungle)
+        }, 1, NewPlank(TreeType.Jungle), 4),
         new ReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTPlank),
@@ -5273,6 +5789,92 @@ public class Block implements GameObject
             new BlockDescriptorBlockType(BlockType.BTPlank),
             new BlockDescriptorBlockType(BlockType.BTPlank)
         }, 2, NewWoodPressurePlate(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewWoodAxe(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewStoneAxe(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewIronAxe(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTGoldIngot),
+            new BlockDescriptorBlockType(BlockType.BTGoldIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTGoldIngot),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewGoldAxe(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTDiamond),
+            new BlockDescriptorBlockType(BlockType.BTDiamond),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTDiamond),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewDiamondAxe(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewBucket(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot)
+        }, 2, NewShears(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewShears(), 1),
     };
     private static final int reduceCount = reduceArray.length;
 
@@ -5591,18 +6193,6 @@ public class Block implements GameObject
         return true;
     }
 
-    /** @return true if this block needs to be broken to dig it out */
-    public boolean getNeedBreakToDig()
-    {
-        return this.type.getNeedBreakToDig();
-    }
-
-    /** @return the hardness of this block */
-    public int getHardness()
-    {
-        return this.type.getHardness();
-    }
-
     /** @return true if this is an item */
     public boolean isItem()
     {
@@ -5662,8 +6252,8 @@ public class Block implements GameObject
         case BTChest:
         case BTWorkbench:
         case BTFurnace:
-            return solidAdjustPlayerPosition(position, 1, distLimit);
         case BTPlank:
+            return solidAdjustPlayerPosition(position, 1, distLimit);
         case BTStick:
         case BTWoodPick:
         case BTStonePick:
@@ -5715,6 +6305,7 @@ public class Block implements GameObject
             return position;
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
+        case BTSnow:
             return solidAdjustPlayerPosition(position, getHeight(), distLimit);
         case BTLever:
             return position;
@@ -5733,6 +6324,14 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return position;
         }
         return null;
@@ -5841,6 +6440,15 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return true;
         }
         return false;
@@ -5853,8 +6461,16 @@ public class Block implements GameObject
      * @param y
      *            y coordinate
      * @param z
-     *            z coordinate */
-    public void digBlock(int x, int y, int z)
+     *            z coordinate
+     * @param dropItems
+     *            if this block should drop items
+     * @param toolType
+     *            the tool type */
+    public void digBlock(int x,
+                         int y,
+                         int z,
+                         boolean dropItems,
+                         BlockType.ToolType toolType)
     {
         switch(this.type)
         {
@@ -5867,45 +6483,51 @@ public class Block implements GameObject
         case BTBedrock:
             return;
         case BTFurnace:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               this.type.make(-1),
-                                               World.vRand(0.1f)));
-            if(this.data.blockdata == null)
-                return;
-            for(int i = 0; i < this.data.srccount; i++)
+            if(dropItems)
             {
                 world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
-                                                   this.data.blockdata,
+                                                   this.type.make(-1),
                                                    World.vRand(0.1f)));
-            }
-            if(this.data.blockdata.getSmeltResult() == null)
-                return;
-            for(int i = 0; i < this.data.destcount; i++)
-            {
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                              y + 0.5f,
-                                                              z + 0.5f),
-                                                   this.data.blockdata.getSmeltResult(),
-                                                   World.vRand(0.1f)));
-            }
-            return;
-        case BTChest:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               this.type.make(-1),
-                                               World.vRand(0.1f)));
-            for(int i = 0; i < CHEST_COLUMNS * CHEST_ROWS; i++)
-                for(int j = 0; j < this.data.BlockCounts[i]; j++)
+                if(this.data.blockdata == null)
+                    return;
+                for(int i = 0; i < this.data.srccount; i++)
+                {
                     world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
-                                                       this.data.BlockTypes[i],
+                                                       this.data.blockdata,
                                                        World.vRand(0.1f)));
+                }
+                if(this.data.blockdata.getSmeltResult() == null)
+                    return;
+                for(int i = 0; i < this.data.destcount; i++)
+                {
+                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       this.data.blockdata.getSmeltResult(),
+                                                       World.vRand(0.1f)));
+                }
+            }
+            return;
+        case BTChest:
+            if(dropItems)
+            {
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   this.type.make(-1),
+                                                   World.vRand(0.1f)));
+                for(int i = 0; i < CHEST_COLUMNS * CHEST_ROWS; i++)
+                    for(int j = 0; j < this.data.BlockCounts[i]; j++)
+                        world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                                      y + 0.5f,
+                                                                      z + 0.5f),
+                                                           this.data.BlockTypes[i],
+                                                           World.vRand(0.1f)));
+            }
             return;
         case BTCoal:
         case BTCobblestone:
@@ -5925,7 +6547,6 @@ public class Block implements GameObject
         case BTIronPick:
         case BTIronShovel:
         case BTLapisLazuli:
-        case BTPlank:
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
         case BTRedstoneTorchOff:
@@ -5950,135 +6571,182 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               this.type.make(-1),
-                                               World.vRand(0.1f)));
-            return;
-        case BTSapling:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               NewSapling(treeGetTreeType()),
-                                               World.vRand(0.1f)));
-            return;
-        case BTWood:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               NewWood(treeGetTreeType(), 0),
-                                               World.vRand(0.1f)));
-            return;
-        case BTRedstoneOre:
-        {
-            int count = Math.round(World.fRand(4 - 0.5f, 5 + 0.5f));
-            for(int i = 0; i < count; i++)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                              y + 0.5f,
-                                                              z + 0.5f),
-                                                   NewRedstoneDust(0, 0),
-                                                   World.vRand(0.1f)));
-            return;
-        }
-        case BTCoalOre:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               NewCoal(),
-                                               World.vRand(0.1f)));
-            return;
-        case BTDiamondOre:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               NewDiamond(),
-                                               World.vRand(0.1f)));
-            return;
-        case BTEmeraldOre:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               NewEmerald(),
-                                               World.vRand(0.1f)));
-            return;
-        case BTGrass:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               NewDirt(),
-                                               World.vRand(0.1f)));
-            return;
-        case BTLapisLazuliOre:
-        {
-            int count = Math.round(World.fRand(4 - 0.5f, 8 + 0.5f));
-            for(int i = 0; i < count; i++)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                              y + 0.5f,
-                                                              z + 0.5f),
-                                                   NewLapisLazuli(),
-                                                   World.vRand(0.1f)));
-            return;
-        }
-        case BTWater:
-        case BTLava:
-        {
-            if(Math.abs(this.data.intdata) >= 8)
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            if(dropItems)
                 world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    this.type.make(-1),
                                                    World.vRand(0.1f)));
             return;
-        }
-        case BTRedstoneRepeaterOn:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               BlockType.BTRedstoneRepeaterOff.make(-1),
-                                               World.vRand(0.1f)));
-            return;
-        case BTRedstoneDustOn:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               BlockType.BTRedstoneDustOff.make(-1),
-                                               World.vRand(0.1f)));
-            return;
-        case BTRedstoneTorchOn:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               BlockType.BTRedstoneTorchOff.make(-1),
-                                               World.vRand(0.1f)));
-            return;
-        case BTStone:
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               NewCobblestone(),
-                                               World.vRand(0.1f)));
-            return;
-        case BTLeaves:
-        {
-            if(World.fRand(0.0f, 1.0f) < 1.0f / 20)
-            {
+        case BTSapling:
+            if(dropItems)
                 world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewSapling(treeGetTreeType()),
                                                    World.vRand(0.1f)));
+            return;
+        case BTPlank:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewPlank(treeGetTreeType()),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTWood:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewWood(treeGetTreeType(), 0),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTRedstoneOre:
+        {
+            if(dropItems)
+            {
+                int count = Math.round(World.fRand(4 - 0.5f, 5 + 0.5f));
+                for(int i = 0; i < count; i++)
+                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewRedstoneDust(0, 0),
+                                                       World.vRand(0.1f)));
+            }
+            return;
+        }
+        case BTCoalOre:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewCoal(),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTDiamondOre:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewDiamond(),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTEmeraldOre:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewEmerald(),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTGrass:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewDirt(),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTLapisLazuliOre:
+        {
+            if(dropItems)
+            {
+                int count = Math.round(World.fRand(4 - 0.5f, 8 + 0.5f));
+                for(int i = 0; i < count; i++)
+                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewLapisLazuli(),
+                                                       World.vRand(0.1f)));
+            }
+            return;
+        }
+        case BTWater:
+        case BTLava:
+        {
+            if(dropItems)
+                if(Math.abs(this.data.intdata) >= 8)
+                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       this.type.make(-1),
+                                                       World.vRand(0.1f)));
+            return;
+        }
+        case BTRedstoneRepeaterOn:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   BlockType.BTRedstoneRepeaterOff.make(-1),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTRedstoneDustOn:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   BlockType.BTRedstoneDustOff.make(-1),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTRedstoneTorchOn:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   BlockType.BTRedstoneTorchOff.make(-1),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTStone:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewCobblestone(),
+                                                   World.vRand(0.1f)));
+            return;
+        case BTLeaves:
+        {
+            if(dropItems)
+            {
+                if(toolType == ToolType.Shears)
+                {
+                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewLeaves(treeGetTreeType()),
+                                                       World.vRand(0.1f)));
+                }
+                else if(World.fRand(0.0f, 1.0f) < 1.0f / 20)
+                {
+                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewSapling(treeGetTreeType()),
+                                                       World.vRand(0.1f)));
+                }
             }
             return;
         }
         case BTPiston:
         case BTStickyPiston:
         {
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               this.type.make(-1),
-                                               World.vRand(0.1f)));
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   this.type.make(-1),
+                                                   World.vRand(0.1f)));
             if(this.data.intdata == 0)
                 return;
             int hx = getOrientationDX(this.data.orientation) + x;
@@ -6099,13 +6767,15 @@ public class Block implements GameObject
             int bx = x - getOrientationDX(this.data.orientation);
             int by = y - getOrientationDY(this.data.orientation);
             int bz = z - getOrientationDZ(this.data.orientation);
-            world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
-                                                          y + 0.5f,
-                                                          z + 0.5f),
-                                               (this.type == BlockType.BTStickyPistonHead) ? NewStickyPiston(-1,
-                                                                                                             false)
-                                                       : NewPiston(-1, false),
-                                               World.vRand(0.1f)));
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   (this.type == BlockType.BTStickyPistonHead) ? NewStickyPiston(-1,
+                                                                                                                 false)
+                                                           : NewPiston(-1,
+                                                                       false),
+                                                   World.vRand(0.1f)));
             Block body = world.getBlockEval(bx, by, bz);
             if(body == null)
                 return;
@@ -6241,6 +6911,15 @@ public class Block implements GameObject
             return REDSTONE_POWER_INPUT;
         case BTBlazeRod:
         case BTBlazePowder:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return REDSTONE_POWER_NONE;
         }
         return REDSTONE_POWER_NONE;
@@ -6353,6 +7032,15 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return false;
         case BTBedrock:
         case BTChest:
@@ -6613,6 +7301,14 @@ public class Block implements GameObject
         case BTWoodShovel:
         case BTLadder:
         case BTSlime:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return false;
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -6653,6 +7349,7 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
             return true;
         }
         return true;
@@ -6662,8 +7359,8 @@ public class Block implements GameObject
      *            the player's relative position
      * @param dir
      *            the direction the player wants to move
-     * @return true if the player is pushing into this ladder */
-    public boolean ladderIsPlayerPushingIntoLadder(Vector pos, Vector dir)
+     * @return true if the player is pushing into this climbable block */
+    public boolean climbableIsPlayerPushingIntoLadder(Vector pos, Vector dir)
     {
         Vector ladderOrientation = new Vector(getOrientationDX(this.data.orientation),
                                               getOrientationDY(this.data.orientation),
@@ -6739,8 +7436,6 @@ public class Block implements GameObject
         case BTCobblestone:
         case BTDiamond:
         case BTDiamondOre:
-        case BTDiamondPick:
-        case BTDiamondShovel:
         case BTDirt:
         case BTEmerald:
         case BTEmeraldOre:
@@ -6748,28 +7443,42 @@ public class Block implements GameObject
         case BTGlass:
         case BTGoldIngot:
         case BTGoldOre:
-        case BTGoldPick:
-        case BTGoldShovel:
         case BTGrass:
         case BTGravel:
         case BTIronIngot:
         case BTIronOre:
-        case BTIronPick:
-        case BTIronShovel:
         case BTLapisLazuli:
         case BTLapisLazuliOre:
-        case BTPlank:
         case BTRedstoneBlock:
         case BTRedstoneOre:
         case BTSand:
         case BTStick:
         case BTStone:
+        case BTBucket:
+        case BTWorkbench:
+        case BTObsidian:
+            return;
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTIronPick:
+        case BTIronShovel:
         case BTStonePick:
         case BTStoneShovel:
         case BTWoodPick:
         case BTWoodShovel:
-        case BTWorkbench:
-        case BTObsidian:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+            o.writeShort(this.data.intdata);
+            return;
+        case BTPlank:
+        case BTSapling:
+            o.writeByte(this.data.intdata);
             return;
         case BTLeaves:
             o.writeByte(this.data.intdata);
@@ -6808,6 +7517,7 @@ public class Block implements GameObject
             return;
         }
         case BTLadder:
+        case BTVines:
         {
             o.writeByte(this.data.orientation);
             return;
@@ -6816,6 +7526,7 @@ public class Block implements GameObject
         case BTWater:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
         {
             o.writeByte(this.data.intdata);
             return;
@@ -6850,20 +7561,6 @@ public class Block implements GameObject
         case BTTorch:
         {
             o.writeByte(this.data.orientation);
-            return;
-        }
-        case BTSapling:
-        {
-            o.writeInt(this.data.intdata);
-            if(this.data.runTime < 0)
-            {
-                o.writeDouble(-1.0);
-            }
-            else
-            {
-                double reltime = this.data.runTime - world.getCurTime();
-                o.writeDouble(reltime);
-            }
             return;
         }
         case BTStoneButton:
@@ -6911,8 +7608,6 @@ public class Block implements GameObject
         case BTCobblestone:
         case BTDiamond:
         case BTDiamondOre:
-        case BTDiamondPick:
-        case BTDiamondShovel:
         case BTDirt:
         case BTEmerald:
         case BTEmeraldOre:
@@ -6920,28 +7615,50 @@ public class Block implements GameObject
         case BTGlass:
         case BTGoldIngot:
         case BTGoldOre:
-        case BTGoldPick:
-        case BTGoldShovel:
         case BTGrass:
         case BTGravel:
         case BTIronIngot:
         case BTIronOre:
-        case BTIronPick:
-        case BTIronShovel:
         case BTLapisLazuli:
         case BTLapisLazuliOre:
-        case BTPlank:
         case BTRedstoneBlock:
         case BTRedstoneOre:
         case BTSand:
         case BTStick:
         case BTStone:
+        case BTBucket:
+        case BTWorkbench:
+        case BTObsidian:
+            return;
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTIronPick:
+        case BTIronShovel:
         case BTStonePick:
         case BTStoneShovel:
         case BTWoodPick:
         case BTWoodShovel:
-        case BTWorkbench:
-        case BTObsidian:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+            this.data.intdata = i.readUnsignedShort();
+            if(this.data.intdata >= this.type.getDurability())
+                throw new IOException("tool use count out of range");
+            return;
+        case BTSapling:
+            this.data.intdata = i.readUnsignedByte();
+            if(this.data.intdata >= Tree.TreeType.values().length)
+                throw new IOException("sapling tree type out of range");
+            return;
+        case BTPlank:
+            this.data.intdata = i.readUnsignedByte();
+            if(this.data.intdata >= Tree.TreeType.values().length)
+                throw new IOException("plank tree type out of range");
             return;
         case BTLeaves:
             this.data.intdata = i.readUnsignedByte();
@@ -6949,7 +7666,7 @@ public class Block implements GameObject
                 throw new IOException("leaves tree type out of range");
             this.data.step = i.readByte();
             if(this.data.step != -1
-                    && (this.data.step < 0 || this.data.step > 4))
+                    && (this.data.step < 0 || this.data.step > MAX_LEAVES_DISTANCE + 1))
                 throw new IOException("leaves distance from wood out of range");
             return;
         case BTWood:
@@ -7019,6 +7736,7 @@ public class Block implements GameObject
             return;
         }
         case BTLadder:
+        case BTVines:
         {
             this.data.orientation = i.readByte();
             if(this.data.orientation < 0 || this.data.orientation > 3)
@@ -7085,20 +7803,6 @@ public class Block implements GameObject
                 throw new IOException("Torch orientation is out of range");
             return;
         }
-        case BTSapling:
-        {
-            if(this.data.intdata >= Tree.TreeType.values().length)
-                throw new IOException("sapling tree type out of range");
-            double value = i.readDouble();
-            if(Double.isInfinite(value)
-                    || Double.isNaN(value)
-                    || (value != -1 && (value <= 0 || value > this.type.getGrowTime())))
-                throw new IOException("Sapling time left to grow is out of range");
-            this.data.runTime = value;
-            if(this.data.runTime > 0)
-                this.data.runTime += world.getCurTime();
-            return;
-        }
         case BTStoneButton:
         case BTWoodButton:
         {
@@ -7137,6 +7841,7 @@ public class Block implements GameObject
             return;
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
         {
             this.data.intdata = i.readUnsignedByte();
             return;
@@ -7766,12 +8471,12 @@ public class Block implements GameObject
         this.data.intdata = 4;
     }
 
-    /** @param isWood
-     *            if the replacing block is wood and not leaves
+    /** @param replacingBlock
+     *            the replacing block
      * @return the replaceability of this block */
-    public BlockType.Replaceability getReplaceability(boolean isWood)
+    public BlockType.Replaceability getReplaceability(BlockType replacingBlock)
     {
-        return this.type.getReplaceability(isWood);
+        return this.type.getReplaceability(replacingBlock);
     }
 
     @Override
@@ -7801,23 +8506,17 @@ public class Block implements GameObject
         case BTCobblestone:
         case BTDiamond:
         case BTDiamondOre:
-        case BTDiamondPick:
-        case BTDiamondShovel:
         case BTDirt:
         case BTEmerald:
         case BTEmeraldOre:
         case BTGlass:
         case BTGoldIngot:
         case BTGoldOre:
-        case BTGoldPick:
-        case BTGoldShovel:
         case BTGrass:
         case BTGravel:
         case BTGunpowder:
         case BTIronIngot:
         case BTIronOre:
-        case BTIronPick:
-        case BTIronShovel:
         case BTLapisLazuli:
         case BTLapisLazuliOre:
         case BTObsidian:
@@ -7831,10 +8530,24 @@ public class Block implements GameObject
         case BTStonePick:
         case BTStoneShovel:
         case BTTNT:
-        case BTWoodPick:
-        case BTWoodShovel:
+        case BTBucket:
         case BTWorkbench:
             return true;
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+            return toolGetUseCount() == rt.toolGetUseCount();
         case BTChest:
         {
             for(int i = 0; i < CHEST_ROWS * CHEST_COLUMNS; i++)
@@ -7860,6 +8573,7 @@ public class Block implements GameObject
                 return false;
             return true;
         case BTLadder:
+        case BTVines:
             return this.data.orientation == rt.data.orientation;
         case BTLava:
         case BTWater:
@@ -7867,7 +8581,7 @@ public class Block implements GameObject
         case BTSapling:
             if(this.data.intdata != rt.data.intdata)
                 return false;
-            return this.data.runTime == rt.data.runTime;
+            return true;
         case BTLeaves:
             return this.data.intdata == rt.data.intdata;
         case BTWood:
@@ -7906,6 +8620,7 @@ public class Block implements GameObject
             return this.data.intdata == rt.data.intdata;
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
             return this.data.intdata == rt.data.intdata;
         case BTTorch:
             return this.data.orientation == rt.data.orientation;
@@ -7934,23 +8649,17 @@ public class Block implements GameObject
         case BTCobblestone:
         case BTDiamond:
         case BTDiamondOre:
-        case BTDiamondPick:
-        case BTDiamondShovel:
         case BTDirt:
         case BTEmerald:
         case BTEmeraldOre:
         case BTGlass:
         case BTGoldIngot:
         case BTGoldOre:
-        case BTGoldPick:
-        case BTGoldShovel:
         case BTGrass:
         case BTGravel:
         case BTGunpowder:
         case BTIronIngot:
         case BTIronOre:
-        case BTIronPick:
-        case BTIronShovel:
         case BTLapisLazuli:
         case BTLapisLazuliOre:
         case BTObsidian:
@@ -7964,10 +8673,24 @@ public class Block implements GameObject
         case BTStonePick:
         case BTStoneShovel:
         case BTTNT:
-        case BTWoodPick:
-        case BTWoodShovel:
+        case BTBucket:
         case BTWorkbench:
             return hash;
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+            return hash + 21743678 * toolGetUseCount();
         case BTChest:
         {
             for(int i = 0; i < CHEST_ROWS * CHEST_COLUMNS; i++)
@@ -7985,6 +8708,7 @@ public class Block implements GameObject
                 hash += 3 * this.data.blockdata.hashCode();
             return hash;
         case BTLadder:
+        case BTVines:
             hash += 126364 * this.data.orientation;
             return hash;
         case BTLava:
@@ -8031,20 +8755,13 @@ public class Block implements GameObject
             return hash + 162873468 * this.data.intdata;
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
             return hash + 162873468 * this.data.intdata;
         case BTTorch:
             hash += 126364 * this.data.orientation;
             return hash;
         }
         throw new UnsupportedOperationException(); // TODO finish
-    }
-
-    /** @param needBreakToDig
-     *            true if the block being dug needs to be broken to dig it out
-     * @return the ability of this tool to dig */
-    public float getDigAbility(boolean needBreakToDig)
-    {
-        return this.type.getDigAbility(needBreakToDig);
     }
 
     /** @return the length of time that this block will fuel a furnace */
@@ -8066,6 +8783,8 @@ public class Block implements GameObject
             return NewWood(treeGetTreeType(), orientation);
         case BTLeaves:
             return NewLeaves(treeGetTreeType());
+        case BTPlank:
+            return NewPlank(treeGetTreeType());
         case BTSapling:
             return NewSapling(treeGetTreeType());
         default:
@@ -8073,6 +8792,641 @@ public class Block implements GameObject
         }
     }
 
+    private boolean drawSolidDrawsAnything(int bx, int by, int bz)
     {
+        Block nx = world.getBlock(bx - 1, by, bz);
+        if(nx != null && !nx.isOpaque())
+            return true;
+        Block px = world.getBlock(bx + 1, by, bz);
+        if(px != null && !px.isOpaque())
+            return true;
+        Block ny = world.getBlock(bx, by - 1, bz);
+        if(ny != null && !ny.isOpaque())
+            return true;
+        Block py = world.getBlock(bx, by + 1, bz);
+        if(py != null && !py.isOpaque())
+            return true;
+        Block nz = world.getBlock(bx, by, bz - 1);
+        if(nz != null && !nz.isOpaque())
+            return true;
+        Block pz = world.getBlock(bx, by, bz + 1);
+        if(pz != null && !pz.isOpaque())
+            return true;
+        return false;
+    }
+
+    private boolean drawFluidDrawsAnything(int bx, int by, int bz)
+    {
+        Block nx = world.getBlock(bx - 1, by, bz);
+        Block px = world.getBlock(bx + 1, by, bz);
+        Block ny = world.getBlock(bx, by - 1, bz);
+        Block py = world.getBlock(bx, by + 1, bz);
+        Block nz = world.getBlock(bx, by, bz - 1);
+        Block pz = world.getBlock(bx, by, bz + 1);
+        int drawMask = 0;
+        float height = getHeight();
+        if(nx != null && !nx.isOpaque() && nx.type != this.type
+                && nx.getHeight() >= height)
+            drawMask |= DMaskNX;
+        if(px != null && !px.isOpaque() && px.type != this.type
+                && px.getHeight() >= height)
+            drawMask |= DMaskPX;
+        if(ny != null && !ny.isOpaque()
+                && (ny.type != this.type || ny.getHeight() < 1.0f))
+            drawMask |= DMaskNY;
+        if(py != null && !py.isOpaque() && py.type != this.type)
+            drawMask |= DMaskPY;
+        if(nz != null && !nz.isOpaque() && nz.type != this.type
+                && nz.getHeight() >= height)
+            drawMask |= DMaskNZ;
+        if(pz != null && !pz.isOpaque() && pz.type != this.type
+                && pz.getHeight() >= height)
+            drawMask |= DMaskPZ;
+        if(height < 1.0f)
+            drawMask |= DMaskPY;
+        if(drawMask != 0)
+            return true;
+        return false;
+    }
+
+    /** @param bx
+     *            the block's x coordinate
+     * @param by
+     *            the block's y coordinate
+     * @param bz
+     *            the block's z coordinate
+     * @return if this block draws anything when draw is called */
+    public boolean drawsAnything(int bx, int by, int bz)
+    {
+        switch(this.type.drawType)
+        {
+        case BDTCustom:
+            switch(this.type)
+            {
+            case BTFurnace:
+                return drawSolidDrawsAnything(bx, by, bz);
+            case BTRedstoneDustOff:
+            case BTRedstoneDustOn:
+            case BTSapling:
+            case BTDeleteBlock:
+                return true;
+            case BTWood:
+                return true;// TODO finish
+            case BTLeaves:
+                if(Main.FancyGraphics)
+                    return true;
+                return drawSolidDrawsAnything(bx, by, bz);
+            case BTLadder:
+            case BTVines:
+            case BTRedstoneRepeaterOff:
+            case BTRedstoneRepeaterOn:
+            case BTLever:
+            case BTPiston:
+            case BTStickyPiston:
+            case BTPistonHead:
+            case BTStickyPistonHead:
+            case BTStonePressurePlate:
+            case BTWoodPressurePlate:
+            case BTSnow:
+                return true;
+            case BTGrass:
+                return drawSolidDrawsAnything(bx, by, bz);
+            default:
+                return true;
+            }
+        case BDTItem:
+            return true;
+        case BDTSolid:
+            return drawSolidDrawsAnything(bx, by, bz);
+        case BDTNone:
+            return false;
+        case BDTTorch:
+            return true;
+        case BDTLiquid:
+            return drawFluidDrawsAnything(bx, by, bz);
+        case BDTButton:
+        case BDTSolidAllSides:
+        case BDTTool:
+            return true;
+        }
+        return true;
+    }
+
+    /** @author jacob */
+    public static final class BlockDigDescriptor
+    {
+        /**
+         * 
+         */
+        public final float digTime;
+        /**
+         * 
+         */
+        public final boolean makesBlock;
+        /**
+         * 
+         */
+        public final boolean usesTool;
+
+        /** @param digTime
+         *            the new <code>digTime</code>
+         * @param makesBlock
+         *            the new <code>makesBlock</code>
+         * @param usesTool
+         *            if the tool is used up */
+        public BlockDigDescriptor(float digTime,
+                                  boolean makesBlock,
+                                  boolean usesTool)
+        {
+            this.digTime = digTime;
+            this.makesBlock = makesBlock;
+            this.usesTool = usesTool;
+        }
+
+        /** @param digTime
+         *            the new <code>digTime</code> */
+        public BlockDigDescriptor(float digTime)
+        {
+            this(digTime, true, true);
+        }
+
+        /** @param digTime
+         *            the new <code>digTime</code>
+         * @param makesBlock
+         *            the new <code>makesBlock</code> */
+        public BlockDigDescriptor(float digTime, boolean makesBlock)
+        {
+            this(digTime, makesBlock, true);
+        }
+    }
+
+    /** @param toolType
+     *            the tool type
+     * @param toolLevel
+     *            the tool level
+     * @return the <code>BlockDigDescriptor</code> or <code>null</code> if this
+     *         block can't be dug */
+    public BlockDigDescriptor getDigDescriptor(BlockType.ToolType toolType,
+                                               BlockType.ToolLevel toolLevel)
+    {
+        switch(this.type)
+        {
+        case BTBedrock:
+        case BTDeleteBlock:
+        case BTEmpty:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return null;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTCoal:
+        case BTDiamond:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTEmerald:
+        case BTGoldIngot:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGunpowder:
+        case BTIronIngot:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTStonePick:
+        case BTStoneShovel:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTStick:
+        case BTSlime:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            return new BlockDigDescriptor(0.0f, true, true);
+        case BTChest:
+        case BTWorkbench:
+            if(toolType == ToolType.Axe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(1.9f);
+                case Stone:
+                    return new BlockDigDescriptor(0.95f);
+                case Iron:
+                    return new BlockDigDescriptor(0.65f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.5f);
+                case Gold:
+                    return new BlockDigDescriptor(0.35f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(3.75f, true, true);
+        case BTCoalOre:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(2.25f);
+                case Stone:
+                    return new BlockDigDescriptor(1.15f);
+                case Iron:
+                    return new BlockDigDescriptor(0.75f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.6f);
+                case Gold:
+                    return new BlockDigDescriptor(0.4f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(15f, false, true);
+        case BTCobblestone:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(1.5f);
+                case Stone:
+                    return new BlockDigDescriptor(0.75f);
+                case Iron:
+                    return new BlockDigDescriptor(0.5f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.4f);
+                case Gold:
+                    return new BlockDigDescriptor(0.25f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(10f, false, true);
+        case BTDiamondOre:
+        case BTEmeraldOre:
+        case BTGoldOre:
+        case BTRedstoneOre:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(15f, false, true);
+                case Stone:
+                    return new BlockDigDescriptor(15f, false, true);
+                case Iron:
+                    return new BlockDigDescriptor(0.75f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.6f);
+                case Gold:
+                    return new BlockDigDescriptor(15f, false, true);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(15f, false, true);
+        case BTDirt:
+        case BTSand:
+            if(toolType == ToolType.Shovel)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(0.4f);
+                case Stone:
+                    return new BlockDigDescriptor(0.2f);
+                case Iron:
+                    return new BlockDigDescriptor(0.15f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.1f);
+                case Gold:
+                    return new BlockDigDescriptor(0.1f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(0.75f, true, true);
+        case BTGrass:
+        case BTGravel:
+            if(toolType == ToolType.Shovel)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(0.45f);
+                case Stone:
+                    return new BlockDigDescriptor(0.25f);
+                case Iron:
+                    return new BlockDigDescriptor(0.15f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.15f);
+                case Gold:
+                    return new BlockDigDescriptor(0.1f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(0.9f, true, true);
+        case BTFurnace:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(2.65f);
+                case Stone:
+                    return new BlockDigDescriptor(1.35f);
+                case Iron:
+                    return new BlockDigDescriptor(0.9f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.7f);
+                case Gold:
+                    return new BlockDigDescriptor(0.45f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(17.5f, true, true);
+        case BTGlass:
+            return new BlockDigDescriptor(0.3f, true, true); // TODO finish
+        case BTIronOre:
+        case BTLapisLazuliOre:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(15f, false, true);
+                case Stone:
+                    return new BlockDigDescriptor(1.15f);
+                case Iron:
+                    return new BlockDigDescriptor(0.75f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.6f);
+                case Gold:
+                    return new BlockDigDescriptor(0.4f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(15f, false, true);
+        case BTLadder:
+            return new BlockDigDescriptor(0.5f, true, true);
+        case BTLava:
+        case BTWater:
+            return null;
+        case BTLeaves:
+            if(toolType == ToolType.Shears)
+            {
+                return new BlockDigDescriptor(0.05f);
+            }
+            return new BlockDigDescriptor(0.3f, true, true);
+        case BTLever:
+            return new BlockDigDescriptor(0.5f, true, true);
+        case BTObsidian:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(250f, false, true);
+                case Stone:
+                    return new BlockDigDescriptor(250f, false, true);
+                case Iron:
+                    return new BlockDigDescriptor(250f, false, true);
+                case Diamond:
+                    return new BlockDigDescriptor(9.4f);
+                case Gold:
+                    return new BlockDigDescriptor(250f, false, true);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(250f, false, true);
+        case BTPiston:
+        case BTStickyPiston:
+            return new BlockDigDescriptor(0.5f, true, true);
+        case BTPistonHead:
+        case BTStickyPistonHead:
+            return new BlockDigDescriptor(0.5f, true, true);
+        case BTRedstoneBlock:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(3.75f);
+                case Stone:
+                    return new BlockDigDescriptor(1.9f);
+                case Iron:
+                    return new BlockDigDescriptor(1.25f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.95f);
+                case Gold:
+                    return new BlockDigDescriptor(0.65f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(25f, false, true);
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+            return new BlockDigDescriptor(0.0f, true, true);
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+            return new BlockDigDescriptor(0.5f, true, true);
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+            return new BlockDigDescriptor(0.0f, true, true);
+        case BTSapling:
+            return new BlockDigDescriptor(0.0f, true, true);
+        case BTSnow:
+            if(toolType == ToolType.Shovel)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(0.1f);
+                case Stone:
+                    return new BlockDigDescriptor(0.05f);
+                case Iron:
+                    return new BlockDigDescriptor(0.05f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.05f);
+                case Gold:
+                    return new BlockDigDescriptor(0.05f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(0.5f, false, true);
+        case BTStone:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(1.15f);
+                case Stone:
+                    return new BlockDigDescriptor(0.6f);
+                case Iron:
+                    return new BlockDigDescriptor(0.4f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.3f);
+                case Gold:
+                    return new BlockDigDescriptor(0.2f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(7.5f, false, true);
+        case BTStoneButton:
+        case BTWoodButton:
+            return new BlockDigDescriptor(0.5f, true, true);
+        case BTStonePressurePlate:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(0.4f);
+                case Stone:
+                    return new BlockDigDescriptor(0.2f);
+                case Iron:
+                    return new BlockDigDescriptor(0.15f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.1f);
+                case Gold:
+                    return new BlockDigDescriptor(0.1f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(2.5f, false, true);
+        case BTTNT:
+        case BTTorch:
+            return new BlockDigDescriptor(0.0f, true, true);
+        case BTVines:
+            if(toolType == ToolType.Axe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(0.15f, true);
+                case Stone:
+                    return new BlockDigDescriptor(0.1f, true);
+                case Iron:
+                    return new BlockDigDescriptor(0.05f, true);
+                case Diamond:
+                    return new BlockDigDescriptor(0.05f, true);
+                case Gold:
+                    return new BlockDigDescriptor(0.05f, true);
+                default:
+                    break;
+                }
+            }
+            else if(toolType == ToolType.Shears)
+            {
+                return new BlockDigDescriptor(0.3f);
+            }
+            return new BlockDigDescriptor(0.3f, false, true);
+        case BTWood:
+        case BTPlank:
+            if(toolType == ToolType.Axe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(1.5f);
+                case Stone:
+                    return new BlockDigDescriptor(0.75f);
+                case Iron:
+                    return new BlockDigDescriptor(0.5f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.4f);
+                case Gold:
+                    return new BlockDigDescriptor(0.25f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(3.0f, true, true);
+        case BTWoodPressurePlate:
+            if(toolType == ToolType.Axe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(0.4f);
+                case Stone:
+                    return new BlockDigDescriptor(0.2f);
+                case Iron:
+                    return new BlockDigDescriptor(0.15f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.1f);
+                case Gold:
+                    return new BlockDigDescriptor(0.1f);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(0.75f, true, true);
+        }
+        return null;
+    }
+
+    /** @return the block's blast resistance */
+    public float getBlastResistance()
+    {
+        if(this.type == BlockType.BTLava)
+        {
+            if(Math.abs(this.data.intdata) >= 8)
+                return 500f;
+            return 0f;
+        }
+        return this.type.getBlastResistance();
+    }
+
+    /** @return the tool type */
+    public ToolType getToolType()
+    {
+        return this.type.getToolType();
+    }
+
+    /** @return the tool level */
+    public ToolLevel getToolLevel()
+    {
+        return this.type.getToolLevel();
+    }
+
+    /** @return if this tool has any durability points left */
+    public boolean toolUseTool()
+    {
+        this.data.intdata++;
+        final int durability = toolGetMaxUseCount();
+        if(this.data.intdata >= durability)
+        {
+            this.data.intdata = durability - 1;
+            return false;
+        }
+        return true;
+    }
+
+    /** @return if this item is in a bucket */
+    public boolean isItemInBucket()
+    {
+        return this.type.isItemInBucket();
+    }
+
+    /** @return if this block is replaceable */
+    public boolean isReplaceable()
+    {
+        return this.type.isReplaceable();
     }
 }

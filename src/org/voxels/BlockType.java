@@ -64,6 +64,12 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public boolean isReplaceable()
+        {
+            return true;
+        }
     },
     /** stone block */
     BTStone(1, true, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
@@ -151,9 +157,10 @@ public enum BlockType
         }
     },
     /** dirt block with grass on top */
-    BTGrass(3, true, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
+    BTGrass(3, true, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
     {
-        TextureAtlas.addImage(new Image("grass.png"))
+        TextureAtlas.addImage(new Image("grass.png")),
+        TextureAtlas.addImage(new Image("snowgrass.png"))
     })
     {
         @Override
@@ -336,7 +343,8 @@ public enum BlockType
     BTWater(7, false, BlockDrawType.BDTLiquid, new TextureAtlas.TextureHandle[]
     {
         TextureAtlas.addImage(new Image("water.png")),
-        TextureAtlas.addImage(new Image("opaquewater.png"))
+        TextureAtlas.addImage(new Image("opaquewater.png")),
+        TextureAtlas.addImage(new Image("waterbucket.png")),
     })
     {
         @Override
@@ -374,11 +382,24 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public boolean isItemInBucket()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isReplaceable()
+        {
+            return true;
+        }
     },
     /** lava block */
     BTLava(8, false, BlockDrawType.BDTLiquid, new TextureAtlas.TextureHandle[]
     {
-        TextureAtlas.addImage(new Image("lava.png"))
+        TextureAtlas.addImage(new Image("lava.png")),
+        TextureAtlas.addImage(new Image("lavabucket.png")),
     })
     {
         @Override
@@ -415,6 +436,18 @@ public enum BlockType
         public int getBurnTime()
         {
             return 100;
+        }
+
+        @Override
+        public boolean isItemInBucket()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isReplaceable()
+        {
+            return true;
         }
     },
     /** sand block */
@@ -611,6 +644,12 @@ public enum BlockType
             for(int i = 0; i < Tree.TreeType.values().length; i++)
                 list.add(Block.NewLeaves(Tree.TreeType.values()[i]));
         }
+
+        @Override
+        public boolean isOpaque()
+        {
+            return !Main.FancyGraphics;
+        }
     },
     /** glass block */
     BTGlass(13, false, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
@@ -784,15 +823,18 @@ public enum BlockType
         }
     },
     /** plank */
-    BTPlank(17, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    BTPlank(17, false, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
     {
-        TextureAtlas.addImage(new Image("plank.png"))
+        TextureAtlas.addImage(new Image("plank.png")),
+        TextureAtlas.addImage(new Image("birchplank.png")),
+        TextureAtlas.addImage(new Image("spruceplank.png")),
+        TextureAtlas.addImage(new Image("jungleplank.png")),
     })
     {
         @Override
         public Block make(int orientation)
         {
-            return Block.NewPlank();
+            return Block.NewPlank(Tree.TreeType.Oak);
         }
 
         @Override
@@ -823,6 +865,13 @@ public enum BlockType
         public int getBurnTime()
         {
             return 12;
+        }
+
+        @Override
+        protected void addToCreativeModeBlockList(List<Block> list)
+        {
+            for(int i = 0; i < Tree.TreeType.values().length; i++)
+                list.add(Block.NewPlank(Tree.TreeType.values()[i]));
         }
     },
     /** stick */
@@ -868,7 +917,7 @@ public enum BlockType
         }
     },
     /** wood pick */
-    BTWoodPick(19, false, BlockDrawType.BDTItem,
+    BTWoodPick(19, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("woodpick.png"))
@@ -909,9 +958,21 @@ public enum BlockType
         {
             return 20;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Pickaxe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Wood;
+        }
     },
     /** stone pick */
-    BTStonePick(20, false, BlockDrawType.BDTItem,
+    BTStonePick(20, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("stonepick.png"))
@@ -952,9 +1013,21 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Pickaxe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Stone;
+        }
     },
     /** wood shovel */
-    BTWoodShovel(21, false, BlockDrawType.BDTItem,
+    BTWoodShovel(21, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("woodshovel.png"))
@@ -995,9 +1068,21 @@ public enum BlockType
         {
             return 20;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Shovel;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Wood;
+        }
     },
     /** stone shovel */
-    BTStoneShovel(22, false, BlockDrawType.BDTItem,
+    BTStoneShovel(22, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("stoneshovel.png"))
@@ -1037,6 +1122,18 @@ public enum BlockType
         public int getBurnTime()
         {
             return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Shovel;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Stone;
         }
     },
     /** unpowered redstone dust */
@@ -1985,7 +2082,7 @@ public enum BlockType
         }
     },
     /** iron pick */
-    BTIronPick(44, false, BlockDrawType.BDTItem,
+    BTIronPick(44, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("ironpick.png"))
@@ -2025,9 +2122,21 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Pickaxe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Iron;
+        }
     },
     /** iron shovel */
-    BTIronShovel(45, false, BlockDrawType.BDTItem,
+    BTIronShovel(45, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("ironshovel.png"))
@@ -2068,9 +2177,21 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Shovel;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Iron;
+        }
     },
     /** gold pick */
-    BTGoldPick(46, false, BlockDrawType.BDTItem,
+    BTGoldPick(46, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("goldpick.png"))
@@ -2111,9 +2232,21 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Pickaxe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Gold;
+        }
     },
     /** gold shovel */
-    BTGoldShovel(47, false, BlockDrawType.BDTItem,
+    BTGoldShovel(47, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("goldshovel.png"))
@@ -2154,9 +2287,21 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Shovel;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Gold;
+        }
     },
     /** diamond pick */
-    BTDiamondPick(48, false, BlockDrawType.BDTItem,
+    BTDiamondPick(48, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("diamondpick.png"))
@@ -2197,9 +2342,21 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Pickaxe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Diamond;
+        }
     },
     /** diamond shovel */
-    BTDiamondShovel(49, false, BlockDrawType.BDTItem,
+    BTDiamondShovel(49, false, BlockDrawType.BDTTool,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("diamondshovel.png"))
@@ -2239,6 +2396,18 @@ public enum BlockType
         public int getBurnTime()
         {
             return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Shovel;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Diamond;
         }
     },
     /** ladder */
@@ -2282,6 +2451,12 @@ public enum BlockType
         public int getBurnTime()
         {
             return 20;
+        }
+
+        @Override
+        public boolean isClimbable()
+        {
+            return true;
         }
     },
     /** redstone repeater off */
@@ -2980,8 +3155,489 @@ public enum BlockType
             return 20;
         }
     },
+    /** Snow block */
+    BTSnow(66, false, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("snow.png")),
+        TextureAtlas.addImage(new Image("snowball.png"))
+    })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewSnow(1);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isReplaceable()
+        {
+            return true;
+        }
+    },
+    /** vines */
+    BTVines(67, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("vines.png"))
+            })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewVines(orientation);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isClimbable()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isReplaceable()
+        {
+            return true;
+        }
+    },
+    /** wood axe */
+    BTWoodAxe(68, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("woodaxe.png"))
+            })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewWoodAxe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Axe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Wood;
+        }
+    },
+    /** stone axe */
+    BTStoneAxe(69, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("stoneaxe.png"))
+            })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewStoneAxe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Axe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Stone;
+        }
+    },
+    /** Iron Axe */
+    BTIronAxe(70, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("ironaxe.png"))
+            })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewIronAxe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Axe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Iron;
+        }
+    },
+    /** gold axe */
+    BTGoldAxe(71, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("goldaxe.png"))
+            })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewGoldAxe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Axe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Gold;
+        }
+    },
+    /** diamond axe */
+    BTDiamondAxe(72, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("diamondaxe.png"))
+            })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewDiamondAxe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Axe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Diamond;
+        }
+    },
+    /** bucket */
+    BTBucket(73, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("bucket.png"))
+    })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewBucket();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** shears */
+    BTShears(74, false, BlockDrawType.BDTTool, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("shears.png"))
+    })
+    {
+        @Override
+        public Block make(int orientation)
+        {
+            return Block.NewShears();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Shears;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Iron;
+        }
+
+        @Override
+        public int getDurability()
+        {
+            return 238;
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(66, false, BlockDrawType.BDTNone, null)
+    BTLast(75, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(int orientation)
@@ -3167,10 +3823,7 @@ public enum BlockType
 	 * 
 	 */
     public TextureAtlas.TextureHandle[] textures;
-    /**
-	 * 
-	 */
-    public final boolean isOpaque;
+    private final boolean isOpaque;
     /**
 	 * 
 	 */
@@ -3341,335 +3994,6 @@ public enum BlockType
         return true;
     }
 
-    /** @param needBreakToDig
-     *            true if the block being dug needs to be broken to dig it out
-     * @return the ability of this tool to dig */
-    public float getDigAbility(boolean needBreakToDig)
-    {
-        switch(this)
-        {
-        case BTDeleteBlock:
-        case BTSun:
-        case BTMoon:
-        case BTLast:
-            return -1;
-        case BTEmpty:
-        case BTStone:
-        case BTCobblestone:
-        case BTGrass:
-        case BTDirt:
-        case BTSapling:
-        case BTBedrock:
-        case BTWater:
-        case BTLava:
-        case BTSand:
-        case BTGravel:
-        case BTWood:
-        case BTLeaves:
-        case BTGlass:
-        case BTChest:
-        case BTWorkbench:
-        case BTFurnace:
-        case BTPlank:
-        case BTStick:
-            return -1;
-        case BTWoodPick:
-            return 1.5f;
-        case BTStonePick:
-            return 3;
-        case BTWoodShovel:
-            if(needBreakToDig)
-                return 1.1f;
-            return 2.2f;
-        case BTStoneShovel:
-            if(needBreakToDig)
-                return 2;
-            return 4;
-        case BTRedstoneDustOff:
-        case BTRedstoneDustOn:
-        case BTRedstoneOre:
-        case BTRedstoneBlock:
-        case BTRedstoneTorchOff:
-        case BTRedstoneTorchOn:
-        case BTStoneButton:
-        case BTWoodButton:
-        case BTCoal:
-        case BTCoalOre:
-        case BTIronIngot:
-        case BTIronOre:
-        case BTLapisLazuli:
-        case BTLapisLazuliOre:
-        case BTGoldIngot:
-        case BTGoldOre:
-        case BTDiamond:
-        case BTDiamondOre:
-        case BTEmerald:
-        case BTEmeraldOre:
-        case BTTorch:
-            return -1;
-        case BTIronPick:
-            return 6;
-        case BTIronShovel:
-            if(needBreakToDig)
-                return 4;
-            return 8;
-        case BTGoldPick:
-            return 15;
-        case BTGoldShovel:
-            if(needBreakToDig)
-                return 10;
-            return 20;
-        case BTDiamondPick:
-            return 12;
-        case BTDiamondShovel:
-            if(needBreakToDig)
-                return 8;
-            return 16;
-        case BTLadder:
-        case BTRedstoneRepeaterOff:
-        case BTRedstoneRepeaterOn:
-        case BTLever:
-        case BTObsidian:
-        case BTPiston:
-        case BTStickyPiston:
-        case BTPistonHead:
-        case BTStickyPistonHead:
-        case BTSlime:
-        case BTGunpowder:
-        case BTTNT:
-        case BTBlazeRod:
-        case BTBlazePowder:
-        case BTStonePressurePlate:
-        case BTWoodPressurePlate:
-            return -1;
-        }
-        return -1;
-    }
-
-    /** @return true if this block needs to be broken to dig it out */
-    public boolean getNeedBreakToDig()
-    {
-        switch(this)
-        {
-        case BTDeleteBlock:
-        case BTSun:
-        case BTMoon:
-        case BTLast:
-            return false;
-        case BTEmpty:
-            return false;
-        case BTStone:
-        case BTCobblestone:
-            return true;
-        case BTGrass:
-        case BTDirt:
-            return false;
-        case BTSapling:
-        case BTBedrock:
-            return true;
-        case BTWater:
-        case BTLava:
-        case BTSand:
-        case BTGravel:
-            return false;
-        case BTWood:
-            return true;
-        case BTLeaves:
-            return false;
-        case BTGlass:
-        case BTChest:
-        case BTWorkbench:
-        case BTFurnace:
-            return true;
-        case BTPlank:
-        case BTStick:
-        case BTWoodPick:
-        case BTStonePick:
-        case BTWoodShovel:
-        case BTStoneShovel:
-        case BTRedstoneDustOff:
-        case BTRedstoneDustOn:
-            return false;
-        case BTRedstoneOre:
-            return true;
-        case BTRedstoneBlock:
-        case BTRedstoneTorchOff:
-        case BTRedstoneTorchOn:
-        case BTStoneButton:
-        case BTWoodButton:
-            return false;
-        case BTCoal:
-            return false;
-        case BTCoalOre:
-            return true;
-        case BTIronIngot:
-            return false;
-        case BTIronOre:
-            return false;
-        case BTLapisLazuli:
-            return false;
-        case BTLapisLazuliOre:
-            return true;
-        case BTGoldIngot:
-            return false;
-        case BTGoldOre:
-            return false;
-        case BTDiamond:
-            return false;
-        case BTDiamondOre:
-            return true;
-        case BTEmerald:
-            return false;
-        case BTEmeraldOre:
-            return true;
-        case BTTorch:
-        case BTIronPick:
-        case BTIronShovel:
-        case BTGoldPick:
-        case BTGoldShovel:
-        case BTDiamondPick:
-        case BTDiamondShovel:
-        case BTLadder:
-        case BTRedstoneRepeaterOff:
-        case BTRedstoneRepeaterOn:
-        case BTLever:
-        case BTObsidian:
-        case BTPiston:
-        case BTStickyPiston:
-        case BTPistonHead:
-        case BTStickyPistonHead:
-        case BTSlime:
-        case BTGunpowder:
-        case BTTNT:
-        case BTBlazeRod:
-        case BTBlazePowder:
-        case BTStonePressurePlate:
-        case BTWoodPressurePlate:
-            return false;
-        }
-        return false;
-    }
-
-    /** @return the hardness of this block */
-    public int getHardness()
-    {
-        switch(this)
-        {
-        case BTDeleteBlock:
-        case BTSun:
-        case BTMoon:
-        case BTLast:
-            return -1;
-        case BTEmpty:
-            return -1;
-        case BTStone:
-            return 80;
-        case BTCobblestone:
-            return 40;
-        case BTGrass:
-        case BTDirt:
-            return 20;
-        case BTSapling:
-            return 5;
-        case BTBedrock:
-            return -1;
-        case BTWater:
-            return 5;
-        case BTLava:
-            return 5;
-        case BTSand:
-        case BTGravel:
-            return 10;
-        case BTWood:
-            return 30;
-        case BTLeaves:
-            return 5;
-        case BTGlass:
-            return 40;
-        case BTChest:
-            return 30;
-        case BTWorkbench:
-            return 30;
-        case BTFurnace:
-            return 50;
-        case BTPlank:
-        case BTStick:
-        case BTWoodPick:
-        case BTStonePick:
-        case BTWoodShovel:
-        case BTStoneShovel:
-        case BTRedstoneDustOff:
-        case BTRedstoneDustOn:
-            return 5;
-        case BTRedstoneOre:
-            return 50;
-        case BTRedstoneBlock:
-            return 20;
-        case BTRedstoneTorchOff:
-        case BTRedstoneTorchOn:
-        case BTStoneButton:
-        case BTWoodButton:
-            return 15;
-        case BTCoal:
-            return 5;
-        case BTCoalOre:
-            return 25;
-        case BTIronIngot:
-            return 20;
-        case BTIronOre:
-            return 30;
-        case BTLapisLazuli:
-            return 30;
-        case BTLapisLazuliOre:
-            return 30;
-        case BTGoldIngot:
-            return 10;
-        case BTGoldOre:
-            return 25;
-        case BTDiamond:
-            return 40;
-        case BTDiamondOre:
-            return 60;
-        case BTEmerald:
-            return 30;
-        case BTEmeraldOre:
-            return 30;
-        case BTTorch:
-            return 15;
-        case BTIronPick:
-        case BTIronShovel:
-        case BTGoldPick:
-        case BTGoldShovel:
-        case BTDiamondPick:
-        case BTDiamondShovel:
-        case BTLadder:
-            return 5;
-        case BTRedstoneRepeaterOff:
-        case BTRedstoneRepeaterOn:
-            return 20;
-        case BTLever:
-            return 15;
-        case BTObsidian:
-            return 200;
-        case BTPiston:
-        case BTStickyPiston:
-        case BTPistonHead:
-        case BTStickyPistonHead:
-            return 20;
-        case BTSlime:
-        case BTGunpowder:
-            return 5;
-        case BTTNT:
-            return 15;
-        case BTBlazeRod:
-        case BTBlazePowder:
-        case BTStonePressurePlate:
-        case BTWoodPressurePlate:
-            return 5;
-        }
-        return -1;
-    }
-
     /** get the maximum number of blocks to put in generated cave chests
      * 
      * @param y
@@ -3790,6 +4114,15 @@ public enum BlockType
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return 0;
         }
         return 0;
@@ -3822,8 +4155,8 @@ public enum BlockType
         case BTChest:
         case BTWorkbench:
         case BTFurnace:
-            return false;
         case BTPlank:
+            return false;
         case BTStick:
         case BTWoodPick:
         case BTStonePick:
@@ -3891,7 +4224,17 @@ public enum BlockType
             return true;
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
             return false;
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            return true;
         }
         return false;
     }
@@ -3928,8 +4271,8 @@ public enum BlockType
         case BTChest:
         case BTWorkbench:
         case BTFurnace:
-            return true;
         case BTPlank:
+            return true;
         case BTStick:
         case BTWoodPick:
         case BTStonePick:
@@ -3997,6 +4340,15 @@ public enum BlockType
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return false;
         }
         return false;
@@ -4034,8 +4386,8 @@ public enum BlockType
         case BTChest:
         case BTWorkbench:
         case BTFurnace:
-            return true;
         case BTPlank:
+            return true;
         case BTStick:
         case BTWoodPick:
         case BTStonePick:
@@ -4103,6 +4455,15 @@ public enum BlockType
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return false;
         }
         return false;
@@ -4137,7 +4498,6 @@ public enum BlockType
         case BTIronPick:
         case BTIronShovel:
         case BTLapisLazuli:
-        case BTPlank:
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
         case BTRedstoneDustOn:
@@ -4158,7 +4518,16 @@ public enum BlockType
         case BTSlime:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return true;
+        case BTPlank:
         case BTLeaves:
         case BTLava:
         case BTGlass:
@@ -4191,6 +4560,7 @@ public enum BlockType
         case BTTNT:
         case BTBlazeRod:
         case BTBlazePowder:
+        case BTSnow:
             return false;
         }
         return false;
@@ -4259,6 +4629,15 @@ public enum BlockType
         case BTTNT:
         case BTBlazeRod:
         case BTBlazePowder:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return true;
         case BTGrass:
         case BTLeaves:
@@ -4398,6 +4777,15 @@ public enum BlockType
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return true;
         }
         return false;
@@ -4420,10 +4808,10 @@ public enum BlockType
         CanNotGrow
     }
 
-    /** @param isWood
-     *            if the replacing block is wood and not leaves
+    /** @param replacingBlock
+     *            the replacing block
      * @return the replaceability of this block */
-    public Replaceability getReplaceability(boolean isWood)
+    public Replaceability getReplaceability(BlockType replacingBlock)
     {
         switch(this)
         {
@@ -4446,7 +4834,6 @@ public enum BlockType
         case BTIronPick:
         case BTIronShovel:
         case BTLapisLazuli:
-        case BTPlank:
         case BTRedstoneDustOff:
         case BTRedstoneDustOn:
         case BTRedstoneTorchOff:
@@ -4468,6 +4855,8 @@ public enum BlockType
         case BTLever:
         case BTSlime:
         case BTLeaves:
+            if(replacingBlock == BTVines)
+                return Replaceability.GrowAround;
             return Replaceability.Replace;
         case BTLava:
         case BTGlass:
@@ -4490,7 +4879,8 @@ public enum BlockType
         case BTStone:
             return Replaceability.CanNotGrow;
         case BTWood:
-            if(isWood)
+        case BTPlank:
+            if(replacingBlock == BTWood)
                 return Replaceability.CanNotGrow;
             return Replaceability.GrowAround;
         case BTWorkbench:
@@ -4512,8 +4902,244 @@ public enum BlockType
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
             return Replaceability.Replace;
         }
         return Replaceability.CanNotGrow;
+    }
+
+    /** @return if this block is opaque */
+    public boolean isOpaque()
+    {
+        return this.isOpaque;
+    }
+
+    /** @return if this block is climbable */
+    public boolean isClimbable()
+    {
+        return false;
+    }
+
+    /** @author jacob */
+    public static enum ToolType
+    {
+        /***/
+        None,
+        /***/
+        Axe,
+        /***/
+        Pickaxe,
+        /***/
+        Shovel,
+        /***/
+        Hoe,
+        /***/
+        Shears;
+    }
+
+    /** @return the tool type */
+    public ToolType getToolType()
+    {
+        return ToolType.None;
+    }
+
+    /** @author jacob */
+    public static enum ToolLevel
+    {
+        /***/
+        Nothing,
+        /***/
+        Wood,
+        /***/
+        Stone,
+        /***/
+        Iron,
+        /***/
+        Gold,
+        /***/
+        Diamond
+    }
+
+    /** @return the tool level */
+    public ToolLevel getToolLevel()
+    {
+        return ToolLevel.Nothing;
+    }
+
+    /** @return the block's blast resistance */
+    public float getBlastResistance()
+    {
+        switch(this)
+        {
+        case BTBedrock:
+        case BTDeleteBlock:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return 1e10f;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTCoal:
+        case BTDiamond:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTEmerald:
+        case BTEmpty:
+        case BTGoldIngot:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGunpowder:
+        case BTIronIngot:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTSlime:
+        case BTStick:
+        case BTStonePick:
+        case BTStoneShovel:
+        case BTWoodPick:
+        case BTWoodShovel:
+            return 0;
+        case BTChest:
+            return 12.5f;
+        case BTCoalOre:
+            return 15f;
+        case BTCobblestone:
+            return 30f;
+        case BTDiamondOre:
+            return 15f;
+        case BTDirt:
+            return 2.5f;
+        case BTEmeraldOre:
+            return 15f;
+        case BTFurnace:
+            return 17.5f;
+        case BTGlass:
+            return 1.5f;
+        case BTGoldOre:
+            return 15f;
+        case BTGrass:
+            return 3f;
+        case BTGravel:
+            return 3f;
+        case BTIronOre:
+            return 15f;
+        case BTLadder:
+            return 2f;
+        case BTLapisLazuliOre:
+            return 15f;
+        case BTLava:
+            return 500f;
+        case BTLeaves:
+            return 1f;
+        case BTLever:
+            return 2.5f;
+        case BTObsidian:
+            return 6000f;
+        case BTPiston:
+            return 2.5f;
+        case BTPistonHead:
+            return 2.5f;
+        case BTPlank:
+            return 15f;
+        case BTRedstoneBlock:
+            return 30f;
+        case BTRedstoneDustOff:
+            return 0f;
+        case BTRedstoneDustOn:
+            return 0f;
+        case BTRedstoneOre:
+            return 15f;
+        case BTRedstoneRepeaterOff:
+            return 0f;
+        case BTRedstoneRepeaterOn:
+            return 0f;
+        case BTRedstoneTorchOff:
+            return 0f;
+        case BTRedstoneTorchOn:
+            return 0f;
+        case BTSand:
+            return 2.5f;
+        case BTSapling:
+            return 0f;
+        case BTSnow:
+            return 0.5f;
+        case BTStickyPiston:
+            return 2.5f;
+        case BTStickyPistonHead:
+            return 2.5f;
+        case BTStone:
+            return 30f;
+        case BTStoneButton:
+            return 2.5f;
+        case BTStonePressurePlate:
+            return 2.5f;
+        case BTTNT:
+            return 0f;
+        case BTTorch:
+            return 0f;
+        case BTVines:
+            return 1f;
+        case BTWater:
+            return 500f;
+        case BTWood:
+            return 10f;
+        case BTWoodButton:
+            return 2.5f;
+        case BTWoodPressurePlate:
+            return 2.5f;
+        case BTWorkbench:
+            return 12.5f;
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+            return 0f;
+        }
+        return 1e10f;
+    }
+
+    /** @return if this item is in a bucket */
+    public boolean isItemInBucket()
+    {
+        return false;
+    }
+
+    /** @return if this block is replaceable */
+    public boolean isReplaceable()
+    {
+        return false;
+    }
+
+    /** @return this tool's durability */
+    public int getDurability()
+    {
+        switch(getToolLevel())
+        {
+        case Diamond:
+            return 1562;
+        case Gold:
+            return 33;
+        case Iron:
+            return 251;
+        case Nothing:
+            return 0;
+        case Stone:
+            return 132;
+        case Wood:
+            return 60;
+        }
+        return 0;
     }
 }

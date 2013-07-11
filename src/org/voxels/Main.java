@@ -115,8 +115,8 @@ public final class Main
     {
         players.draw();
         glClear(GL_DEPTH_BUFFER_BIT);
-        final float dist = ScreenXRes / 22 * aspectRatio;
-        Text.draw(Matrix.translate(-dist, dist - 1.0f, -dist),
+        final float dist = 480f / Text.sizeH("A") / 2.0f;
+        Text.draw(Matrix.translate(-dist * aspectRatio, dist - 1.0f, -dist),
                   Color.RGB(1.0f, 1.0f, 1.0f),
                   frameText);
         frameText = "";
@@ -726,6 +726,7 @@ public final class Main
         });
     }
 
+    @SuppressWarnings("synthetic-access")
     private static void runOptionsMenu()
     {
         runMenu(new MenuScreen(Color.V(0.75f))
@@ -806,6 +807,29 @@ public final class Main
                         return Main.isCreativeMode;
                     }
                 });
+                if(Main.didLoad)
+                {
+                    add(new TextMenuItem("Change Time To Morning",
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         this.getBackgroundColor(),
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         Color.RGB(0.0f, 0.0f, 1.0f),
+                                         this)
+                    {
+                        @Override
+                        public void onMouseOver(float mouseX, float mouseY)
+                        {
+                            select();
+                        }
+
+                        @Override
+                        public void onClick(float mouseX, float mouseY)
+                        {
+                            world.setTimeOfDay(0.3f);
+                        }
+                    });
+                }
+                add(new SpacerMenuItem(Color.V(0), this));
                 add(new CheckMenuItem("Fancy Graphics",
                                       Color.RGB(0f, 0f, 0f),
                                       this.getBackgroundColor(),
@@ -916,7 +940,6 @@ public final class Main
                         select();
                     }
 
-                    @SuppressWarnings("synthetic-access")
                     @Override
                     public void onClick(float mouseX, float mouseY)
                     {

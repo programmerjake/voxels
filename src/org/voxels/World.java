@@ -26,6 +26,7 @@ import java.io.*;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.voxels.BlockType.ToolType;
 import org.voxels.generate.*;
 
 /** @author jacob */
@@ -149,6 +150,8 @@ public class World
         public long displayListValidTag[] = new long[drawPhaseCount];
         @SuppressWarnings("unused")
         public EntityNode head = null, tail = null;
+        public boolean drawsAnything = true;
+        public long drawsAnythingValidTag = -1;
 
         public Chunk(int ox, int oy, int oz)
         {
@@ -211,6 +214,16 @@ public class World
             cz /= generatedChunkSize;
             this.generated[cx + generatedChunksPerChunk
                     * (cy + generatedChunksPerChunk * cz)] = g;
+        }
+
+        public void invalidate()
+        {
+            this.drawsAnythingValidTag = -1;
+            this.drawsAnything = true;
+            for(int i = 0; i < drawPhaseCount; i++)
+            {
+                this.displayListValidTag[i] = -1;
+            }
         }
     }
 
@@ -458,8 +471,7 @@ public class World
         Chunk c = find(cx, cy, cz);
         if(c == null)
             return;
-        for(int i = 0; i < Chunk.drawPhaseCount; i++)
-            c.displayListValidTag[i] = -1;
+        c.invalidate();
     }
 
     private void insertEvalNode(EvalType et, int x, int y, int z)
@@ -800,24 +812,11 @@ public class World
         Block b = getBlock(x, y, z);
         if(b == null)
         {
-            if(y > getLandHeight(x, z))
-                return Math.min(15, 15 + (y - Rand.WaterHeight) * 2);
+            if(y > this.landGenerator.getRockHeight(x, z))
+                return Math.min(15, 15 + (y - Rand.WaterHeight) * 3);
             return 0;
         }
         return b.getSunlight();
-    }
-
-    /** gets the original height of the land at (<code>x</code>, <code>z</code>)
-     * 
-     * @param x
-     *            the x coordinate
-     * @param z
-     *            the z coordinate
-     * @return the original height of the land at (<code>x</code>,
-     *         <code>z</code>) */
-    public int getLandHeight(int x, int z)
-    {
-        return this.landGenerator.getRockHeight(x, z);
     }
 
     int GetScatteredSunlight(int x, int y, int z)
@@ -829,8 +828,8 @@ public class World
         Block b = getBlock(x, y, z);
         if(b == null)
         {
-            if(y > getLandHeight(x, z))
-                return Math.min(15, 15 + (y - Rand.WaterHeight) * 2);
+            if(y > this.landGenerator.getRockHeight(x, z))
+                return Math.min(15, 15 + (y - Rand.WaterHeight) * 3);
             return 0;
         }
         return b.getScatteredSunlight();
@@ -1044,6 +1043,28 @@ public class World
         }
     }
 
+    /** @param x
+     *            the x coordinate
+     * @param y
+     *            the y coordinate
+     * @param z
+     *            the z coordinate */
+    public void flagGenerate(int x, int y, int z)
+    {
+        int cx = x - (x % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
+                % Chunk.generatedChunkSize;
+        int cy = y - (y % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
+                % Chunk.generatedChunkSize;
+        int cz = z - (z % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
+                % Chunk.generatedChunkSize;
+        if(isGenerated(cx, cy, cz))
+            return;
+        this.genChunkX = cx;
+        this.genChunkY = cy;
+        this.genChunkZ = cz;
+        this.genChunkDistance = 0.0f;
+    }
+
     private static final float chunkGenScale = 1.5f;
 
     /** @param p
@@ -1095,31 +1116,13 @@ public class World
         return true;
     }
 
-    private void drawBlock(RenderingStream rs,
-                           int x,
-                           int y,
-                           int z,
-                           int drawPhase)
-    {
-        Block b = getBlock(x, y, z);
-        if(b == null)
-            return;
-        if(b.isTranslucent() && drawPhase != 1)
-            return;
-        if(!b.isTranslucent() && drawPhase != 0)
-            return;
-        getLightingArray(x, y, z);
-        b = getBlock(x, y, z);
-        b.draw(rs, Matrix.translate(x, y, z));
-    }
-
     private void drawChunk(RenderingStream rs,
                            int cx,
                            int cy,
                            int cz,
                            int drawPhase)
     {
-        final boolean USE_DISPLAY_LIST = true;
+        final boolean USE_DISPLAY_LIST = false;
         Chunk pnode = find(cx, cy, cz);
         if(pnode == null)
             return;
@@ -1144,13 +1147,48 @@ public class World
             glNewList(pnode.displayList[drawPhase], GL_COMPILE_AND_EXECUTE);
             Image.onListStart();
         }
-        for(int x = 0; x < Chunk.size; x++)
+        if(pnode.drawsAnythingValidTag != this.displayListValidTag)
         {
-            for(int y = 0; y < Chunk.size; y++)
+            boolean drawsAnything = false;
+            outerloop: for(int x = 0; x < Chunk.size; x++)
             {
-                for(int z = 0; z < Chunk.size; z++)
+                for(int y = 0; y < Chunk.size; y++)
                 {
-                    drawBlock(rs, x + cx, y + cy, z + cz, drawPhase);
+                    for(int z = 0; z < Chunk.size; z++)
+                    {
+                        Block b = pnode.getBlock(x, y, z);
+                        if(b == null)
+                            continue;
+                        if(b.drawsAnything(x + cx, y + cy, z + cz))
+                        {
+                            drawsAnything = true;
+                            break outerloop;
+                        }
+                    }
+                }
+            }
+            pnode.drawsAnything = drawsAnything;
+            pnode.drawsAnythingValidTag = this.displayListValidTag;
+        }
+        if(pnode.drawsAnything)
+        {
+            for(int x = 0; x < Chunk.size; x++)
+            {
+                for(int y = 0; y < Chunk.size; y++)
+                {
+                    for(int z = 0; z < Chunk.size; z++)
+                    {
+                        Block b = pnode.getBlock(x, y, z);
+                        if(b == null)
+                            continue;
+                        if(b.isTranslucent() && drawPhase != 1)
+                            continue;
+                        if(!b.isTranslucent() && drawPhase != 0)
+                            continue;
+                        getLightingArray(x + cx, y + cy, z + cz);
+                        b = pnode.getBlock(x, y, z);
+                        b.draw(rs, Matrix.translate(x + cx, y + cy, z + cz));
+                    }
                 }
             }
         }
@@ -1703,6 +1741,33 @@ public class World
         }
     }
 
+    private void runRandomMove()
+    {
+        for(Chunk node = this.chunksHead; node != null; node = node.listnext)
+        {
+            int count;
+            if(Main.DEBUG)
+                count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size
+                        * 300f / 16f / 16f / 16f + fRand(0.0f, 1.0f));
+            else
+                count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size
+                        * 3f / 16f / 16f / 16f + fRand(0.0f, 1.0f));
+            for(int i = 0; i < count; i++)
+            {
+                int x = node.orgx + (int)Math.floor(fRand(0.0f, Chunk.size));
+                int y = node.orgy + (int)Math.floor(fRand(0.0f, Chunk.size));
+                int z = node.orgz + (int)Math.floor(fRand(0.0f, Chunk.size));
+                Block b = getBlockEval(x, y, z);
+                if(b != null)
+                {
+                    b = b.moveRandom(x, y, z);
+                    if(b != null)
+                        setBlock(x, y, z, b);
+                }
+            }
+        }
+    }
+
     private double curTime = 0.0;
 
     /** moves everything in this world except the players */
@@ -1716,6 +1781,7 @@ public class World
         moveEntities();
         checkAllTimedInvalidates();
         moveAllBlocks();
+        runRandomMove();
         generateAllTrees();
         runAllExplosions();
         updateLight();
@@ -2615,8 +2681,8 @@ public class World
         }
         if(!b.isExplodable())
             return 0.0f;
-        if(b.getHardness() + 5 <= strength)
-            return strength - b.getHardness() - 5;
+        if(b.getBlastResistance() + 5 <= strength)
+            return strength - b.getBlastResistance() - 5;
         return 0.0f;
     }
 
@@ -2629,7 +2695,7 @@ public class World
             return;
         if(!b.isExplodable())
             return;
-        if(b.getHardness() > strength)
+        if(b.getBlastResistance() > strength)
             return;
         if(b.getType() == BlockType.BTTNT)
         {
@@ -2637,7 +2703,9 @@ public class World
                                              World.fRand(0, 1)));
         }
         else if(World.fRand(0, 5) < 1 && b.canDig())
-            b.digBlock(x, y, z);
+            b.digBlock(x, y, z, true, ToolType.None);
+        else
+            b.digBlock(x, y, z, false, ToolType.None);
         setBlock(x, y, z, new Block());
     }
 
@@ -2741,5 +2809,24 @@ public class World
             this.explosionHashTable[i] = null;
         }
         this.explosionList = null;
+    }
+
+    /** @param x
+     *            the x coordinate
+     * @param z
+     *            the z coordinate
+     * @return the biome name */
+    public String getBiomeName(int x, int z)
+    {
+        return this.landGenerator.getBiomeName(x, z);
+    }
+
+    /** @param position
+     *            the position
+     * @return the biome name */
+    public String getBiomeName(Vector position)
+    {
+        return getBiomeName((int)Math.floor(position.x),
+                            (int)Math.floor(position.z));
     }
 }

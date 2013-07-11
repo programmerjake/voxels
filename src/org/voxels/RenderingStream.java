@@ -86,9 +86,7 @@ public class RenderingStream
             return this;
         }
 
-        private static final TextureAtlas.TextureHandle whiteTexture = TextureAtlas.addImage(new Image(Color.RGB(1.0f,
-                                                                                                                 1.0f,
-                                                                                                                 1.0f)));
+        private static final TextureAtlas.TextureHandle whiteTexture = TextureAtlas.addImage(new Image(Color.V(1.0f)));
         /**
          * 
          */

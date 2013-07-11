@@ -24,6 +24,9 @@ import static org.voxels.World.world;
 
 import java.io.*;
 
+import org.voxels.BlockType.ToolLevel;
+import org.voxels.BlockType.ToolType;
+
 /** @author jacob */
 public class Player implements GameObject
 {
@@ -79,11 +82,44 @@ public class Player implements GameObject
 	 */
     public Player()
     {
-        this.position.y = Math.max(this.position.y,
-                                   this.position.y
-                                           + world.getLandHeight((int)Math.floor(this.position.x),
-                                                                 (int)Math.floor(this.position.z))
-                                           + 2);
+        Block b;
+        int count = 0;
+        final int yoffset = World.Depth - 5;
+        this.position.y = -yoffset;
+        for(;;)
+        {
+            b = world.getBlockEval((int)Math.floor(this.position.x),
+                                   (int)Math.floor(this.position.y + 1
+                                           + yoffset),
+                                   (int)Math.floor(this.position.z));
+            while(b == null)
+            {
+                world.flagGenerate((int)Math.floor(this.position.x),
+                                   (int)Math.floor(this.position.y + 1
+                                           + yoffset),
+                                   (int)Math.floor(this.position.z));
+                world.generateChunks();
+                b = world.getBlockEval((int)Math.floor(this.position.x),
+                                       (int)Math.floor(this.position.y + 1
+                                               + yoffset),
+                                       (int)Math.floor(this.position.z));
+                if(b == null)
+                    Thread.yield();
+            }
+            if(b.isPlaceableWhileInside())
+            {
+                if(++count >= 2 + yoffset)
+                    break;
+            }
+            else
+                count = 0;
+            this.position.y += 1.0f;
+        }
+    }
+
+    private Player(Vector position)
+    {
+        this.position = position;
     }
 
     /** @return true if this player is in normal(3D) state */
@@ -216,7 +252,7 @@ public class Player implements GameObject
     private static Image furnaceImg = new Image("furnace.png");
     private static Image hotbarBoxImg = new Image("hotbarbox.png");
     private static final float workbenchZDist = -1.0f;
-    private static final float simScreenHeight = 480f;
+    private static final float simScreenHeight = 240f;
     private static final int dialogW = 170, dialogH = 151,
             dialogTextureSize = 256;
     private static final int inventoryLeft = 5, inventoryBottom = 28;
@@ -347,6 +383,12 @@ public class Player implements GameObject
     /** draw everything from this player's perspective */
     public void drawAll()
     {
+        if(Main.DEBUG)
+        {
+            Main.addToFrameText("position : " + this.position.toString() + "\n");
+            Main.addToFrameText("biome : " + world.getBiomeName(this.position)
+                    + "\n");
+        }
         Matrix worldToCamera = getWorldToCamera();
         RenderingStream rs = new RenderingStream();
         RenderingStream trs = new RenderingStream();
@@ -396,7 +438,7 @@ public class Player implements GameObject
             final float zDist = -1f;
             final float maxU = 20f / 32f, maxV = 20f / 32f;
             final float height = 2f * 20f / simScreenHeight;
-            final float top = -0.85f, bottom = top - height;
+            final float top = -0.80f, bottom = top - height;
             final float width = height, left = (i - Block.CHEST_COLUMNS / 2f)
                     * width, right = left + width;
             if(i == this.selectionX)
@@ -697,8 +739,8 @@ public class Player implements GameObject
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
-        x -= getWorkbenchLeft();
-        y -= getWorkbenchBottom();
+        x -= getWorkbenchResultLeft();
+        y -= getWorkbenchResultBottom();
         x += cellBorder;
         y += cellBorder;
         if(x < 0 || x >= cellSize || y < 0 || y >= cellSize)
@@ -986,21 +1028,37 @@ public class Player implements GameObject
                     isSameBlock = false;
                 if(this.blockZ != z)
                     isSameBlock = false;
-                int deleteTime = -1;
-                float timeDivisor = -1;
                 Block curHotbar = getCurrentHotbarBlock();
+                BlockType.ToolType toolType = BlockType.ToolType.None;
+                BlockType.ToolLevel toolLevel = BlockType.ToolLevel.Nothing;
                 if(curHotbar != null && b != null)
-                    timeDivisor = curHotbar.getDigAbility(b.getNeedBreakToDig());
-                if(timeDivisor <= 0)
-                    timeDivisor = 1;
+                {
+                    toolType = curHotbar.getToolType();
+                    toolLevel = curHotbar.getToolLevel();
+                }
+                Block.BlockDigDescriptor bdd = null;
                 if(b != null)
-                    deleteTime = b.getHardness();
-                float deletePeriod = 0.05f * deleteTime / timeDivisor;
+                    bdd = b.getDigDescriptor(toolType, toolLevel);
+                float deletePeriod = -1;
+                if(Main.isCreativeMode)
+                {
+                    bdd = null;
+                    toolType = ToolType.None;
+                    toolLevel = ToolLevel.Nothing;
+                    if(b != null)
+                    {
+                        if(b.canDig())
+                            bdd = new Block.BlockDigDescriptor(0.25f,
+                                                               false,
+                                                               false);
+                    }
+                }
+                if(bdd != null)
+                    deletePeriod = bdd.digTime;
                 if(deletePeriod < 0.25)
                     deletePeriod = 0.25f;
                 this.mouseDownTime += Main.getFrameDuration();
-                if(b == null || !b.canDig() || !isSameBlock || deleteTime == -1
-                        || deletePeriod > 5)
+                if(b == null || !b.canDig() || !isSameBlock || bdd == null)
                 {
                     this.mouseDownTime = 0;
                     this.deleteAnimTime = -1;
@@ -1017,8 +1075,19 @@ public class Player implements GameObject
                                    this.blockY,
                                    this.blockZ,
                                    new Block());
-                    b.digBlock(this.blockX, this.blockY, this.blockZ);
+                    b.digBlock(this.blockX,
+                               this.blockY,
+                               this.blockZ,
+                               bdd.makesBlock,
+                               toolType);
                     Main.play(Main.destructAudio);
+                    if(bdd.usesTool && toolType != BlockType.ToolType.None)
+                    {
+                        curHotbar = takeBlock();
+                        curHotbar = new Block(curHotbar);
+                        if(curHotbar.toolUseTool())
+                            giveBlock(curHotbar, true);
+                    }
                 }
             }
             return MouseMoveKind.GrabbedAndCentered;
@@ -1140,6 +1209,8 @@ public class Player implements GameObject
         if(this.blockCount[index] <= 0)
             return null;
         Block retval = this.blockType[index];
+        if(Main.isCreativeMode)
+            return retval;
         if(--this.blockCount[index] <= 0)
             this.blockType[index] = null;
         return retval;
@@ -1157,6 +1228,8 @@ public class Player implements GameObject
                 if(this.blockCount[index] <= 0)
                     continue;
                 Block retval = this.blockType[index];
+                if(!retval.equals(type))
+                    continue;
                 if(--this.blockCount[index] <= 0)
                     this.blockType[index] = null;
                 return retval;
@@ -1192,7 +1265,7 @@ public class Player implements GameObject
 
     private boolean canPlaceBlock(Block selb, int bx, int by, int bz)
     {
-        if(selb == null || !this.isShiftDown || this.state != State.Normal
+        if(selb == null || this.state != State.Normal
                 || getCurrentHotbarBlock() == null
                 || getCurrentHotbarBlock().isItem())
             return false;
@@ -1201,8 +1274,7 @@ public class Player implements GameObject
                 && Math.floor(this.position.z) == bz
                 && !getCurrentHotbarBlock().isPlaceableWhileInside())
             return false;
-        if(selb.getType() != BlockType.BTEmpty
-                && selb.getType() != BlockType.BTWater)
+        if(!selb.isReplaceable())
             return false;
         Vector relpos = this.position.sub(new Vector(bx, by, bz));
         if(selb.adjustPlayerPosition(relpos, distLimit) == null)
@@ -1368,6 +1440,15 @@ public class Player implements GameObject
                 / CREATIVE_COLUMNS - Block.CHEST_ROWS);
     }
 
+    private void throwBlock(Block b)
+    {
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return;
+        world.insertEntity(Entity.NewThrownBlock(this.position,
+                                                 b,
+                                                 getForwardVector().mul(5.0f)));
+    }
+
     /** @param event
      *            the event */
     public void handleMouseUpDown(final Main.MouseEvent event)
@@ -1385,11 +1466,68 @@ public class Player implements GameObject
             }
             else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
             {
+                if(getCurrentHotbarBlock() == null)
+                    return;
+                Block oldb;
+                {
+                    boolean didAnything = false;
+                    oldb = getSelectedBlock();
+                    if(oldb == null)
+                        return;
+                    Block newb = takeBlock();
+                    if(newb.getType() == BlockType.BTBucket)
+                    {
+                        if(oldb.isItemInBucket())
+                        {
+                            if(!giveBlock(oldb, false))
+                                throwBlock(oldb);
+                            newb = new Block();
+                            // world.AddModNode(blockX, blockY, blockZ, newb);
+                            // TODO finish
+                            world.setBlock(this.blockX,
+                                           this.blockY,
+                                           this.blockZ,
+                                           newb);
+                        }
+                    }
+                    giveBlock(newb, true);
+                    if(didAnything)
+                        return;
+                }
+                Block tempBlock = null;
+                int tempX = 0, tempY = 0, tempZ = 0;
+                if(oldb != null && oldb.isReplaceable())
+                {
+                    tempBlock = oldb;
+                    tempX = this.blockX;
+                    tempY = this.blockY;
+                    tempZ = this.blockZ;
+                    world.setBlock(this.blockX,
+                                   this.blockY,
+                                   this.blockZ,
+                                   new Block());
+                }
                 this.isShiftDown = true;
-                Block oldb = getSelectedBlock();
+                oldb = getSelectedBlock();
+                this.isShiftDown = false;
+                if(tempBlock != null)
+                {
+                    int dist = Math.abs(tempX + this.blockX)
+                            + Math.abs(tempY + this.blockY)
+                            + Math.abs(tempZ + this.blockZ);
+                    if(dist > 1)
+                    {
+                        world.setBlock(tempX, tempY, tempZ, tempBlock);
+                        tempBlock = null;
+                        oldb = getSelectedBlock();
+                        if(oldb == null)
+                            return;
+                    }
+                }
                 if(canPlaceBlock(oldb, this.blockX, this.blockY, this.blockZ))
                 {
                     Block newb = takeBlock();
+                    boolean isItemInBucket = newb.isItemInBucket();
                     if(newb != null)
                         newb = newb.makePlacedBlock(this.blockOrientation,
                                                     Block.getOrientationFromVector(getForwardVector()));
@@ -1401,12 +1539,20 @@ public class Player implements GameObject
                                        this.blockY,
                                        this.blockZ,
                                        newb);
+                        if(!Main.isCreativeMode && isItemInBucket)
+                            giveBlock(Block.NewBucket(), false);
                         Main.play(Main.popAudio);
+                        internalSetPosition(this.position);
+                        this.deleteAnimTime = -1;
+                        return;
                     }
                     internalSetPosition(this.position);
                     this.deleteAnimTime = -1;
                 }
-                this.isShiftDown = false;
+                if(tempBlock != null)
+                {
+                    world.setBlock(tempX, tempY, tempZ, tempBlock);
+                }
             }
             else if(event.dWheel > 0)
             {
@@ -1423,6 +1569,8 @@ public class Player implements GameObject
                 if(b != null && b.getType() == BlockType.BTChest)
                 {
                     this.state = State.Chest;
+                    this.dragCount = 0;
+                    this.dragType = null;
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTWorkbench)
@@ -1802,12 +1950,12 @@ public class Player implements GameObject
         return false;
     }
 
-    private boolean isInLadder()
+    private boolean isInClimbableBlock()
     {
         Vector newpos = this.position.add(new Vector(0, 0.25f, 0));
         int x = (int)Math.floor(newpos.x), y = (int)Math.floor(newpos.y), z = (int)Math.floor(newpos.z);
         Block b = world.getBlockEval(x, y - 1, z);
-        if(b != null && b.getType() == BlockType.BTLadder)
+        if(b != null && b.getType().isClimbable())
             return true;
         return false;
     }
@@ -1849,7 +1997,7 @@ public class Player implements GameObject
             boolean isFlying = Main.isKeyDown(Main.KEY_F)
                     && Main.isCreativeMode;
             boolean inWater = isInWater();
-            boolean inLadder = isInLadder();
+            boolean inClimbableBlock = isInClimbableBlock();
             Vector origvelocity = new Vector(this.velocity);
             if(isFlying)
             {
@@ -1871,13 +2019,20 @@ public class Player implements GameObject
                 else
                     this.velocity = newvel;
             }
-            else if(inLadder)
+            else if(inClimbableBlock)
             {
-                this.velocity = new Vector(0);
                 if(!Main.isKeyDown(Main.KEY_SHIFT))
-                {
-                    this.velocity = new Vector(0, -1.5f, 0);
-                }
+                    this.velocity.y = Math.max(-1.5f,
+                                               this.velocity.y
+                                                       - World.GravityAcceleration
+                                                       / 2.0f
+                                                       * (float)Main.getFrameDuration());
+                else
+                    this.velocity.y = Math.max(0,
+                                               this.velocity.y
+                                                       - World.GravityAcceleration
+                                                       / 2.0f
+                                                       * (float)Main.getFrameDuration());
             }
             else
             {
@@ -1891,7 +2046,13 @@ public class Player implements GameObject
                 if(this.velocity.abs_squared() > origvelocity.abs_squared())
                     this.velocity = origvelocity;
             }
-            internalSetPosition(this.position.add(v));
+            {
+                Vector startPos = new Vector(this.position);
+                internalSetPosition(this.position.add(v));
+                if(startPos.sub(this.position).abs_squared() < 1e-1f * 1e-1f * v.abs_squared())
+                    this.velocity = this.velocity.mul((float)Math.pow(0.03f,
+                                                                      Main.getFrameDuration()));
+            }
             if(isOnGround())
             {
                 checkForStandingOnPressurePlate();
@@ -1902,33 +2063,54 @@ public class Player implements GameObject
                 forwardVec = getForwardVector();
             else if(inWater)
                 forwardVec = getForwardVector();
-            else if(inLadder)
+            else if(inClimbableBlock)
             {
                 forwardVec = getMoveForwardVector();
                 Block ladder = getLadder();
-                Vector pos = this.position.sub(new Vector((float)Math.floor(this.position.x),
-                                                          0,
-                                                          (float)Math.floor(this.position.z)));
-                pos.y = 0.5f;
-                if(ladder.ladderIsPlayerPushingIntoLadder(pos, forwardVec))
+                if(ladder.getType() == BlockType.BTLadder)
                 {
-                    forwardVec = new Vector(0, 1, 0);
+                    Vector pos = this.position.sub(new Vector((float)Math.floor(this.position.x),
+                                                              0,
+                                                              (float)Math.floor(this.position.z)));
+                    pos.y = 0.5f;
+                    if(ladder.climbableIsPlayerPushingIntoLadder(pos,
+                                                                 forwardVec))
+                    {
+                        forwardVec = new Vector(0, 1, 0);
+                    }
                 }
             }
             else
                 forwardVec = getMoveForwardVector();
             boolean isMoving = false;
+            Vector startPos = new Vector(this.position);
             if(!Main.isKeyDown(Main.KEY_W) || !Main.isKeyDown(Main.KEY_S))
             {
                 if(Main.isKeyDown(Main.KEY_W))
                 {
-                    internalSetPosition(this.position.add(forwardVec.mul(3.5f * (float)Main.getFrameDuration())));
-                    isMoving = true;
+                    Vector newPos = this.position.add(forwardVec.mul(3.5f * (float)Main.getFrameDuration()));
+                    internalSetPosition(new Vector(newPos));
+                    if(!this.position.equals(newPos) && inClimbableBlock)
+                    {
+                        forwardVec = getMoveForwardVector();
+                        Block ladder = getLadder();
+                        Vector pos = this.position.sub(new Vector((float)Math.floor(this.position.x),
+                                                                  0,
+                                                                  (float)Math.floor(this.position.z)));
+                        pos.y = 0.5f;
+                        if(ladder.climbableIsPlayerPushingIntoLadder(pos,
+                                                                     forwardVec))
+                        {
+                            forwardVec = new Vector(0, 1, 0);
+                            internalSetPosition(this.position.add(forwardVec.mul(3.5f * (float)Main.getFrameDuration())));
+                        }
+                    }
+                    isMoving = !startPos.equals(this.position);
                 }
                 if(Main.isKeyDown(Main.KEY_S))
                 {
                     internalSetPosition(this.position.sub(forwardVec.mul(3.5f * (float)Main.getFrameDuration())));
-                    isMoving = true;
+                    isMoving = !startPos.equals(this.position);
                 }
             }
             if(!isFlying && inWater && !isMoving)
@@ -1941,7 +2123,7 @@ public class Player implements GameObject
                 if(isOnGround())
                 {
                     this.velocity = new Vector(0,
-                                               2.0f * (float)Math.sqrt(World.GravityAcceleration),
+                                               1.6f * (float)Math.sqrt(World.GravityAcceleration),
                                                0);
                 }
             }
@@ -2054,6 +2236,12 @@ public class Player implements GameObject
                             this.workbench[x + y * this.workbenchSize] = null;
                     this.lastMouseX = -1;
                     this.lastMouseY = -1;
+                    this.dragCount = 0;
+                    this.dragType = null;
+                }
+                if(event.key == Main.KEY_Q)
+                {
+                    throwBlock(takeBlock());
                 }
                 break;
             }
@@ -2122,8 +2310,7 @@ public class Player implements GameObject
      *             the exception thrown */
     public static Player read(DataInput i) throws IOException
     {
-        Player retval = new Player();
-        retval.position = Vector.read(i);
+        Player retval = new Player(Vector.read(i));
         retval.velocity = Vector.read(i);
         retval.viewPhi = i.readFloat();
         if(Float.isInfinite(retval.viewPhi) || Float.isNaN(retval.viewPhi)

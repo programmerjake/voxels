@@ -99,7 +99,22 @@ public final class Tree
         if(getBlockType(x, y, z - 1) == BlockType.BTWood
                 || getBlockType(x, y, z + 1) == BlockType.BTWood)
             return 2; // ±z sides without bark
-        return 3; // all sides without bark
+        return 3; // all sides with bark
+    }
+
+    private int getVinesOrientation(int x, int y, int z)
+    {
+        if(getBlockType(x - 1, y, z).isSolid())
+            return Block.getOrientationFromVector(new Vector(-1, 0, 0));
+        if(getBlockType(x + 1, y, z).isSolid())
+            return Block.getOrientationFromVector(new Vector(1, 0, 0));
+        if(getBlockType(x, y, z - 1).isSolid())
+            return Block.getOrientationFromVector(new Vector(0, 0, -1));
+        if(getBlockType(x, y, z + 1).isSolid())
+            return Block.getOrientationFromVector(new Vector(0, 0, 1));
+        if(getBlockType(x, y + 1, z) == BlockType.BTVines)
+            return getVinesOrientation(x, y + 1, z);
+        return 0;
     }
 
     /** @param x
@@ -118,6 +133,8 @@ public final class Tree
             return Block.NewWood(this.treeType, getWoodOrientation(x, y, z));
         if(bt == BlockType.BTLeaves)
             return Block.NewLeaves(this.treeType, 0);
+        if(bt == BlockType.BTVines)
+            return Block.NewVines(getVinesOrientation(x, y, z));
         return bt.make(-1);
     }
 
@@ -184,14 +201,14 @@ public final class Tree
             if(!setBlockType(x, y, z, BlockType.BTWood))
                 return;
             generateLeaves(x, y, z);
-            if(rand.nextInt(4) == 0 || y >= this.YExtent - 1)
+            if(rand.nextInt(5) <= 2 || y >= this.YExtent - 1)
                 return;
             dx += rand.nextInt(3) - 1;
             dz += rand.nextInt(3) - 1;
-            Vector v = new Vector(dx, 1, dz).normalize();
-            int ndx = Math.round(v.x);
-            int ndy = Math.round(v.y);
-            int ndz = Math.round(v.z);
+            int dir = Block.getOrientationFromVector(new Vector(dx, 1.0f, dz));
+            int ndx = Block.getOrientationDX(dir);
+            int ndy = Block.getOrientationDY(dir);
+            int ndz = Block.getOrientationDZ(dir);
             x += ndx;
             y += ndy;
             z += ndz;
@@ -204,24 +221,29 @@ public final class Tree
         {
             if(isBigTrunk)
             {
-                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                if((y >= this.YExtent / 3 && y >= 5 && rand.nextInt(8) == 0)
+                        || y == this.YExtent - 2)
                     generateTreeBranch(0, y, 0, rand, -1, -1);
                 else
                     setBlockType(0, y, 0, BlockType.BTWood);
-                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                if((y >= this.YExtent / 3 && y >= 5 && rand.nextInt(8) == 0)
+                        || y == this.YExtent - 2)
                     generateTreeBranch(1, y, 0, rand, 1, -1);
                 else
                     setBlockType(1, y, 0, BlockType.BTWood);
-                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                if((y >= this.YExtent / 3 && y >= 5 && rand.nextInt(8) == 0)
+                        || y == this.YExtent - 2)
                     generateTreeBranch(1, y, 1, rand, 1, 1);
                 else
                     setBlockType(1, y, 1, BlockType.BTWood);
-                if(y >= this.YExtent / 3 && rand.nextInt(8) == 0)
+                if((y >= this.YExtent / 3 && y >= 5 && rand.nextInt(8) == 0)
+                        || y == this.YExtent - 2)
                     generateTreeBranch(0, y, 1, rand, -1, 1);
                 else
                     setBlockType(0, y, 1, BlockType.BTWood);
             }
-            else if(y >= this.YExtent / 3 && rand.nextInt(3) == 0)
+            else if((y >= this.YExtent / 3 && y >= 5 && rand.nextInt(3) == 0)
+                    || y == this.YExtent - 2)
                 generateTreeBranch(0, y, 0, rand, 0, 0);
             else
                 setBlockType(0, y, 0, BlockType.BTWood);
@@ -243,6 +265,40 @@ public final class Tree
         }
     }
 
+    private void makeVines(Random rand)
+    {
+        for(int x = -this.XZExtent; x <= this.XZExtent; x++)
+        {
+            for(int y = 0; y <= this.YExtent; y++)
+            {
+                for(int z = -this.XZExtent; z <= this.XZExtent; z++)
+                {
+                    if(getBlockType(x, y, z) != BlockType.BTEmpty)
+                        continue;
+                    if(rand.nextFloat() > 0.1f)
+                        continue;
+                    boolean doAdd = false;
+                    if(getBlockType(x + 1, y, z).isSolid())
+                        doAdd = true;
+                    else if(getBlockType(x - 1, y, z).isSolid())
+                        doAdd = true;
+                    else if(getBlockType(x, y, z + 1).isSolid())
+                        doAdd = true;
+                    else if(getBlockType(x, y, z - 1).isSolid())
+                        doAdd = true;
+                    if(doAdd)
+                    {
+                        int length = rand.nextInt(3) + 1;
+                        for(int dy = 0; dy > -length; dy--)
+                        {
+                            setBlockType(x, y + dy, z, BlockType.BTVines);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /** @param treeType
      *            the tree type
      * @param t
@@ -255,7 +311,7 @@ public final class Tree
         {
         case Birch:
             this.XZExtent = 2;
-            this.YExtent = 5 + rand.nextInt(7 - 5 + 1);
+            this.YExtent = 6 + rand.nextInt(8 - 6 + 1);
             this.blocks = makeBlocksArray();
             for(int y = 0; y <= this.YExtent; y++)
             {
@@ -307,7 +363,7 @@ public final class Tree
             if(rand.nextFloat() >= 0.1)
             {
                 this.XZExtent = 5;
-                this.YExtent = 12 + rand.nextInt(16 - 12 + 1);
+                this.YExtent = 7 + rand.nextInt(10 - 7 + 1);
                 this.blocks = makeBlocksArray();
                 generateLargeBranchedTree(rand, false);
             }
@@ -318,6 +374,7 @@ public final class Tree
                 this.blocks = makeBlocksArray();
                 generateLargeBranchedTree(rand, true);
             }
+            makeVines(rand);
             break;
         case Spruce:
             switch(rand.nextInt(10))
@@ -325,7 +382,7 @@ public final class Tree
             case 0:
             {
                 this.XZExtent = 1;
-                this.YExtent = 15 + rand.nextInt(17 - 15 + 1);
+                this.YExtent = 10 + rand.nextInt(13 - 10 + 1);
                 this.blocks = makeBlocksArray();
                 int leavesHeight = 2 + rand.nextInt(4);
                 for(int y = 0; y <= this.YExtent; y++)
@@ -356,7 +413,7 @@ public final class Tree
             case 1:
             {
                 this.XZExtent = 5;
-                this.YExtent = 15 + rand.nextInt(17 - 15 + 1);
+                this.YExtent = 10 + rand.nextInt(13 - 10 + 1);
                 this.blocks = makeBlocksArray();
                 int leavesHeight = this.YExtent - 2 - rand.nextInt(2);
                 for(int y = 0; y <= this.YExtent; y++)
@@ -412,7 +469,7 @@ public final class Tree
         case Oak:
         default:
         {
-            if(rand.nextFloat() >= 0.5) // TODO change back to 0.1
+            if(rand.nextFloat() >= 0.1)
             {
                 this.XZExtent = 3;
                 this.YExtent = 7 + rand.nextInt(9 - 7 + 1);
@@ -421,7 +478,7 @@ public final class Tree
                 {
                     setBlockType(0, y, 0, BlockType.BTWood);
                 }
-                for(int y = this.YExtent - 5; y <= this.YExtent; y++)
+                for(int y = this.YExtent - 4; y <= this.YExtent; y++)
                 {
                     int dy = y - (this.YExtent - 3);
                     int sz = 4 - Math.abs(dy);
@@ -466,16 +523,12 @@ public final class Tree
                 {
                     int x = tx + dx, y = ty + dy, z = tz + dz;
                     Block b = world.getBlockEval(x, y, z);
-                    BlockType blockType = tree.getBlockType(x, y, z);
+                    BlockType blockType = tree.getBlockType(dx, dy, dz);
                     if(blockType == BlockType.BTEmpty)
                         continue;
                     if(b == null)
                         return false;
-                    BlockType.Replaceability replaceability;
-                    if(blockType == BlockType.BTWood)
-                        replaceability = b.getReplaceability(true);
-                    else
-                        replaceability = b.getReplaceability(false);
+                    BlockType.Replaceability replaceability = b.getReplaceability(blockType);
                     if(replaceability == BlockType.Replaceability.CanNotGrow)
                         return false;
                 }
@@ -489,21 +542,17 @@ public final class Tree
                 {
                     int x = tx + dx, y = ty + dy, z = tz + dz;
                     Block b = world.getBlockEval(x, y, z);
-                    BlockType blockType = tree.getBlockType(x, y, z);
+                    BlockType blockType = tree.getBlockType(dx, dy, dz);
                     if(blockType == BlockType.BTEmpty)
                         continue;
                     if(b == null)
                         return false;
-                    BlockType.Replaceability replaceability;
-                    if(blockType == BlockType.BTWood)
-                        replaceability = b.getReplaceability(true);
-                    else
-                        replaceability = b.getReplaceability(false);
+                    BlockType.Replaceability replaceability = b.getReplaceability(blockType);
                     if(replaceability == BlockType.Replaceability.CanNotGrow)
                         return false;
                     if(replaceability == BlockType.Replaceability.Replace)
                     {
-                        b = tree.getBlock(x, y, z);
+                        b = tree.getBlock(dx, dy, dz);
                         if(b != null)
                             world.setBlock(x, y, z, b);
                     }

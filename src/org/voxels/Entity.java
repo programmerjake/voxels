@@ -114,6 +114,7 @@ public class Entity implements GameObject
         case Nothing:
             break;
         case Block:
+        case ThrownBlock:
             this.data.block = rt.data.block;
             this.data.theta = rt.data.theta;
             this.data.phi = rt.data.phi;
@@ -155,6 +156,7 @@ public class Entity implements GameObject
             break;
         case Nothing:
             break;
+        case ThrownBlock:
         case Block:
         {
             if(this.data.block != null)
@@ -162,7 +164,7 @@ public class Entity implements GameObject
                 Matrix tform = Matrix.translate(-0.5f, -0.5f, -0.5f)
                                      .concat(Matrix.rotatex(this.data.phi))
                                      .concat(Matrix.rotatey(this.data.theta))
-                                     .concat(Matrix.scale(0.125f))
+                                     .concat(Matrix.scale(0.25f))
                                      .concat(Matrix.translate(this.position));
                 rs.pushMatrixStack();
                 rs.concatMatrix(worldToCamera);
@@ -342,6 +344,7 @@ public class Entity implements GameObject
             break;
         case Nothing:
             break;
+        case ThrownBlock:
         case Block:
         {
             if(this.data.nearperson)
@@ -354,6 +357,9 @@ public class Entity implements GameObject
                 break;
             }
             this.data.existduration += Main.getFrameDuration();
+            if(this.data.existduration > 0.6f
+                    && this.type == EntityType.ThrownBlock)
+                this.type = EntityType.Block;
             if(this.data.existduration > 60.0 * 6) // 6 min
             {
                 clear();
@@ -605,9 +611,12 @@ public class Entity implements GameObject
             else if(disp.abs_squared() <= 3.0f * 3.0f)
             {
                 float speed = this.data.velocity.abs();
-                speed += Main.getFrameDuration() * World.GravityAcceleration;
+                speed += 3 * Main.getFrameDuration()
+                        * World.GravityAcceleration;
                 if(speed > 15.0f)
                     speed = 15.0f;
+                speed = Math.min(disp.abs() / (float)Main.getFrameDuration(),
+                                 speed);
                 this.data.velocity = p.getPosition()
                                       .sub(this.position)
                                       .normalize()
@@ -622,6 +631,7 @@ public class Entity implements GameObject
             break;
         case PrimedTNT:
             break;
+        case ThrownBlock:
         }
     }
 
@@ -652,6 +662,7 @@ public class Entity implements GameObject
         case Nothing:
             break;
         case Block:
+        case ThrownBlock:
         {
             if(this.data.nearperson)
             {
@@ -705,6 +716,29 @@ public class Entity implements GameObject
     public static Entity NewBlock(Vector position, Block b, Vector velocity)
     {
         Entity retval = new Entity(new Vector(position), EntityType.Block);
+        retval.data.block = b;
+        retval.data.existduration = 0;
+        retval.data.phi = 0;
+        retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
+        retval.data.velocity = new Vector(velocity);
+        retval.data.nearperson = false;
+        return retval;
+    }
+
+    /** create a new thrown block entity
+     * 
+     * @param position
+     *            the initial position to create it at
+     * @param b
+     *            the block
+     * @param velocity
+     *            the initial velocity of the created entity
+     * @return the new thrown block entity */
+    public static Entity NewThrownBlock(Vector position,
+                                        Block b,
+                                        Vector velocity)
+    {
+        Entity retval = new Entity(new Vector(position), EntityType.ThrownBlock);
         retval.data.block = b;
         retval.data.existduration = 0;
         retval.data.phi = 0;
@@ -808,6 +842,7 @@ public class Entity implements GameObject
         case Last:
         case Nothing:
             return;
+        case ThrownBlock:
         case Block:
         {
             this.data.block = Block.read(i);
@@ -915,6 +950,7 @@ public class Entity implements GameObject
         case Last:
         case Nothing:
             return;
+        case ThrownBlock:
         case Block:
         {
             this.data.block.write(o);
