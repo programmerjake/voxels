@@ -206,8 +206,10 @@ public class Block implements GameObject
         retval.data.blockdata = sourceblock;
         retval.data.destcount = destcount;
         retval.data.srccount = srccount;
-        retval.data.runTime = world.getCurTime() + 10.0f; // time when furnace
-                                                          // is done smelting
+        if(srccount > 0 && fuelleft > 0)
+            retval.data.runTime = world.getCurTime() + 10.0f; // time when
+                                                              // furnace
+        // is done smelting
         return retval;
     }
 
