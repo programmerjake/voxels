@@ -65,7 +65,7 @@ public class Block implements GameObject
             {
                 this.BlockCounts = new int[CHEST_ROWS * CHEST_COLUMNS];
                 this.BlockTypes = new Block[CHEST_ROWS * CHEST_COLUMNS];
-                for(int i = 1; i < CHEST_ROWS * CHEST_COLUMNS; i++)
+                for(int i = 0; i < CHEST_ROWS * CHEST_COLUMNS; i++)
                 {
                     this.BlockCounts[i] = rt.BlockCounts[i];
                     this.BlockTypes[i] = rt.BlockTypes[i];
@@ -100,6 +100,13 @@ public class Block implements GameObject
     /** @return if this block is opaque */
     public boolean isOpaque()
     {
+        if(this.type == BlockType.BTPiston
+                || this.type == BlockType.BTStickyPiston)
+        {
+            if(this.data.intdata == 0)
+                return true;
+            return false;
+        }
         return this.type.isOpaque();
     }
 
@@ -2634,6 +2641,13 @@ public class Block implements GameObject
         if(this.type == BlockType.BTLeaves)
         {
             newSunlight = 0;
+        }
+        if(this.type == BlockType.BTPiston
+                || this.type == BlockType.BTStickyPiston)
+        {
+            newSunlight = 0;
+            newScatteredSunlight = 0;
+            newLight = 0;
         }
         else if(isOpaque())
         {
@@ -5853,14 +5867,14 @@ public class Block implements GameObject
         }, 3, NewDiamondAxe(), 1),
         new ReduceStruct(new BlockDescriptor[]
         {
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
             new BlockDescriptorBlockType(BlockType.BTIronIngot),
             new BlockDescriptorBlockType(BlockType.BTEmpty),
             new BlockDescriptorBlockType(BlockType.BTIronIngot),
             new BlockDescriptorBlockType(BlockType.BTEmpty),
             new BlockDescriptorBlockType(BlockType.BTIronIngot),
-            new BlockDescriptorBlockType(BlockType.BTEmpty),
-            new BlockDescriptorBlockType(BlockType.BTEmpty),
-            new BlockDescriptorBlockType(BlockType.BTEmpty),
             new BlockDescriptorBlockType(BlockType.BTEmpty)
         }, 3, NewBucket(), 1),
         new ReduceStruct(new BlockDescriptor[]
@@ -6029,7 +6043,7 @@ public class Block implements GameObject
         int index = chestGetSlotIndex(row, column);
         if(this.data.BlockCounts[index] >= BLOCK_STACK_SIZE)
             return 0;
-        if(this.data.BlockCounts[index] == 0)
+        if(this.data.BlockCounts[index] <= 0)
         {
             this.data.BlockTypes[index] = b;
             if(count > BLOCK_STACK_SIZE)
@@ -7238,13 +7252,14 @@ public class Block implements GameObject
         int retval = -1;
         if(b == null)
             return REDSTONE_POWER_NONE;
-        if(dir == 4
-                && (b.getType() == BlockType.BTRedstoneTorchOff || b.getType() == BlockType.BTRedstoneTorchOn))
-        {
-            return b.getRedstoneIOValue(dir);
-        }
-        else if(dir == 4)
-            return REDSTONE_POWER_NONE;
+        // if(dir == 4
+        // && (b.getType() == BlockType.BTRedstoneTorchOff || b.getType() ==
+        // BlockType.BTRedstoneTorchOn))
+        // {
+        // return b.getRedstoneIOValue(dir);
+        // }
+        // else if(dir == 4)
+        // return REDSTONE_POWER_NONE;
         retval = b.getRedstoneIOValue(dir);
         if(retval != REDSTONE_POWER_NONE)
             return retval;
@@ -8775,9 +8790,13 @@ public class Block implements GameObject
     /** @param orientation
      *            the orientation for the side of the block clicked on
      * @param vieworientation
-     *            the orientation for the direction the player is facing
+     *            the orientation for the direction the player is looking
+     * @param forwardorientation
+     *            the orientation for the direction the player is faceing
      * @return new block or null */
-    public Block makePlacedBlock(int orientation, int vieworientation)
+    public Block makePlacedBlock(int orientation,
+                                 int vieworientation,
+                                 int forwardorientation)
     {
         switch(this.type)
         {
@@ -8789,6 +8808,10 @@ public class Block implements GameObject
             return NewPlank(treeGetTreeType());
         case BTSapling:
             return NewSapling(treeGetTreeType());
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+            return BlockType.BTRedstoneRepeaterOff.make(orientation,
+                                                        forwardorientation);
         default:
             return this.type.make(orientation, vieworientation);
         }

@@ -1488,6 +1488,7 @@ public class Player implements GameObject
                                            this.blockY,
                                            this.blockZ,
                                            newb);
+                            didAnything = true;
                         }
                     }
                     giveBlock(newb, true);
@@ -1530,7 +1531,8 @@ public class Player implements GameObject
                     boolean isItemInBucket = newb.isItemInBucket();
                     if(newb != null)
                         newb = newb.makePlacedBlock(this.blockOrientation,
-                                                    Block.getOrientationFromVector(getForwardVector()));
+                                                    Block.getOrientationFromVector(getForwardVector()),
+                                                    Block.getOrientationFromVector(getMoveForwardVector()));
                     if(newb != null)
                     {
                         // world.AddModNode(blockX, blockY, blockZ, newb);

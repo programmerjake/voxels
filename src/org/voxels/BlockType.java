@@ -823,7 +823,7 @@ public enum BlockType
         }
     },
     /** plank */
-    BTPlank(17, false, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
+    BTPlank(17, true, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
     {
         TextureAtlas.addImage(new Image("plank.png")),
         TextureAtlas.addImage(new Image("birchplank.png")),

@@ -1404,31 +1404,51 @@ public class World
                 }
             }
         }
-        for(int dx = 0; dx < 3; dx++)
+        for(int i = 2; i <= 3; i++)
         {
-            for(int dy = 0; dy < 3; dy++)
+            for(int x = 0; x < 3; x++)
             {
-                for(int dz = 0; dz < 3; dz++)
+                for(int y = 0; y < 3; y++)
                 {
-                    int dcount = 0;
-                    if(dx != 1)
-                        dcount++;
-                    if(dy != 1)
-                        dcount++;
-                    if(dz != 1)
-                        dcount++;
-                    if(dcount <= 1)
-                        continue;
-                    if(dx != 1 && !o[dx + 3 * (1 + 3 * 1)])
-                        dcount--;
-                    if(dy != 1 && !o[1 + 3 * (dy + 3 * 1)])
-                        dcount--;
-                    if(dz != 1 && !o[1 + 3 * (1 + 3 * dz)])
-                        dcount--;
-                    if(dcount <= 0)
-                        l[dx + 3 * (dy + 3 * dz)] = 0;
+                    for(int z = 0; z < 3; z++)
+                    {
+                        if(o[x + 3 * (y + 3 * z)])
+                            continue;
+                        int dist = Math.abs(x - 1) + Math.abs(y - 1)
+                                + Math.abs(z - 1);
+                        if(dist != i)
+                            continue;
+                        boolean value = true;
+                        for(int orientation = 0; orientation < 6; orientation++)
+                        {
+                            int px = x + Block.getOrientationDX(orientation);
+                            int py = y + Block.getOrientationDY(orientation);
+                            int pz = z + Block.getOrientationDZ(orientation);
+                            int curdist = Math.abs(px - 1) + Math.abs(py - 1)
+                                    + Math.abs(pz - 1);
+                            if(curdist != i - 1)
+                                continue;
+                            if(px < 0 || px >= 3)
+                                continue;
+                            if(py < 0 || py >= 3)
+                                continue;
+                            if(pz < 0 || pz >= 3)
+                                continue;
+                            if(!o[px + 3 * (py + 3 * pz)])
+                            {
+                                value = false;
+                                break;
+                            }
+                        }
+                        o[x + 3 * (y + 3 * z)] = value;
+                    }
                 }
             }
+        }
+        for(int i = 0; i < 3 * 3 * 3; i++)
+        {
+            if(o[i])
+                l[i] = 0;
         }
         int fl[] = new int[2 * 2 * 2];
         for(int x = 0; x < 2; x++)
