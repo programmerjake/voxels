@@ -603,9 +603,9 @@ public class Entity implements GameObject
         {
             Vector ppos = p.getPosition();
             Vector disp = ppos.sub(this.position);
-            if(disp.abs_squared() <= 0.3f * 0.3f)
+            if(disp.abs_squared() <= 0.3f * 0.3f
+                    && p.giveBlock(this.data.block, false))
             {
-                p.giveBlock(this.data.block, false);
                 clear();
             }
             else if(disp.abs_squared() <= 3.0f * 3.0f)

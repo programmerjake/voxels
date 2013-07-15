@@ -1182,7 +1182,7 @@ public class Player implements GameObject
      * @return if the block can be given to this player */
     public boolean giveBlock(Block b, boolean setCurrentBlock)
     {
-        if(b == null || b.getType() == BlockType.BTEmpty)
+        if(b == null || b.getType() == BlockType.BTEmpty || Main.isCreativeMode)
             return true;
         for(int row = Block.CHEST_ROWS; row >= 0; row--)
         {
