@@ -22,12 +22,50 @@ import static org.voxels.World.world;
 import java.io.*;
 
 import org.voxels.TextureAtlas.TextureHandle;
+import org.voxels.World.BlockHitDescriptor;
 
 /** @author jacob */
 public class Entity implements GameObject
 {
-    private Vector position = new Vector(0);
+    private Entity next = null; // for free entity list
+    private Vector position = Vector.allocate();
     private EntityType type;
+    private static Entity freeEntityListHead = null;
+    private static final Object freeEntityListSyncObject = new Object();
+
+    public static Entity allocate()
+    {
+        synchronized(freeEntityListSyncObject)
+        {
+            Entity retval = freeEntityListHead;
+            if(retval == null)
+                return new Entity();
+            freeEntityListHead = retval.next;
+            retval.next = null;
+            retval.position = Vector.allocate();
+            return retval;
+        }
+    }
+
+    public void free()
+    {
+        if(this.position != null)
+        {
+            this.position.free();
+            this.position = null;
+        }
+        if(this.data != null)
+        {
+            this.data.free();
+            this.data = null;
+        }
+        synchronized(freeEntityListSyncObject)
+        {
+            this.next = freeEntityListHead;
+            freeEntityListHead = this;
+        }
+    }
+
     private static TextureHandle imgFire = TextureAtlas.addImage(new Image("particlefire.png"));
     private static TextureHandle imgRedstoneFire = TextureAtlas.addImage(new Image("particleredstonefire.png"));
     private static TextureHandle imgSmoke = TextureAtlas.addImage(new Image("particlesmoke.png"));
@@ -38,8 +76,8 @@ public class Entity implements GameObject
     private static TextureHandle[] imgFireAnimation = null;
     private static TextureHandle[] imgRedstoneFireAnimation = null;
 
-    private static TextureHandle[] genAnimation(FireSimulation sim,
-                                                int stepCount)
+    private static TextureHandle[] genAnimation(final FireSimulation sim,
+                                                final int stepCount)
     {
         TextureHandle[] retval = new TextureHandle[SimulationAnimationFrameCount];
         Main.pushProgress(0, 1.0f / SimulationAnimationFrameCount);
@@ -69,7 +107,7 @@ public class Entity implements GameObject
 
     private static class Data
     {
-        public Data()
+        private Data()
         {
         }
 
@@ -80,34 +118,70 @@ public class Entity implements GameObject
         public boolean nearperson;
         public ParticleType particletype;
         public float frame;
+        private Data next = null;
+        private static final Object freePoolSyncObject = new Object();
+        private static Data freePoolHead = null;
+
+        public static Data allocate()
+        {
+            synchronized(freePoolSyncObject)
+            {
+                if(freePoolHead == null)
+                    return new Data();
+                Data retval = freePoolHead;
+                freePoolHead = retval.next;
+                retval.next = null;
+                return retval;
+            }
+        }
+
+        public void free()
+        {
+            this.block = null;
+            if(this.velocity != null)
+            {
+                this.velocity.free();
+                this.velocity = null;
+            }
+            synchronized(freePoolSyncObject)
+            {
+                this.next = freePoolHead;
+                freePoolHead = this;
+            }
+        }
     }
 
     Data data;
 
     /** create an empty entity */
-    public Entity()
+    private Entity()
     {
         this.type = EntityType.Nothing;
         this.data = null;
     }
 
-    private Entity(Vector position, EntityType type)
+    private static Entity
+        allocate(final Vector position, final EntityType type)
     {
-        this.position = position;
-        this.type = type;
-        this.data = new Data();
+        Entity retval = allocate();
+        retval.position = Vector.allocate(position);
+        retval.type = type;
+        retval.data = Data.allocate();
+        return retval;
     }
 
     /** create a copy of an entity
      * 
      * @param rt
-     *            entity to create a copy of */
-    public Entity(Entity rt)
+     *            entity to create a copy of
+     * @return the new copy */
+    public static Entity allocate(final Entity rt)
     {
-        this.type = rt.type;
-        this.position = new Vector(rt.position);
-        this.data = new Data();
-        switch(this.type)
+        Entity retval = allocate();
+        retval.type = rt.type;
+        retval.position = Vector.allocate(rt.position);
+        retval.data = Data.allocate();
+        switch(retval.type)
         {
         case Last:
             break;
@@ -115,40 +189,60 @@ public class Entity implements GameObject
             break;
         case Block:
         case ThrownBlock:
-            this.data.block = rt.data.block;
-            this.data.theta = rt.data.theta;
-            this.data.phi = rt.data.phi;
-            this.data.velocity = rt.data.velocity;
-            this.data.existduration = rt.data.existduration;
-            this.data.nearperson = rt.data.nearperson;
+            retval.data.block = rt.data.block;
+            retval.data.theta = rt.data.theta;
+            retval.data.phi = rt.data.phi;
+            retval.data.velocity = Vector.allocate(rt.data.velocity);
+            retval.data.existduration = rt.data.existduration;
+            retval.data.nearperson = rt.data.nearperson;
             break;
         case Particle:
-            this.data.velocity = rt.data.velocity;
-            this.data.particletype = rt.data.particletype;
-            this.data.theta = rt.data.theta;
-            this.data.phi = rt.data.phi;
-            this.data.existduration = rt.data.existduration;
-            this.data.frame = rt.data.frame;
+            retval.data.velocity = Vector.allocate(rt.data.velocity);
+            retval.data.particletype = rt.data.particletype;
+            retval.data.theta = rt.data.theta;
+            retval.data.phi = rt.data.phi;
+            retval.data.existduration = rt.data.existduration;
+            retval.data.frame = rt.data.frame;
             break;
         case FallingBlock:
-            this.data.block = rt.data.block;
-            this.data.velocity = rt.data.velocity;
+            retval.data.block = rt.data.block;
+            retval.data.velocity = Vector.allocate(rt.data.velocity);
             break;
         case PrimedTNT:
-            this.data.velocity = rt.data.velocity;
-            this.data.existduration = rt.data.existduration;
+            retval.data.velocity = Vector.allocate(rt.data.velocity);
+            retval.data.existduration = rt.data.existduration;
+            break;
+        case PlaceBlockIfReplaceable:
+            retval.data.block = rt.data.block;
+            break;
+        case RemoveBlockIfEqual:
+            retval.data.block = rt.data.block;
             break;
         }
+        return retval;
     }
 
     private void clear()
     {
         this.type = EntityType.Nothing;
-        this.data = null;
+        if(this.position != null)
+        {
+            this.position.free();
+            this.position = null;
+        }
+        if(this.data != null)
+        {
+            this.data.free();
+            this.data = null;
+        }
     }
 
+    private static Matrix draw_t1 = new Matrix();
+    private static Matrix draw_t2 = new Matrix();
+
     @Override
-    public RenderingStream draw(RenderingStream rs, Matrix worldToCamera)
+    public RenderingStream draw(final RenderingStream rs,
+                                final Matrix worldToCamera)
     {
         switch(this.type)
         {
@@ -161,11 +255,18 @@ public class Entity implements GameObject
         {
             if(this.data.block != null)
             {
-                Matrix tform = Matrix.translate(-0.5f, -0.5f, -0.5f)
-                                     .concat(Matrix.rotatex(this.data.phi))
-                                     .concat(Matrix.rotatey(this.data.theta))
-                                     .concat(Matrix.scale(0.25f))
-                                     .concat(Matrix.translate(this.position));
+                Matrix tform = Matrix.setToTranslate(draw_t1,
+                                                     -0.5f,
+                                                     -0.5f,
+                                                     -0.5f)
+                                     .concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                       this.data.phi))
+                                     .concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                                       this.data.theta))
+                                     .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                     0.25f))
+                                     .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                         this.position));
                 rs.pushMatrixStack();
                 rs.concatMatrix(worldToCamera);
                 this.data.block.drawAsEntity(rs, tform);
@@ -223,14 +324,19 @@ public class Entity implements GameObject
             }
             if(img != null)
             {
-                Matrix tform = Matrix.translate(-0.5f,
-                                                isAnim ? 0.0f : -0.5f,
-                                                -0.5f);
-                tform = tform.concat(Matrix.rotatex(this.data.phi));
-                tform = tform.concat(Matrix.rotatey(this.data.theta));
+                Matrix tform = Matrix.setToTranslate(draw_t1,
+                                                     -0.5f,
+                                                     isAnim ? 0.0f : -0.5f,
+                                                     -0.5f);
+                tform = tform.concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                               this.data.phi));
+                tform = tform.concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                               this.data.theta));
                 if(!isAnim)
-                    tform = tform.concat(Matrix.scale(0.125f));
-                tform = tform.concat(Matrix.translate(this.position));
+                    tform = tform.concatAndSet(Matrix.setToScale(draw_t2,
+                                                                 0.125f));
+                tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                 this.position));
                 rs.pushMatrixStack();
                 rs.concatMatrix(worldToCamera);
                 Block.drawImgAsEntity(rs, tform, img);
@@ -245,7 +351,8 @@ public class Entity implements GameObject
                 rs.pushMatrixStack();
                 rs.concatMatrix(worldToCamera);
                 this.data.block.drawAsEntity(rs,
-                                             Matrix.translate(this.position));
+                                             Matrix.setToTranslate(draw_t1,
+                                                                   this.position));
                 rs.popMatrixStack();
             }
             break;
@@ -255,85 +362,133 @@ public class Entity implements GameObject
             Block b = Block.NewTNT();
             rs.pushMatrixStack();
             rs.concatMatrix(worldToCamera);
-            b.drawAsEntity(rs, Matrix.translate(this.position));
+            b.drawAsEntity(rs,
+                           Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, -0.5f)
+                                 .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                 2 * tntItemSize))
+                                 .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                     this.position))
+                                 .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                     0.5f,
+                                                                     0.5f,
+                                                                     0.5f)));
             rs.popMatrixStack();
             break;
         }
+        case PlaceBlockIfReplaceable:
+        case RemoveBlockIfEqual:
+            return rs;
         }
         return rs;
     }
 
-    private Vector hitObstruction(Vector newPos)
-    {
-        Vector dir = newPos.sub(this.position);
-        float dist = dir.abs();
-        if(dist == 0)
-            return null;
-        dir = dir.div(dist);
-        World.BlockHitDescriptor blockHitDescriptor = world.getPointedAtBlock(this.position,
-                                                                              dir,
-                                                                              dist,
-                                                                              false,
-                                                                              true);
-        if(blockHitDescriptor.b != null || blockHitDescriptor.hitUnloadedChunk)
-            return this.position.add(dir.mul(blockHitDescriptor.distance));
-        return null;
-    }
+    private static final float TNTStrength = 4;
 
-    private static final float TNTStrength = 5 * 6 * 6 * 7 * 7 * 7;
-
-    private boolean canBeInBlock(Block b)
+    private static boolean itemHits(final float size, final Vector pos)
     {
-        if(b == null)
-            return false;
-        return !b.isSolid();
-    }
-
-    /** @param deltaPos
-     *            the value that you add to <code>this.position</code> to get
-     *            the actual position
-     * @param size
-     *            the size of this entity
-     * @return if this entity can move to any block */
-    private boolean moveToNearestEmptySpace(Vector deltaPos, float size)
-    {
-        int px = (int)Math.floor(this.position.x + deltaPos.x);
-        int py = (int)Math.floor(this.position.y + deltaPos.y);
-        int pz = (int)Math.floor(this.position.z + deltaPos.z);
-        if(canBeInBlock(world.getBlockEval(px, py, pz)))
-            return true;
-        for(int dist = 1; dist < 64; dist++)
+        Vector t = Vector.allocate();
+        int x = (int)Math.floor(pos.getX());
+        int y = (int)Math.floor(pos.getY());
+        int z = (int)Math.floor(pos.getZ());
+        int searchDist = (int)Math.floor(size) + 1;
+        for(int dx = -searchDist; dx <= searchDist; dx++)
         {
-            for(int dx = -dist; dx <= dist; dx++)
+            for(int dy = -searchDist; dy <= searchDist; dy++)
             {
-                for(int dy = -dist; dy <= dist; dy++)
+                for(int dz = -searchDist; dz <= searchDist; dz++)
                 {
-                    for(int dz = -dist; dz <= dist; dz++)
+                    Block b = world.getBlock(x + dx, y + dy, z + dz);
+                    if(b == null)
+                        b = bedrockBlock;
+                    if(b.checkItemHit(size,
+                                      Vector.sub(t, pos, x + dx, y + dy, z + dz)))
                     {
-                        if(Math.max(Math.max(Math.abs(dx), Math.abs(dy)),
-                                    Math.abs(dz)) != dist)
-                            dz = dist;
-                        int x = px + dx, y = py + dy, z = pz + dz;
-                        if(canBeInBlock(world.getBlockEval(x, y, z)))
+                        t.free();
+                        return true;
+                    }
+                }
+            }
+        }
+        t.free();
+        return false;
+    }
+
+    private static float getNearestEmptySpotH(final float size,
+                                              final Vector position,
+                                              final Vector dir,
+                                              final float maxDist,
+                                              final float minDist)
+    {
+        if(maxDist - minDist < 1e-5)
+            return maxDist;
+        float avgDist = (maxDist + minDist) * 0.5f;
+        Vector p = Vector.allocate(dir).mulAndSet(avgDist).addAndSet(position);
+        if(!itemHits(size, p))
+        {
+            p.free();
+            return getNearestEmptySpotH(size, position, dir, avgDist, minDist);
+        }
+        p.free();
+        return getNearestEmptySpotH(size, position, dir, maxDist, avgDist);
+    }
+
+    /** @param size
+     *            the item's size
+     * @return a newly allocated Vector that is the nearest empty spot or null */
+    private static Vector getNearestEmptySpot(final float size,
+                                              final Vector position)
+    {
+        Vector retval = Vector.allocate();
+        final float distFactor = 0.01f;
+        for(int dist = 0; dist <= 1000; dist += 1 + (dist >> 1))
+        {
+            for(int dx = -dist; dx <= dist; dx += 1 + (dist >> 1))
+            {
+                for(int dy = -dist; dy <= dist; dy += 1 + (dist >> 1))
+                {
+                    int min = Math.abs(dx) + Math.abs(dy) - dist, max = -min;
+                    int step = Math.max(1, max - min);
+                    for(int dz = min; dz <= max; dz += step)
+                    {
+                        retval.set(position);
+                        retval.addAndSet(dx * distFactor, dy * distFactor, dz
+                                * distFactor);
+                        if(!itemHits(size, retval))
                         {
-                            Vector pos = new Vector(x + 0.5f,
-                                                    y + 0.5f,
-                                                    z + 0.5f);
-                            Vector dir = this.position.add(deltaPos).sub(pos);
-                            float magnitude = Math.max(dir.x,
-                                                       Math.max(dir.y, dir.z));
-                            if(magnitude == 0)
-                                magnitude = 1;
-                            dir = dir.mul(Math.max(0, 1.0f - size) / magnitude);
-                            this.position = pos.add(dir).sub(deltaPos);
-                            return true;
+                            if(dx == 0 && dy == 0 && dz == 0)
+                                return retval;
+                            Vector dir = Vector.allocate(dx * distFactor, dy
+                                    * distFactor, dz * distFactor);
+                            float r = dir.abs();
+                            dir.divAndSet(r);
+                            retval.set(dir)
+                                  .mulAndSet(getNearestEmptySpotH(size,
+                                                                  position,
+                                                                  dir,
+                                                                  r,
+                                                                  Math.max(0,
+                                                                           r
+                                                                                   - 2.0f
+                                                                                   * distFactor
+                                                                                   * (1 + dist >> 1))))
+                                  .addAndSet(position);
+                            dir.free();
+                            return retval;
                         }
                     }
                 }
             }
         }
-        return false;
+        retval.free();
+        return null;
     }
+
+    private static final float blockItemSize = 0.125f * (float)Math.sqrt(2);
+    private static final float tntItemSize = 0.49f;
+    private static Vector move_t1 = Vector.allocate();
+    private static Vector move_t2 = Vector.allocate();
+    private static Vector move_t3 = Vector.allocate();
+    private static final Block bedrockBlock = Block.NewBedrock();
 
     @Override
     public void move()
@@ -349,7 +504,9 @@ public class Entity implements GameObject
         {
             if(this.data.nearperson)
             {
-                this.position = this.position.add(this.data.velocity.mul((float)Main.getFrameDuration()));
+                this.position = this.position.addAndSet(Vector.mul(move_t1,
+                                                                   this.data.velocity,
+                                                                   (float)Main.getFrameDuration()));
                 this.data.nearperson = false;
                 this.data.theta = (this.data.theta + (float)Main.getFrameDuration()
                         * 0.5f * (float)Math.PI)
@@ -365,91 +522,65 @@ public class Entity implements GameObject
                 clear();
                 return;
             }
-            if(this.position.y < -World.Depth)
+            if(this.position.getY() < -World.Depth)
             {
                 clear();
                 return;
             }
-            Block b = world.getBlock((int)Math.floor(this.position.x),
-                                     (int)Math.floor(this.position.y),
-                                     (int)Math.floor(this.position.z));
-            if(b == null || b.isSupporting())
+            this.data.velocity = this.data.velocity.addAndSet(Vector.set(move_t1,
+                                                                         0.0f,
+                                                                         -GravityAcceleration,
+                                                                         0.0f)
+                                                                    .mulAndSet((float)Main.getFrameDuration()));
+            Vector deltaPos = Vector.mul(move_t1,
+                                         this.data.velocity,
+                                         (float)Main.getFrameDuration());
+            Vector newPos = move_t2.set(this.position);
+            Vector lastPos = move_t3.set(newPos);
+            final int count = (int)Math.floor(deltaPos.abs() * 100) + 1;
+            deltaPos.divAndSet(count);
+            for(int i = 0; i < count; i++)
             {
-                this.data.velocity = new Vector(0.0f);
+                if(itemHits(blockItemSize, newPos))
+                {
+                    newPos.set(lastPos);
+                    break;
+                }
+                lastPos.set(newPos);
+                newPos.addAndSet(deltaPos);
+            }
+            Vector adjustedNewPos = getNearestEmptySpot(blockItemSize, newPos);
+            if(adjustedNewPos != null)
+            {
+                if(!newPos.equals(adjustedNewPos))
+                    this.data.velocity.set(Vector.ZERO);
+                this.position.set(adjustedNewPos);
+                adjustedNewPos.free();
             }
             else
             {
-                b = world.getBlock((int)Math.floor(this.position.x),
-                                   (int)Math.floor(this.position.y) - 1,
-                                   (int)Math.floor(this.position.z));
-                if(b == null || b.isSupporting())
+                clear();
+                return;
+            }
+            Block b = world.getBlock((int)Math.floor(this.position.getX()),
+                                     (int)Math.floor(this.position.getY()),
+                                     (int)Math.floor(this.position.getZ()));
+            if(b != null)
+            {
+                if(b.getType() == BlockType.BTWoodPressurePlate
+                        && b.pressurePlateIsItemPressing(blockItemSize,
+                                                         Vector.sub(move_t1,
+                                                                    this.position,
+                                                                    (float)Math.floor(this.position.getX()),
+                                                                    (float)Math.floor(this.position.getY()),
+                                                                    (float)Math.floor(this.position.getZ()))))
                 {
-                    Vector newvelocity = this.data.velocity.div(1.5f)
-                                                           .add(new Vector(0.0f,
-                                                                           1.2f
-                                                                                   * GravityAcceleration
-                                                                                   * (this.position.y - (float)Math.floor(this.position.y)),
-                                                                           0.0f))
-                                                           .add(new Vector(0.0f,
-                                                                           -GravityAcceleration,
-                                                                           0.0f));
-                    this.data.velocity = this.data.velocity.add(newvelocity.sub(this.data.velocity)
-                                                                           .mul((float)Main.getFrameDuration()));
-                    float miny = (float)Math.floor(this.position.y) + 0.1f;
-                    Vector newPos = this.position.add(this.data.velocity.mul((float)Main.getFrameDuration()));
-                    Vector hitObstructionRetval = hitObstruction(newPos);
-                    if(hitObstructionRetval == null)
-                        this.position = newPos;
-                    else
-                    {
-                        this.position = hitObstructionRetval;
-                        this.data.velocity = new Vector(0);
-                    }
-                    if(!moveToNearestEmptySpace(new Vector(0), 1.0f / 7))
-                    {
-                        clear();
-                        return;
-                    }
-                    if(this.position.y < miny)
-                    {
-                        this.position.y = miny;
-                        this.data.velocity.y = 0;
-                    }
-                    b = world.getBlock((int)Math.floor(this.position.x),
-                                       (int)Math.floor(this.position.y),
-                                       (int)Math.floor(this.position.z));
-                    if(this.position.y < miny + 0.2f && b != null
-                            && b.getType() == BlockType.BTWoodPressurePlate)
-                    {
-                        b = new Block(b);
-                        b.pressurePlatePress();
-                        world.setBlock((int)Math.floor(this.position.x),
-                                       (int)Math.floor(this.position.y),
-                                       (int)Math.floor(this.position.z),
-                                       b);
-                    }
-                }
-                else
-                {
-                    this.data.velocity = this.data.velocity.add(new Vector(0.0f,
-                                                                           -GravityAcceleration,
-                                                                           0.0f).mul((float)Main.getFrameDuration()));
-                    if(this.data.velocity.y < -15.0f)
-                        this.data.velocity.y = -15.0f;
-                    Vector newPos = this.position.add(this.data.velocity.mul((float)Main.getFrameDuration()));
-                    Vector hitObstructionRetval = hitObstruction(newPos);
-                    if(hitObstructionRetval == null)
-                        this.position = newPos;
-                    else
-                    {
-                        this.position = hitObstructionRetval;
-                        this.data.velocity = new Vector(0);
-                    }
-                    if(!moveToNearestEmptySpace(new Vector(0), 1.0f / 7))
-                    {
-                        clear();
-                        return;
-                    }
+                    b = new Block(b);
+                    b.pressurePlatePress();
+                    world.setBlock((int)Math.floor(this.position.getX()),
+                                   (int)Math.floor(this.position.getY()),
+                                   (int)Math.floor(this.position.getZ()),
+                                   b);
                 }
             }
             this.data.theta = (this.data.theta + (float)Main.getFrameDuration()
@@ -472,34 +603,35 @@ public class Entity implements GameObject
             case Fire:
             case RedstoneFire:
             case Smoke:
-                this.data.velocity = this.data.velocity.add(new Vector(0,
-                                                                       (float)Main.getFrameDuration(),
-                                                                       0))
-                                                       .mul((float)Math.pow(0.3f,
-                                                                            (float)Main.getFrameDuration()));
+                this.data.velocity = this.data.velocity.addAndSet(Vector.set(move_t1,
+                                                                             0,
+                                                                             (float)Main.getFrameDuration(),
+                                                                             0))
+                                                       .mulAndSet((float)Math.pow(0.3f,
+                                                                                  (float)Main.getFrameDuration()));
                 break;
             case FireAnim:
             case RedstoneFireAnim:
-                this.data.velocity = new Vector(0);
+                this.data.velocity.set(Vector.ZERO);
                 this.data.frame += SimulationAnimationFrameRate
                         * (float)Main.getFrameDuration();
                 this.data.frame %= SimulationAnimationFrameCount;
                 break;
             case SmokeAnim:
-                this.data.velocity = new Vector(0);
+                this.data.velocity.set(Vector.ZERO);
                 this.data.frame += SmokeSimulationAnimationFrameRate
                         * (float)Main.getFrameDuration();
                 this.data.frame %= SimulationAnimationFrameCount;
                 break;
             }
-            this.position = this.position.add(this.data.velocity.mul((float)Main.getFrameDuration()));
+            this.position = this.position.addAndSet(this.data.velocity.mulAndSet((float)Main.getFrameDuration()));
             break;
         }
         case FallingBlock:
         {
-            int x = Math.round(this.position.x);
-            int y = Math.round(this.position.y);
-            int z = Math.round(this.position.z);
+            int x = Math.round(this.position.getX());
+            int y = Math.round(this.position.getY());
+            int z = Math.round(this.position.getZ());
             Block b = world.getBlock(x, y - 1, z);
             if(b == null || b.isSupporting())
             {
@@ -510,39 +642,43 @@ public class Entity implements GameObject
                 clear();
                 return;
             }
-            Vector deltapos = this.data.velocity.mul((float)Main.getFrameDuration());
+            Vector deltapos = Vector.mul(move_t1,
+                                         this.data.velocity,
+                                         (float)Main.getFrameDuration());
             if(deltapos.abs_squared() > 1)
-                deltapos = deltapos.normalize();
-            this.position = this.position.add(deltapos);
-            this.data.velocity = this.data.velocity.add(new Vector(0,
-                                                                   -GravityAcceleration
-                                                                           * (float)Main.getFrameDuration(),
-                                                                   0));
-            if(this.data.velocity.y < -15.0f)
-                this.data.velocity.y = -15.0f;
+                deltapos = deltapos.normalizeAndSet();
+            this.position = this.position.addAndSet(deltapos);
+            this.data.velocity = this.data.velocity.addAndSet(Vector.set(move_t2,
+                                                                         0,
+                                                                         -GravityAcceleration
+                                                                                 * (float)Main.getFrameDuration(),
+                                                                         0));
             break;
         }
         case PrimedTNT:
         {
-            int x = Math.round(this.position.x);
-            int y = Math.round(this.position.y);
-            int z = Math.round(this.position.z);
-            final float ParticlesPerSecond = 15;
-            int startcount = (int)Math.floor(this.data.existduration
-                    * ParticlesPerSecond);
-            this.data.existduration -= Main.getFrameDuration();
-            int endcount = (int)Math.floor(this.data.existduration
-                    * ParticlesPerSecond);
-            int count = startcount - endcount;
-            for(int i = 0; i < count; i++)
+            int x = Math.round(this.position.getX());
+            int y = Math.round(this.position.getY());
+            int z = Math.round(this.position.getZ());
             {
-                world.insertEntity(NewParticle(this.position.add(new Vector(World.fRand(0,
-                                                                                        1),
-                                                                            1.0f,
-                                                                            World.fRand(0,
-                                                                                        1))),
-                                               ParticleType.SmokeAnim,
-                                               new Vector(0)));
+                final float ParticlesPerSecond = 25;
+                int startcount = (int)Math.floor(this.data.existduration
+                        * ParticlesPerSecond);
+                this.data.existduration -= Main.getFrameDuration();
+                int endcount = (int)Math.floor(this.data.existduration
+                        * ParticlesPerSecond);
+                int count = startcount - endcount;
+                for(int i = 0; i < count; i++)
+                {
+                    world.insertEntity(NewParticle(Vector.add(move_t1,
+                                                              this.position,
+                                                              Vector.set(move_t2,
+                                                                         0.5f,
+                                                                         1.0f,
+                                                                         0.5f)),
+                                                   ParticleType.SmokeAnim,
+                                                   Vector.ZERO));
+                }
             }
             if(this.data.existduration <= 0)
             {
@@ -550,48 +686,82 @@ public class Entity implements GameObject
                 clear();
                 return;
             }
-            Block b = world.getBlock(x, y - 1, z);
-            if(b == null || b.isSupporting())
+            this.data.velocity = this.data.velocity.addAndSet(Vector.set(move_t1,
+                                                                         0,
+                                                                         -GravityAcceleration
+                                                                                 * (float)Main.getFrameDuration(),
+                                                                         0));
+            if(this.data.velocity.getY() < -15.0f)
+                this.data.velocity.setY(-15.0f);
+            Vector deltaPos = Vector.mul(move_t1,
+                                         this.data.velocity,
+                                         (float)Main.getFrameDuration());
+            Vector newPos = move_t2.set(this.position).addAndSet(0.5f,
+                                                                 0.5f,
+                                                                 0.5f);
+            Vector lastPos = move_t3.set(newPos);
+            final int count = (int)Math.floor(deltaPos.abs() * 100) + 1;
+            deltaPos.divAndSet(count);
+            for(int i = 0; i < count; i++)
             {
-                this.data.velocity = new Vector(0);
-                break;
+                if(itemHits(tntItemSize, newPos))
+                {
+                    newPos.set(lastPos);
+                    break;
+                }
+                lastPos.set(newPos);
+                newPos.addAndSet(deltaPos);
             }
-            Vector deltapos = this.data.velocity.mul((float)Main.getFrameDuration());
-            if(deltapos.abs_squared() > 1)
-                deltapos = deltapos.normalize();
-            this.position = this.position.add(deltapos);
-            Vector newPos = this.position.add(deltapos);
-            Vector hitObstructionRetval = hitObstruction(newPos);
-            if(hitObstructionRetval == null)
-                this.position = newPos;
-            else
-            {
-                this.position = hitObstructionRetval;
-                this.data.velocity = new Vector(0);
-            }
-            if(!moveToNearestEmptySpace(new Vector(0.5f), 1.0f))
+            Vector adjustedNewPos = getNearestEmptySpot(tntItemSize, newPos);
+            if(adjustedNewPos == null)
             {
                 world.addExplosion(x, y, z, TNTStrength);
                 clear();
                 return;
             }
-            this.data.velocity = this.data.velocity.add(new Vector(0,
-                                                                   -GravityAcceleration
-                                                                           * (float)Main.getFrameDuration(),
-                                                                   0));
-            if(this.data.velocity.y < -15.0f)
-                this.data.velocity.y = -15.0f;
+            if(!adjustedNewPos.equals(newPos))
+                this.data.velocity.set(Vector.ZERO);
+            this.position.set(adjustedNewPos.subAndSet(0.5f, 0.5f, 0.5f));
+            adjustedNewPos.free();
             break;
+        }
+        case PlaceBlockIfReplaceable:
+        {
+            int x = Math.round(this.position.getX());
+            int y = Math.round(this.position.getY());
+            int z = Math.round(this.position.getZ());
+            Block b = world.getBlockEval(x, y, z);
+            if(b != null && b.isReplaceable())
+            {
+                world.setBlock(x, y, z, this.data.block);
+            }
+            clear();
+            return;
+        }
+        case RemoveBlockIfEqual:
+        {
+            int x = Math.round(this.position.getX());
+            int y = Math.round(this.position.getY());
+            int z = Math.round(this.position.getZ());
+            Block b = world.getBlockEval(x, y, z);
+            if(b != null && b.equals(this.data.block))
+            {
+                world.setBlock(x, y, z, new Block());
+            }
+            clear();
+            return;
         }
         }
     }
+
+    private static Vector checkHitPlayer_t1 = Vector.allocate();
 
     /** check for hitting player <code>p</code> and run the corresponding action
      * if <code>p</code> got hit
      * 
      * @param p
      *            player to check for */
-    public void checkHitPlayer(Player p)
+    public void checkHitPlayer(final Player p)
     {
         switch(this.type)
         {
@@ -602,7 +772,7 @@ public class Entity implements GameObject
         case Block:
         {
             Vector ppos = p.getPosition();
-            Vector disp = ppos.sub(this.position);
+            Vector disp = Vector.sub(checkHitPlayer_t1, ppos, this.position);
             if(disp.abs_squared() <= 0.3f * 0.3f
                     && p.giveBlock(this.data.block, false))
             {
@@ -617,10 +787,11 @@ public class Entity implements GameObject
                     speed = 15.0f;
                 speed = Math.min(disp.abs() / (float)Main.getFrameDuration(),
                                  speed);
-                this.data.velocity = p.getPosition()
-                                      .sub(this.position)
-                                      .normalize()
-                                      .mul(speed);
+                this.data.velocity = Vector.sub(this.data.velocity,
+                                                ppos,
+                                                this.position)
+                                           .normalizeAndSet()
+                                           .mulAndSet(speed);
                 this.data.nearperson = true;
             }
             break;
@@ -632,6 +803,11 @@ public class Entity implements GameObject
         case PrimedTNT:
             break;
         case ThrownBlock:
+            break;
+        case PlaceBlockIfReplaceable:
+            break;
+        case RemoveBlockIfEqual:
+            break;
         }
     }
 
@@ -647,14 +823,18 @@ public class Entity implements GameObject
         return this.type == EntityType.Nothing;
     }
 
+    private Vector explode_t1 = Vector.allocate();
+    private Vector explode_t2 = Vector.allocate();
+
     /** check for moving from an explosion
      * 
      * @param pos
      *            the explosion position
      * @param strength
      *            the explosion strength */
-    public void explode(Vector pos, float strength)
+    public void explode(final Vector pos, final float strength)
     {
+        final float explosionRadius = strength * 2.0f;
         switch(this.type)
         {
         case Last:
@@ -668,14 +848,26 @@ public class Entity implements GameObject
             {
                 return;
             }
-            float actualStrength = strength;
-            actualStrength -= 5 * this.position.sub(pos).abs();
-            if(actualStrength <= 0)
+            final float impact = 3
+                    * (1.0f - Vector.sub(this.explode_t1, this.position, pos)
+                                    .abs() / explosionRadius)
+                    * getBoxExposure(Vector.sub(this.explode_t1,
+                                                this.position,
+                                                0.125f,
+                                                0.125f,
+                                                0.125f),
+                                     Vector.add(this.explode_t2,
+                                                this.position,
+                                                0.125f,
+                                                0.125f,
+                                                0.125f),
+                                     pos);
+            if(impact <= 0)
                 return;
-            Vector dir = this.position.sub(pos)
-                                      .normalize()
-                                      .mul(actualStrength * 10 / TNTStrength);
-            this.data.velocity = this.data.velocity.add(dir);
+            Vector dir = Vector.sub(this.explode_t1, this.position, pos)
+                               .normalizeAndSet()
+                               .mulAndSet(impact * GravityAcceleration);
+            this.data.velocity.addAndSet(dir);
             break;
         }
         case Particle:
@@ -684,23 +876,55 @@ public class Entity implements GameObject
         }
         case FallingBlock:
         {
+            final float impact = 3
+                    * (1.0f - Vector.sub(this.explode_t1, this.position, pos)
+                                    .abs() / explosionRadius)
+                    * getBoxExposure(Vector.sub(this.explode_t1,
+                                                this.position,
+                                                0.125f,
+                                                0.125f,
+                                                0.125f),
+                                     Vector.add(this.explode_t2,
+                                                this.position,
+                                                0.125f,
+                                                0.125f,
+                                                0.125f),
+                                     pos);
+            if(impact <= 0)
+                return;
+            Vector dir = Vector.sub(this.explode_t1, this.position, pos)
+                               .normalizeAndSet()
+                               .mulAndSet(impact * GravityAcceleration);
+            this.data.velocity.addAndSet(dir);
             break;
         }
         case PrimedTNT:
         {
-            float actualStrength = strength;
-            actualStrength -= 5 * this.position.sub(pos)
-                                               .add(new Vector(0.5f))
-                                               .abs();
-            if(actualStrength <= 0)
+            final float impact = 3
+                    * (1.0f - Vector.sub(this.explode_t1, this.position, pos)
+                                    .abs() / explosionRadius)
+                    * getBoxExposure(Vector.sub(this.explode_t1,
+                                                this.position,
+                                                0.125f,
+                                                0.125f,
+                                                0.125f),
+                                     Vector.add(this.explode_t2,
+                                                this.position,
+                                                0.125f,
+                                                0.125f,
+                                                0.125f),
+                                     pos);
+            if(impact <= 0)
                 return;
-            Vector dir = this.position.sub(pos)
-                                      .add(new Vector(0.5f))
-                                      .normalize()
-                                      .mul(actualStrength * 10 / TNTStrength);
-            this.data.velocity = this.data.velocity.add(dir);
+            Vector dir = Vector.sub(this.explode_t1, this.position, pos)
+                               .normalizeAndSet()
+                               .mulAndSet(impact * GravityAcceleration);
+            this.data.velocity.addAndSet(dir);
             break;
         }
+        case PlaceBlockIfReplaceable:
+        case RemoveBlockIfEqual:
+            break;
         }
     }
 
@@ -713,14 +937,16 @@ public class Entity implements GameObject
      * @param velocity
      *            the initial velocity of the created entity
      * @return the new block entity */
-    public static Entity NewBlock(Vector position, Block b, Vector velocity)
+    public static Entity NewBlock(final Vector position,
+                                  final Block b,
+                                  final Vector velocity)
     {
-        Entity retval = new Entity(new Vector(position), EntityType.Block);
+        Entity retval = allocate(position, EntityType.Block);
         retval.data.block = b;
         retval.data.existduration = 0;
         retval.data.phi = 0;
         retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
-        retval.data.velocity = new Vector(velocity);
+        retval.data.velocity = Vector.allocate(velocity);
         retval.data.nearperson = false;
         return retval;
     }
@@ -734,16 +960,16 @@ public class Entity implements GameObject
      * @param velocity
      *            the initial velocity of the created entity
      * @return the new thrown block entity */
-    public static Entity NewThrownBlock(Vector position,
-                                        Block b,
-                                        Vector velocity)
+    public static Entity NewThrownBlock(final Vector position,
+                                        final Block b,
+                                        final Vector velocity)
     {
-        Entity retval = new Entity(new Vector(position), EntityType.ThrownBlock);
+        Entity retval = allocate(position, EntityType.ThrownBlock);
         retval.data.block = b;
         retval.data.existduration = 0;
         retval.data.phi = 0;
         retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
-        retval.data.velocity = new Vector(velocity);
+        retval.data.velocity = Vector.allocate(velocity);
         retval.data.nearperson = false;
         return retval;
     }
@@ -757,12 +983,12 @@ public class Entity implements GameObject
      * @param velocity
      *            the initial velocity of the particle
      * @return the new particle */
-    public static Entity NewParticle(Vector position,
-                                     ParticleType pt,
-                                     Vector velocity)
+    public static Entity NewParticle(final Vector position,
+                                     final ParticleType pt,
+                                     final Vector velocity)
     {
-        Entity retval = new Entity(new Vector(position), EntityType.Particle);
-        retval.data.velocity = new Vector(velocity);
+        Entity retval = allocate(position, EntityType.Particle);
+        retval.data.velocity = Vector.allocate(velocity);
         retval.data.particletype = pt;
         retval.data.phi = World.fRand(-(float)Math.PI / 2, (float)Math.PI / 2);
         retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
@@ -799,12 +1025,11 @@ public class Entity implements GameObject
      * @param b
      *            the block
      * @return the new falling block */
-    public static Entity NewFallingBlock(Vector position, Block b)
+    public static Entity NewFallingBlock(final Vector position, final Block b)
     {
-        Entity retval = new Entity(new Vector(position),
-                                   EntityType.FallingBlock);
+        Entity retval = allocate(position, EntityType.FallingBlock);
         retval.data.block = b;
-        retval.data.velocity = new Vector(0);
+        retval.data.velocity = Vector.allocate(0);
         return retval;
     }
 
@@ -815,15 +1040,46 @@ public class Entity implements GameObject
      * @param timeFactor
      *            the new amount of time scaled to 0-1
      * @return the new primed TNT entity */
-    public static Entity NewPrimedTNT(Vector position, double timeFactor)
+    public static Entity NewPrimedTNT(final Vector position,
+                                      final double timeFactor)
     {
-        Entity retval = new Entity(new Vector(position), EntityType.PrimedTNT);
-        retval.data.velocity = new Vector(0);
+        Entity retval = allocate(position, EntityType.PrimedTNT);
+        retval.data.velocity = Vector.allocate(0);
         retval.data.existduration = timeFactor * 2.5f + 1.5f;
         return retval;
     }
 
-    private void readPhiTheta(DataInput i) throws IOException
+    /** create a new PlaceBlockIfReplaceable
+     * 
+     * @param position
+     *            the position of the PlaceBlockIfReplaceable
+     * @param b
+     *            the block
+     * @return the new PlaceBlockIfReplaceable */
+    public static Entity NewPlaceBlockIfReplaceable(final Vector position,
+                                                    final Block b)
+    {
+        Entity retval = allocate(position, EntityType.PlaceBlockIfReplaceable);
+        retval.data.block = b;
+        return retval;
+    }
+
+    /** create a new RemoveBlockIfEqual
+     * 
+     * @param position
+     *            the position of the RemoveBlockIfEqual
+     * @param b
+     *            the block
+     * @return the new RemoveBlockIfEqual */
+    public static Entity NewRemoveBlockIfEqual(final Vector position,
+                                               final Block b)
+    {
+        Entity retval = allocate(position, EntityType.RemoveBlockIfEqual);
+        retval.data.block = b;
+        return retval;
+    }
+
+    private void readPhiTheta(final DataInput i) throws IOException
     {
         this.data.phi = i.readFloat();
         if(Float.isInfinite(this.data.phi) || Float.isNaN(this.data.phi)
@@ -835,7 +1091,7 @@ public class Entity implements GameObject
             throw new IOException("theta out of range");
     }
 
-    private void internalRead(DataInput i) throws IOException
+    private void internalRead(final DataInput i) throws IOException
     {
         switch(this.type)
         {
@@ -912,6 +1168,12 @@ public class Entity implements GameObject
             this.data.velocity = Vector.read(i);
             return;
         }
+        case PlaceBlockIfReplaceable:
+        case RemoveBlockIfEqual:
+        {
+            this.data.block = Block.read(i);
+            return;
+        }
         }
     }
 
@@ -922,13 +1184,14 @@ public class Entity implements GameObject
      * @return the read <code>Entity</code>
      * @throws IOException
      *             the exception thrown */
-    public static Entity read(DataInput i) throws IOException
+    public static Entity read(final DataInput i) throws IOException
     {
         EntityType type = EntityType.read(i);
         if(type == EntityType.Nothing)
-            return new Entity();
+            return allocate();
         Vector position = Vector.read(i);
-        Entity retval = new Entity(position, type);
+        Entity retval = allocate(position, type);
+        position.free();
         retval.internalRead(i);
         return retval;
     }
@@ -939,7 +1202,7 @@ public class Entity implements GameObject
      *            <code>OutputStream</code> to write to
      * @throws IOException
      *             the exception thrown */
-    public void write(DataOutput o) throws IOException
+    public void write(final DataOutput o) throws IOException
     {
         this.type.write(o);
         if(this.type == EntityType.Nothing)
@@ -997,6 +1260,66 @@ public class Entity implements GameObject
             this.data.velocity.write(o);
             return;
         }
+        case PlaceBlockIfReplaceable:
+        case RemoveBlockIfEqual:
+        {
+            this.data.block.write(o);
         }
+        }
+    }
+
+    private static Vector getBoxExposure_size = Vector.allocate();
+    private static Vector getBoxExposure_t1 = Vector.allocate();
+    private static Vector getBoxExposure_t2 = Vector.allocate();
+    private static Vector getBoxExposure_t3 = Vector.allocate();
+    private static World.BlockHitDescriptor getBoxExposure_t4 = new World.BlockHitDescriptor();
+
+    private float getBoxExposure(final Vector min,
+                                 final Vector max,
+                                 final Vector origin)
+    {
+        int retval = 0, divisor = 0;
+        final int count = 3;
+        Vector size = Vector.sub(getBoxExposure_size, max, min);
+        for(int x = 0; x < count; x++)
+        {
+            float fx = x / (count - 1);
+            for(int y = 0; y < count; y++)
+            {
+                float fy = y / (count - 1);
+                for(int z = 0; z < count; z++)
+                {
+                    float fz = z / (count - 1);
+                    Vector disp = Vector.add(getBoxExposure_t1,
+                                             min,
+                                             Vector.mul(getBoxExposure_t2,
+                                                        size,
+                                                        Vector.set(getBoxExposure_t3,
+                                                                   fx,
+                                                                   fy,
+                                                                   fz)))
+                                        .subAndSet(origin);
+                    float dist = disp.abs();
+                    if(dist <= 0)
+                    {
+                        retval++;
+                    }
+                    else
+                    {
+                        Vector dir = Vector.div(getBoxExposure_t2, disp, dist);
+                        BlockHitDescriptor bhd = world.getPointedAtBlock(getBoxExposure_t4,
+                                                                         origin,
+                                                                         dir,
+                                                                         dist + 1e-3f,
+                                                                         false,
+                                                                         true);
+                        if(!bhd.hitUnloadedChunk && bhd.b != null)
+                            retval++;
+                    }
+                    divisor++;
+                }
+            }
+        }
+        return (float)retval / divisor;
     }
 }

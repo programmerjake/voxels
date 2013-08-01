@@ -16,7 +16,6 @@
  */
 package org.voxels;
 
-import static org.lwjgl.opengl.GL11.*;
 import static org.voxels.Matrix.glLoadMatrix;
 import static org.voxels.PlayerList.players;
 import static org.voxels.Vector.glVertex;
@@ -26,6 +25,7 @@ import java.io.*;
 
 import org.voxels.BlockType.ToolLevel;
 import org.voxels.BlockType.ToolType;
+import org.voxels.platform.Mouse;
 
 /** @author jacob */
 public class Player implements GameObject
@@ -34,33 +34,37 @@ public class Player implements GameObject
 	 * 
 	 */
     public static final float PlayerHeight = 2.0f;
-    private Vector position = new Vector(0.5f, 1.5f, 0.5f);
-    private Vector velocity = new Vector(0);
+    private Vector position = Vector.allocate(0.5f, 1.5f, 0.5f);
+    private Vector velocity = Vector.allocate(0);
     private float viewTheta = 0.0f;
     private float viewPhi = 0.0f;
     private static final float selectionDist = 8.0f;
-    private boolean paused = false, wasPaused = true;
+    private boolean wasPaused = true;
     private int blockCount[] = new int[(Block.CHEST_ROWS + 1)
             * Block.CHEST_COLUMNS];
     private Block blockType[] = new Block[(Block.CHEST_ROWS + 1)
             * Block.CHEST_COLUMNS];
     private int selectionX = 0;
     private boolean isShiftDown = false;
-    private int lastMouseX = -1, lastMouseY = -1;
+    private float lastMouseX = -1, lastMouseY = -1;
     private static final float distLimit = 0.2f;
     private int dragCount = 0;
     private Block dragType = null;
     private float dragX = 0, dragY = 0;
     private int creativeOffset = 0;
+    private float startMouseX = -1, startMouseY = -1;
+    private boolean isDragOperation = false;
+    private boolean isFlying = false, isSneaking = false;
+    private float touchWaitTime = 0.0f;
 
-    private static int getInventoryIndex(int row, int column)
+    private static int getInventoryIndex(final int row, final int column)
     {
         return row * Block.CHEST_COLUMNS + column;
     }
 
     private enum State
     {
-        Normal, Workbench, Chest, Furnace
+        Normal, Workbench, Chest, Furnace, DispenserDropper
     }
 
     private State state = State.Normal;
@@ -85,24 +89,24 @@ public class Player implements GameObject
         Block b;
         int count = 0;
         final int yoffset = World.Depth - 5;
-        this.position.y = -yoffset;
+        this.position.setY(-yoffset);
         for(;;)
         {
-            b = world.getBlockEval((int)Math.floor(this.position.x),
-                                   (int)Math.floor(this.position.y + 1
+            b = world.getBlockEval((int)Math.floor(this.position.getX()),
+                                   (int)Math.floor(this.position.getY() + 1
                                            + yoffset),
-                                   (int)Math.floor(this.position.z));
+                                   (int)Math.floor(this.position.getZ()));
             while(b == null)
             {
-                world.flagGenerate((int)Math.floor(this.position.x),
-                                   (int)Math.floor(this.position.y + 1
+                world.flagGenerate((int)Math.floor(this.position.getX()),
+                                   (int)Math.floor(this.position.getY() + 1
                                            + yoffset),
-                                   (int)Math.floor(this.position.z));
+                                   (int)Math.floor(this.position.getZ()));
                 world.generateChunks();
-                b = world.getBlockEval((int)Math.floor(this.position.x),
-                                       (int)Math.floor(this.position.y + 1
+                b = world.getBlockEval((int)Math.floor(this.position.getX()),
+                                       (int)Math.floor(this.position.getY() + 1
                                                + yoffset),
-                                       (int)Math.floor(this.position.z));
+                                       (int)Math.floor(this.position.getZ()));
                 if(b == null)
                     Thread.yield();
             }
@@ -113,11 +117,11 @@ public class Player implements GameObject
             }
             else
                 count = 0;
-            this.position.y += 1.0f;
+            this.position.setY(this.position.getY() + 1.0f);
         }
     }
 
-    private Player(Vector position)
+    private Player(final Vector position)
     {
         this.position = position;
     }
@@ -130,46 +134,69 @@ public class Player implements GameObject
         return false;
     }
 
-    /** @return true if this player is paused */
-    public boolean isPaused()
-    {
-        return this.paused;
-    }
+    private Matrix getWorldToCamera_retval = new Matrix();
+    private Matrix getWorldToCamera_t1 = new Matrix();
+    private Vector getWorldToCamera_t2 = Vector.allocate();
 
     /** @return the transformation that converts world coordinates to this
      *         player's camera coordinates */
     public Matrix getWorldToCamera()
     {
-        return Matrix.translate(this.position.neg())
-                     .concat(Matrix.rotatey(this.viewTheta))
-                     .concat(Matrix.rotatex(this.viewPhi));
+        return Matrix.setToTranslate(this.getWorldToCamera_retval,
+                                     Vector.neg(this.getWorldToCamera_t2,
+                                                this.position))
+                     .concatAndSet(Matrix.setToRotateY(this.getWorldToCamera_t1,
+                                                       this.viewTheta))
+                     .concatAndSet(Matrix.setToRotateX(this.getWorldToCamera_t1,
+                                                       this.viewPhi));
     }
+
+    private Vector getForwardVector_retval = Vector.allocate();
+    private Matrix getForwardVector_t1 = new Matrix();
+    private Matrix getForwardVector_t2 = new Matrix();
 
     /** @return the vector pointing in the direction this player is looking */
     public Vector getForwardVector()
     {
-        return Matrix.rotatex(-this.viewPhi)
-                     .concat(Matrix.rotatey(-this.viewTheta))
-                     .apply(new Vector(0.0f, 0.0f, -1.0f));
+        return Matrix.setToRotateX(this.getForwardVector_t1, -this.viewPhi)
+                     .concatAndSet(Matrix.setToRotateY(this.getForwardVector_t2,
+                                                       -this.viewTheta))
+                     .apply(this.getForwardVector_retval,
+                            Vector.set(this.getForwardVector_retval,
+                                       0.0f,
+                                       0.0f,
+                                       -1.0f));
     }
+
+    private Vector getMoveForwardVector_retval = Vector.allocate();
+    private Matrix getMoveForwardVector_t1 = new Matrix();
 
     /** @return the vector pointing in the direction this player is facing */
     public Vector getMoveForwardVector()
     {
-        return Matrix.rotatey(-this.viewTheta).apply(new Vector(0.0f,
-                                                                0.0f,
-                                                                -1.0f));
+        return Matrix.setToRotateY(this.getMoveForwardVector_t1,
+                                   -this.viewTheta)
+                     .apply(this.getMoveForwardVector_retval,
+                            Vector.set(this.getMoveForwardVector_retval,
+                                       0.0f,
+                                       0.0f,
+                                       -1.0f));
     }
+
+    private static Vector getPosition_retval = Vector.allocate();
 
     /** @return this player's position */
     public Vector getPosition()
     {
-        return this.position;
+        return getPosition_retval.set(this.position);
     }
+
+    private World.BlockHitDescriptor getSelectedBlock_t1 = new World.BlockHitDescriptor();
 
     private Block getSelectedBlock()
     {
-        World.BlockHitDescriptor bhd = world.getPointedAtBlock(getWorldToCamera(),
+        World.BlockHitDescriptor bhd = world.getPointedAtBlock(this.getSelectedBlock_t1,
+                                                               getWorldToCamera(),
                                                                selectionDist,
                                                                this.isShiftDown);
         this.blockX = bhd.x;
@@ -179,50 +206,50 @@ public class Player implements GameObject
         return bhd.b;
     }
 
-    private void internalDrawSelectedBlockH(float minX,
-                                            float maxX,
-                                            float minY,
-                                            float maxY,
-                                            float minZ,
-                                            float maxZ)
+    private void internalDrawSelectedBlockH(final float minX,
+                                            final float maxX,
+                                            final float minY,
+                                            final float maxY,
+                                            final float minZ,
+                                            final float maxZ)
     {
-        glVertex3f(minX, minY, minZ);
-        glVertex3f(maxX, minY, minZ);
-        glVertex3f(minX, minY, minZ);
-        glVertex3f(minX, maxY, minZ);
-        glVertex3f(maxX, maxY, minZ);
-        glVertex3f(maxX, minY, minZ);
-        glVertex3f(maxX, maxY, minZ);
-        glVertex3f(minX, maxY, minZ);
-        glVertex3f(minX, minY, maxZ);
-        glVertex3f(maxX, minY, maxZ);
-        glVertex3f(minX, minY, maxZ);
-        glVertex3f(minX, maxY, maxZ);
-        glVertex3f(maxX, maxY, maxZ);
-        glVertex3f(maxX, minY, maxZ);
-        glVertex3f(maxX, maxY, maxZ);
-        glVertex3f(minX, maxY, maxZ);
-        glVertex3f(minX, minY, minZ);
-        glVertex3f(minX, minY, maxZ);
-        glVertex3f(maxX, minY, minZ);
-        glVertex3f(maxX, minY, maxZ);
-        glVertex3f(maxX, maxY, minZ);
-        glVertex3f(maxX, maxY, maxZ);
-        glVertex3f(minX, maxY, minZ);
-        glVertex3f(minX, maxY, maxZ);
+        Main.opengl.glVertex3f(minX, minY, minZ);
+        Main.opengl.glVertex3f(maxX, minY, minZ);
+        Main.opengl.glVertex3f(minX, minY, minZ);
+        Main.opengl.glVertex3f(minX, maxY, minZ);
+        Main.opengl.glVertex3f(maxX, maxY, minZ);
+        Main.opengl.glVertex3f(maxX, minY, minZ);
+        Main.opengl.glVertex3f(maxX, maxY, minZ);
+        Main.opengl.glVertex3f(minX, maxY, minZ);
+        Main.opengl.glVertex3f(minX, minY, maxZ);
+        Main.opengl.glVertex3f(maxX, minY, maxZ);
+        Main.opengl.glVertex3f(minX, minY, maxZ);
+        Main.opengl.glVertex3f(minX, maxY, maxZ);
+        Main.opengl.glVertex3f(maxX, maxY, maxZ);
+        Main.opengl.glVertex3f(maxX, minY, maxZ);
+        Main.opengl.glVertex3f(maxX, maxY, maxZ);
+        Main.opengl.glVertex3f(minX, maxY, maxZ);
+        Main.opengl.glVertex3f(minX, minY, minZ);
+        Main.opengl.glVertex3f(minX, minY, maxZ);
+        Main.opengl.glVertex3f(maxX, minY, minZ);
+        Main.opengl.glVertex3f(maxX, minY, maxZ);
+        Main.opengl.glVertex3f(maxX, maxY, minZ);
+        Main.opengl.glVertex3f(maxX, maxY, maxZ);
+        Main.opengl.glVertex3f(minX, maxY, minZ);
+        Main.opengl.glVertex3f(minX, maxY, maxZ);
     }
 
-    void internalDrawSelectedBlock(float minX,
-                                   float maxX,
-                                   float minY,
-                                   float maxY,
-                                   float minZ,
-                                   float maxZ)
+    void internalDrawSelectedBlock(final float minX,
+                                   final float maxX,
+                                   final float minY,
+                                   final float maxY,
+                                   final float minZ,
+                                   final float maxZ)
     {
         final float selectionExpand = 0.05f;
-        glColor4f(0.75f, 0.75f, 0.75f, 0);
+        Main.opengl.glColor4f(0.75f, 0.75f, 0.75f, 0);
         Image.unselectTexture();
-        glBegin(GL_LINES);
+        Main.opengl.glBegin(Main.opengl.GL_LINES());
         for(int dx = -1; dx <= 1; dx += 2)
             for(int dy = -1; dy <= 1; dy += 2)
                 for(int dz = -1; dz <= 1; dz += 2)
@@ -232,17 +259,20 @@ public class Player implements GameObject
                                                maxY + selectionExpand * dy,
                                                minZ - selectionExpand * dz,
                                                maxZ + selectionExpand * dz);
-        glEnd();
+        Main.opengl.glEnd();
     }
 
-    private void drawBlockSelection(Matrix world2Camera, int x, int y, int z)
+    private void drawBlockSelection(final Matrix world2Camera,
+                                    final int x,
+                                    final int y,
+                                    final int z)
     {
-        glMatrixMode(GL_MODELVIEW);
-        glPushMatrix();
+        Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+        Main.opengl.glPushMatrix();
         glLoadMatrix(world2Camera);
         internalDrawSelectedBlock(x, x + 1, y, y + 1, z, z + 1);
-        glMatrixMode(GL_MODELVIEW);
-        glPopMatrix();
+        Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+        Main.opengl.glPopMatrix();
     }
 
     private static Image workbenchImg = new Image("workbench.png");
@@ -251,6 +281,7 @@ public class Player implements GameObject
     private static Image chestImg = new Image("chestedit.png");
     private static Image furnaceImg = new Image("furnace.png");
     private static Image hotbarBoxImg = new Image("hotbarbox.png");
+    private static Image dispenserDropperImg = new Image("dispenserdropper.png");
     private static final float workbenchZDist = -1.0f;
     private static final float simScreenHeight = 240f;
     private static final int dialogW = 170, dialogH = 151,
@@ -271,52 +302,238 @@ public class Player implements GameObject
     private static final int furnaceSrcLeft = 59, furnaceSrcBottom = 255 - 132;
     private static final int furnaceDestLeft = 101,
             furnaceDestBottom = 255 - 146;
+    private static final float touchButtonWidth = 0.25f,
+            touchButtonHeight = 0.25f;
+    private static final int dispenserDropperLeft = 59,
+            dispenserDropperBottom = 255 - 166;
 
-    private void drawCenteredText(String str, float xCenter, float bottom)
+    private float getPlaceButtonLeft()
+    {
+        return Main.aspectRatio() - touchButtonWidth;
+    }
+
+    private float getPlaceButtonBottom()
+    {
+        return -touchButtonHeight / 2;
+    }
+
+    private float getReturnButtonLeft()
+    {
+        return Main.aspectRatio() - touchButtonWidth;
+    }
+
+    private float getReturnButtonBottom()
+    {
+        return -touchButtonHeight / 2;
+    }
+
+    private float getPauseButtonLeft()
+    {
+        return Main.aspectRatio() - touchButtonWidth;
+    }
+
+    private float getPauseButtonBottom()
+    {
+        return 1.0f - touchButtonHeight;
+    }
+
+    private float getInventoryButtonLeft()
+    {
+        return Main.aspectRatio() - touchButtonWidth;
+    }
+
+    private float getInventoryButtonBottom()
+    {
+        return -1.0f;
+    }
+
+    private float getMoveLeftButtonLeft()
+    {
+        return -Main.aspectRatio();
+    }
+
+    private float getMoveLeftButtonBottom()
+    {
+        return -touchButtonHeight / 2;
+    }
+
+    private float getMoveUpButtonLeft()
+    {
+        return -Main.aspectRatio() + touchButtonWidth;
+    }
+
+    private float getMoveUpButtonBottom()
+    {
+        return -touchButtonHeight / 2 + touchButtonHeight;
+    }
+
+    private float getMoveDownButtonLeft()
+    {
+        return -Main.aspectRatio() + touchButtonWidth;
+    }
+
+    private float getMoveDownButtonBottom()
+    {
+        return -touchButtonHeight / 2 - touchButtonHeight;
+    }
+
+    private float getMoveRightButtonLeft()
+    {
+        return -Main.aspectRatio() + touchButtonWidth * 2;
+    }
+
+    private float getMoveRightButtonBottom()
+    {
+        return -touchButtonHeight / 2;
+    }
+
+    private float getJumpButtonLeft()
+    {
+        return -Main.aspectRatio() + touchButtonWidth;
+    }
+
+    private float getJumpButtonBottom()
+    {
+        return -touchButtonHeight / 2;
+    }
+
+    private float getFlyButtonLeft()
+    {
+        return -Main.aspectRatio();
+    }
+
+    private float getFlyButtonBottom()
+    {
+        return 1.0f - touchButtonHeight;
+    }
+
+    private float getSneakButtonLeft()
+    {
+        return -Main.aspectRatio();
+    }
+
+    private float getSneakButtonBottom()
+    {
+        return -1.0f;
+    }
+
+    private static Matrix drawButton_t1 = new Matrix();
+    private static Matrix drawButton_t2 = new Matrix();
+
+    private void drawButton(final String text,
+                            final float left,
+                            final float bottom,
+                            final boolean selected)
+    {
+        Image.unselectTexture();
+        final float scaleFactor = 1.5f;
+        final float right = left + touchButtonWidth, top = bottom
+                + touchButtonHeight;
+        if(selected)
+            Main.opengl.glColor4f(0f, 0f, 1.0f, 0.0f);
+        else
+            Main.opengl.glColor4f(0.75f, 0.75f, 0.75f, 0.0f);
+        Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+        Main.opengl.glVertex3f(left * scaleFactor,
+                               bottom * scaleFactor,
+                               -scaleFactor);
+        Main.opengl.glVertex3f(right * scaleFactor,
+                               bottom * scaleFactor,
+                               -scaleFactor);
+        Main.opengl.glVertex3f(right * scaleFactor,
+                               top * scaleFactor,
+                               -scaleFactor);
+        Main.opengl.glVertex3f(right * scaleFactor,
+                               top * scaleFactor,
+                               -scaleFactor);
+        Main.opengl.glVertex3f(left * scaleFactor,
+                               top * scaleFactor,
+                               -scaleFactor);
+        Main.opengl.glVertex3f(left * scaleFactor,
+                               bottom * scaleFactor,
+                               -scaleFactor);
+        Main.opengl.glEnd();
+        final float textScale = 0.5f;
+        Matrix textTransform = Matrix.setToScale(drawButton_t1,
+                                                 2.0f * Text.sizeH("A")
+                                                         / simScreenHeight
+                                                         * textScale)
+                                     .concatAndSet(Matrix.setToTranslate(drawButton_t2,
+                                                                         (left + right)
+                                                                                 / 2.0f
+                                                                                 - textScale
+                                                                                 * Text.sizeW(text)
+                                                                                 / simScreenHeight,
+                                                                         (bottom + top)
+                                                                                 / 2.0f
+                                                                                 - textScale
+                                                                                 * Text.sizeH(text)
+                                                                                 / simScreenHeight,
+                                                                         -1.0f));
+        Text.draw(textTransform, Color.V(0.0f), text);
+    }
+
+    private static Matrix drawCenteredText_t1 = new Matrix();
+    private static Matrix drawCenteredText_t2 = new Matrix();
+
+    private void drawCenteredText(final String str,
+                                  final float xCenter,
+                                  final float bottom)
     {
         if(str.length() <= 0)
             return;
         final Matrix imgMat = getImageMat();
-        Matrix textTransform = Matrix.scale(Text.sizeH("A"))
-                                     .concat(Matrix.translate(xCenter
-                                                                      - Text.sizeW(str)
-                                                                      / 2.0f,
-                                                              bottom,
-                                                              0))
-                                     .concat(imgMat)
-                                     .concat(Matrix.scale(0.7f));
+        Matrix textTransform = Matrix.setToScale(drawCenteredText_t1,
+                                                 Text.sizeH("A"))
+                                     .concatAndSet(Matrix.setToTranslate(drawCenteredText_t2,
+                                                                         xCenter
+                                                                                 - Text.sizeW(str)
+                                                                                 / 2.0f,
+                                                                         bottom,
+                                                                         0))
+                                     .concatAndSet(imgMat)
+                                     .concatAndSet(Matrix.setToScale(drawCenteredText_t2,
+                                                                     0.7f));
         Text.draw(textTransform, str);
     }
 
-    private void drawCell(Block b,
-                          int count,
-                          float cellLeft,
-                          float cellBottom,
-                          boolean drawIfEmpty)
+    private static Matrix drawCell_t1 = new Matrix();
+    private static Matrix drawCell_t2 = new Matrix();
+
+    private void drawCell(final Block b,
+                          final int count,
+                          final float cellLeft,
+                          final float cellBottom,
+                          final boolean drawIfEmpty)
     {
         if(count <= 0 && !drawIfEmpty)
             return;
         final Matrix imgMat = getImageMat();
         if(b != null)
         {
-            Matrix blockTransform = Matrix.scale(16f)
-                                          .concat(Matrix.translate(cellLeft,
-                                                                   cellBottom,
-                                                                   0))
-                                          .concat(imgMat);
-            b.drawAsItem(new RenderingStream(), blockTransform).render();
+            Matrix blockTransform = Matrix.setToScale(drawCell_t1, 16f)
+                                          .concatAndSet(Matrix.setToTranslate(drawCell_t2,
+                                                                              cellLeft,
+                                                                              cellBottom,
+                                                                              0))
+                                          .concatAndSet(imgMat);
+            RenderingStream.free(b.drawAsItem(RenderingStream.allocate(),
+                                              blockTransform).render());
         }
         if(count > 1 || drawIfEmpty)
         {
             String str = Integer.toString(count);
-            Matrix textTransform = Matrix.scale(Text.sizeH("A"))
-                                         .concat(Matrix.translate(cellLeft
-                                                                          + 16
-                                                                          - Text.sizeW(str),
-                                                                  cellBottom,
-                                                                  0))
-                                         .concat(imgMat)
-                                         .concat(Matrix.scale(0.7f));
+            Matrix textTransform = Matrix.setToScale(drawCell_t1,
+                                                     Text.sizeH("A"))
+                                         .concatAndSet(Matrix.setToTranslate(drawCell_t2,
+                                                                             cellLeft
+                                                                                     + 16
+                                                                                     - Text.sizeW(str),
+                                                                             cellBottom,
+                                                                             0))
+                                         .concatAndSet(imgMat)
+                                         .concatAndSet(Matrix.setToScale(drawCell_t2,
+                                                                         0.7f));
             Text.draw(textTransform, str);
         }
     }
@@ -372,13 +589,67 @@ public class Player implements GameObject
         return 255 - 148;
     }
 
-    private Matrix getImageMat()
+    private static Matrix getImageMat_retval = new Matrix();
+    private static Matrix getImageMat_t1 = new Matrix();
+
+    private static Matrix getImageMatInternal()
     {
         final float imgW = dialogW / simScreenHeight, imgH = dialogH
                 / simScreenHeight;
-        return Matrix.scale(2f / simScreenHeight)
-                     .concat(Matrix.translate(-imgW, -imgH, workbenchZDist));
+        return Matrix.setToScale(getImageMat_retval, 2f / simScreenHeight)
+                     .concatAndSet(Matrix.setToTranslate(getImageMat_t1,
+                                                         -imgW,
+                                                         -imgH,
+                                                         workbenchZDist));
     }
+
+    private static final Matrix imageMat = getImageMatInternal().getImmutable();
+
+    private static Matrix getImageMat()
+    {
+        return imageMat;
+    }
+
+    /** @param index
+     *            the index */
+    private float getHotbarLeft(final int index)
+    {
+        final float height = 2f * 20f / simScreenHeight;
+        final float width = height, left = (index - Block.CHEST_COLUMNS / 2f)
+                * width;
+        return left;
+    }
+
+    /** @param index
+     *            the index */
+    private float getHotbarBottom(final int index)
+    {
+        final float height = 2f * 20f / simScreenHeight;
+        final float top = -0.80f, bottom = top - height;
+        return bottom;
+    }
+
+    /** @param index
+     *            the index */
+    private float getHotbarRight(final int index)
+    {
+        final float height = 2f * 20f / simScreenHeight;
+        final float width = height, left = (index - Block.CHEST_COLUMNS / 2f)
+                * width, right = left + width;
+        return right;
+    }
+
+    /** @param index
+     *            the index */
+    private float getHotbarTop(final int index)
+    {
+        final float top = -0.80f;
+        return top;
+    }
+
+    private static Matrix drawAll_t1 = new Matrix();
+    private static Matrix drawAll_t2 = new Matrix();
+    private static Vector drawAll_t3 = Vector.allocate();
 
     /** draw everything from this player's perspective */
     public void drawAll()
@@ -390,8 +661,8 @@ public class Player implements GameObject
                     + "\n");
         }
         Matrix worldToCamera = getWorldToCamera();
-        RenderingStream rs = new RenderingStream();
-        RenderingStream trs = new RenderingStream();
+        RenderingStream rs = RenderingStream.allocate();
+        RenderingStream trs = RenderingStream.allocate();
         players.drawPlayers(rs, worldToCamera);
         if(this.state == State.Normal)
         {
@@ -400,8 +671,11 @@ public class Player implements GameObject
             {
                 b = Block.NewDeleteAnim(this.deleteAnimTime);
                 b.draw(trs,
-                       Matrix.translate(this.blockX, this.blockY, this.blockZ)
-                             .concat(worldToCamera));
+                       Matrix.setToTranslate(drawAll_t1,
+                                             this.blockX,
+                                             this.blockY,
+                                             this.blockZ)
+                             .concatAndSet(worldToCamera));
             }
         }
         world.draw(rs, trs, worldToCamera); // must call draw world first
@@ -414,72 +688,83 @@ public class Player implements GameObject
                                    this.blockY,
                                    this.blockZ);
         }
-        glClear(GL_DEPTH_BUFFER_BIT);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
+        Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
+        Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+        Main.opengl.glLoadIdentity();
         Image.unselectTexture();
-        glColor4f(1, 1, 1, 0);
-        glBegin(GL_LINES);
-        glVertex3f(-1, 0, -100);
-        glVertex3f(1, 0, -100);
-        glVertex3f(1, 0, -100);
-        glVertex3f(-1, 0, -100);
-        glVertex3f(0, -1, -100);
-        glVertex3f(0, 1, -100);
-        glVertex3f(0, 1, -100);
-        glVertex3f(0, -1, -100);
-        glEnd();
-        RenderingStream hotbarRS = new RenderingStream();
+        Main.opengl.glColor4f(1, 1, 1, 0);
+        Main.opengl.glBegin(Main.opengl.GL_LINES());
+        Main.opengl.glVertex3f(-1, 0, -100);
+        Main.opengl.glVertex3f(1, 0, -100);
+        Main.opengl.glVertex3f(1, 0, -100);
+        Main.opengl.glVertex3f(-1, 0, -100);
+        Main.opengl.glVertex3f(0, -1, -100);
+        Main.opengl.glVertex3f(0, 1, -100);
+        Main.opengl.glVertex3f(0, 1, -100);
+        Main.opengl.glVertex3f(0, -1, -100);
+        Main.opengl.glEnd();
+        RenderingStream hotbarRS = RenderingStream.allocate();
         hotbarBoxImg.selectTexture();
-        glBegin(GL_QUADS);
+        Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
         final float blockHeight = 2f * 16f / simScreenHeight;
         for(int i = 0; i < Block.CHEST_COLUMNS; i++)
         {
             final float zDist = -1f;
             final float maxU = 20f / 32f, maxV = 20f / 32f;
-            final float height = 2f * 20f / simScreenHeight;
-            final float top = -0.80f, bottom = top - height;
-            final float width = height, left = (i - Block.CHEST_COLUMNS / 2f)
-                    * width, right = left + width;
+            final float left = getHotbarLeft(i);
+            final float right = getHotbarRight(i);
+            final float top = getHotbarTop(i);
+            final float bottom = getHotbarBottom(i);
+            final float height = top - bottom;
+            final float width = right - left;
             if(i == this.selectionX)
-                glColor4f(0, 1, 0, 1);
+                Main.opengl.glColor4f(0, 1, 0, 1);
             else
-                glColor4f(1, 1, 1, 1);
-            glTexCoord2f(0, 0);
-            glVertex3f(left, bottom, zDist);
-            glTexCoord2f(maxU, 0);
-            glVertex3f(right, bottom, zDist);
-            glTexCoord2f(maxU, maxV);
-            glVertex3f(right, top, zDist);
-            glTexCoord2f(0, maxV);
-            glVertex3f(left, top, zDist);
+                Main.opengl.glColor4f(1, 1, 1, 1);
+            Main.opengl.glTexCoord2f(0, 0);
+            Main.opengl.glVertex3f(left, bottom, zDist);
+            Main.opengl.glTexCoord2f(maxU, 0);
+            Main.opengl.glVertex3f(right, bottom, zDist);
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            Main.opengl.glVertex3f(right, top, zDist);
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            Main.opengl.glVertex3f(right, top, zDist);
+            Main.opengl.glTexCoord2f(0, maxV);
+            Main.opengl.glVertex3f(left, top, zDist);
+            Main.opengl.glTexCoord2f(0, 0);
+            Main.opengl.glVertex3f(left, bottom, zDist);
             if(this.blockCount[getInventoryIndex(Block.CHEST_ROWS, i)] > 0)
             {
-                Matrix tform = Matrix.translate(left + width / 2f, bottom
-                        + height / 2f, -1f);
-                tform = Matrix.scale(blockHeight).concat(tform);
-                tform = Matrix.translate(-0.5f, -0.5f, 0).concat(tform);
+                Matrix tform = Matrix.setToTranslate(drawAll_t1, left + width
+                        / 2f, bottom + height / 2f, -1f);
+                tform = Matrix.setToScale(drawAll_t2, blockHeight)
+                              .concatAndSet(tform);
+                tform = Matrix.setToTranslate(drawAll_t1, -0.5f, -0.5f, 0)
+                              .concatAndSet(tform);
                 this.blockType[getInventoryIndex(Block.CHEST_ROWS, i)].drawAsItem(hotbarRS,
                                                                                   tform);
             }
         }
-        glEnd();
-        glClear(GL_DEPTH_BUFFER_BIT);
+        Main.opengl.glEnd();
+        Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
         hotbarRS.render();
-        glClear(GL_DEPTH_BUFFER_BIT);
+        RenderingStream.free(hotbarRS);
+        Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
         if(this.state != State.Normal)
         {
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
+            Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+            Main.opengl.glLoadIdentity();
             Image.unselectTexture();
-            glColor4f(0.5f, 0.5f, 0.5f, 0.125f);
-            glBegin(GL_QUADS);
-            glVertex3f(-Main.aspectRatio, -1, -1);
-            glVertex3f(Main.aspectRatio, -1, -1);
-            glVertex3f(Main.aspectRatio, 1, -1);
-            glVertex3f(-Main.aspectRatio, 1, -1);
-            glEnd();
-            glClear(GL_DEPTH_BUFFER_BIT);
+            Main.opengl.glColor4f(0.5f, 0.5f, 0.5f, 0.125f);
+            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+            Main.opengl.glVertex3f(-Main.aspectRatio(), -1, -1);
+            Main.opengl.glVertex3f(Main.aspectRatio(), -1, -1);
+            Main.opengl.glVertex3f(Main.aspectRatio(), 1, -1);
+            Main.opengl.glVertex3f(Main.aspectRatio(), 1, -1);
+            Main.opengl.glVertex3f(-Main.aspectRatio(), 1, -1);
+            Main.opengl.glVertex3f(-Main.aspectRatio(), -1, -1);
+            Main.opengl.glEnd();
+            Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
         }
         switch(this.state)
         {
@@ -489,8 +774,8 @@ public class Player implements GameObject
         }
         case Workbench:
         {
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
+            Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+            Main.opengl.glLoadIdentity();
             final int workbenchLeft = getWorkbenchLeft(), workbenchBottom = getWorkbenchBottom(), resultLeft = getWorkbenchResultLeft(), resultBottom = getWorkbenchResultBottom();
             boolean drawCreative = false;
             if(this.workbenchSize == 2)
@@ -508,18 +793,26 @@ public class Player implements GameObject
             final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
                     / dialogTextureSize;
             Matrix imgMat = getImageMat();
-            glColor3f(1, 1, 1);
-            glBegin(GL_QUADS);
-            glTexCoord2f(0, 0);
-            glVertex(imgMat.apply(new Vector(0, 0, 0)));
-            glTexCoord2f(maxU, 0);
-            glVertex(imgMat.apply(new Vector(dialogW, 0, 0)));
-            glTexCoord2f(maxU, maxV);
-            glVertex(imgMat.apply(new Vector(dialogW, dialogH, 0)));
-            glTexCoord2f(0, maxV);
-            glVertex(imgMat.apply(new Vector(0, dialogH, 0)));
-            glEnd();
-            glClear(GL_DEPTH_BUFFER_BIT);
+            Main.opengl.glColor3f(1, 1, 1);
+            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, 0, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, 0, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glEnd();
+            Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
             drawInventory();
             if(drawCreative)
             {
@@ -576,24 +869,32 @@ public class Player implements GameObject
         }
         case Chest:
         {
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
+            Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+            Main.opengl.glLoadIdentity();
             chestImg.selectTexture();
             final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
                     / dialogTextureSize;
             Matrix imgMat = getImageMat();
-            glColor3f(1, 1, 1);
-            glBegin(GL_QUADS);
-            glTexCoord2f(0, 0);
-            glVertex(imgMat.apply(new Vector(0, 0, 0)));
-            glTexCoord2f(maxU, 0);
-            glVertex(imgMat.apply(new Vector(dialogW, 0, 0)));
-            glTexCoord2f(maxU, maxV);
-            glVertex(imgMat.apply(new Vector(dialogW, dialogH, 0)));
-            glTexCoord2f(0, maxV);
-            glVertex(imgMat.apply(new Vector(0, dialogH, 0)));
-            glEnd();
-            glClear(GL_DEPTH_BUFFER_BIT);
+            Main.opengl.glColor3f(1, 1, 1);
+            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, 0, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, 0, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glEnd();
+            Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
             drawInventory();
             Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
             if(chest == null || chest.getType() != BlockType.BTChest)
@@ -615,24 +916,32 @@ public class Player implements GameObject
         }
         case Furnace:
         {
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
+            Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+            Main.opengl.glLoadIdentity();
             furnaceImg.selectTexture();
             final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
                     / dialogTextureSize;
             Matrix imgMat = getImageMat();
-            glColor3f(1, 1, 1);
-            glBegin(GL_QUADS);
-            glTexCoord2f(0, 0);
-            glVertex(imgMat.apply(new Vector(0, 0, 0)));
-            glTexCoord2f(maxU, 0);
-            glVertex(imgMat.apply(new Vector(dialogW, 0, 0)));
-            glTexCoord2f(maxU, maxV);
-            glVertex(imgMat.apply(new Vector(dialogW, dialogH, 0)));
-            glTexCoord2f(0, maxV);
-            glVertex(imgMat.apply(new Vector(0, dialogH, 0)));
-            glEnd();
-            glClear(GL_DEPTH_BUFFER_BIT);
+            Main.opengl.glColor3f(1, 1, 1);
+            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, 0, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, 0, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glEnd();
+            Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
             drawInventory();
             Block furnace = world.getBlock(this.blockX,
                                            this.blockY,
@@ -654,8 +963,60 @@ public class Player implements GameObject
                              furnaceFireBottom);
             break;
         }
+        case DispenserDropper:
+        {
+            Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+            Main.opengl.glLoadIdentity();
+            dispenserDropperImg.selectTexture();
+            final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
+                    / dialogTextureSize;
+            Matrix imgMat = getImageMat();
+            Main.opengl.glColor3f(1, 1, 1);
+            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, 0, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, 0, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glEnd();
+            Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
+            drawInventory();
+            Block dispenserDropper = world.getBlock(this.blockX,
+                                                    this.blockY,
+                                                    this.blockZ);
+            if(dispenserDropper == null
+                    || (dispenserDropper.getType() != BlockType.BTDispenser && dispenserDropper.getType() != BlockType.BTDropper))
+                dispenserDropper = Block.NewChest();
+            for(int row = 0; row < Block.DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < Block.DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    int count = dispenserDropper.dispenserDropperGetBlockCount(row,
+                                                                               column);
+                    Block b = dispenserDropper.dispenserDropperGetBlockType(row,
+                                                                            column);
+                    drawCell(b,
+                             count,
+                             dispenserDropperLeft + column * cellSize,
+                             dispenserDropperBottom + row * cellSize,
+                             false);
+                }
+            }
+            break;
         }
-        glClear(GL_DEPTH_BUFFER_BIT);
+        }
+        Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
         if(this.state != State.Normal)
         {
             drawCell(this.dragType,
@@ -664,24 +1025,69 @@ public class Player implements GameObject
                      this.dragY - cellSize / 2f,
                      false);
         }
-        if(this.paused)
+        if(Main.platform.isTouchScreen())
         {
-            glClear(GL_DEPTH_BUFFER_BIT);
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-            Image.unselectTexture();
-            glColor4f(0.5f, 0.5f, 0.5f, 0.125f);
-            glBegin(GL_QUADS);
-            glVertex3f(-1, -1, -1);
-            glVertex3f(1, -1, -1);
-            glVertex3f(1, 1, -1);
-            glVertex3f(-1, 1, -1);
-            glEnd();
+            if(this.state == State.Normal)
+            {
+                drawButton("Place",
+                           getPlaceButtonLeft(),
+                           getPlaceButtonBottom(),
+                           false);
+                drawButton("Inven\ntory",
+                           getInventoryButtonLeft(),
+                           getInventoryButtonBottom(),
+                           false);
+                drawButton("\u25C4",
+                           getMoveLeftButtonLeft(),
+                           getMoveLeftButtonBottom(),
+                           false);
+                drawButton("\u25BA",
+                           getMoveRightButtonLeft(),
+                           getMoveRightButtonBottom(),
+                           false);
+                drawButton("\u25B2",
+                           getMoveUpButtonLeft(),
+                           getMoveUpButtonBottom(),
+                           false);
+                drawButton("\u25BC",
+                           getMoveDownButtonLeft(),
+                           getMoveDownButtonBottom(),
+                           false);
+                drawButton("Jump",
+                           getJumpButtonLeft(),
+                           getJumpButtonBottom(),
+                           false);
+                if(Main.isCreativeMode)
+                {
+                    drawButton("Fly",
+                               getFlyButtonLeft(),
+                               getFlyButtonBottom(),
+                               this.isFlying);
+                }
+                else
+                    this.isFlying = false;
+                drawButton("Sneak",
+                           getSneakButtonLeft(),
+                           getSneakButtonBottom(),
+                           this.isSneaking);
+            }
+            else
+            {
+                drawButton("Close",
+                           getReturnButtonLeft(),
+                           getReturnButtonBottom(),
+                           false);
+            }
+            drawButton("Pause",
+                       getPauseButtonLeft(),
+                       getPauseButtonBottom(),
+                       false);
         }
     }
 
     @Override
-    public RenderingStream draw(RenderingStream rs, Matrix worldToCamera)
+    public RenderingStream draw(final RenderingStream rs,
+                                final Matrix worldToCamera)
     {
         // TODO Auto-generated method stub
         return rs;
@@ -691,13 +1097,14 @@ public class Player implements GameObject
      * 
      * @param pos
      *            the new position */
-    public void setPosition(Vector pos)
+    public void setPosition(final Vector pos)
     {
-        this.position = new Vector(pos);
-        this.velocity = new Vector(0);
+        this.position.set(pos);
+        this.velocity.set(Vector.ZERO);
     }
 
-    private boolean mousePosToSelPosWorkbench(int mouseX, int mouseY)
+    private boolean mousePosToSelPosWorkbench(final float mouseX,
+                                              final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -718,24 +1125,25 @@ public class Player implements GameObject
         return false;
     }
 
-    private float mouseGetSimX(int mouseX)
+    private float mouseGetSimX(final float mouseX)
     {
-        float x = (float)mouseX / Main.ScreenXRes * 2.0f - 1.0f;
-        x *= Main.aspectRatio;
+        float x = mouseX / Main.ScreenXRes() * 2.0f - 1.0f;
+        x *= Main.aspectRatio();
         x += dialogW / simScreenHeight;
         x /= 2f / simScreenHeight;
         return x;
     }
 
-    private float mouseGetSimY(int mouseY)
+    private float mouseGetSimY(final float mouseY)
     {
-        float y = 1.0f - (float)mouseY / Main.ScreenYRes * 2.0f;
+        float y = 1.0f - mouseY / Main.ScreenYRes() * 2.0f;
         y += dialogH / simScreenHeight;
         y /= 2f / simScreenHeight;
         return y;
     }
 
-    private boolean mouseIsInResultWorkbench(int mouseX, int mouseY)
+    private boolean mouseIsInResultWorkbench(final float mouseX,
+                                             final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -748,7 +1156,8 @@ public class Player implements GameObject
         return true;
     }
 
-    private boolean mouseIsInResultFurnace(int mouseX, int mouseY)
+    private boolean mouseIsInResultFurnace(final float mouseX,
+                                           final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -761,7 +1170,8 @@ public class Player implements GameObject
         return true;
     }
 
-    private boolean mouseIsInFireFurnace(int mouseX, int mouseY)
+    private boolean
+        mouseIsInFireFurnace(final float mouseX, final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -772,7 +1182,8 @@ public class Player implements GameObject
         return true;
     }
 
-    private boolean mouseIsInSourceFurnace(int mouseX, int mouseY)
+    private boolean mouseIsInSourceFurnace(final float mouseX,
+                                           final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -785,7 +1196,7 @@ public class Player implements GameObject
         return true;
     }
 
-    private boolean mouseIsInChest(int mouseX, int mouseY)
+    private boolean mouseIsInChest(final float mouseX, final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -799,7 +1210,7 @@ public class Player implements GameObject
         return false;
     }
 
-    private int mouseGetChestRow(int mouseX, int mouseY)
+    private int mouseGetChestRow(final float mouseX, final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -813,7 +1224,7 @@ public class Player implements GameObject
         return -1;
     }
 
-    private int mouseGetChestColumn(int mouseX, int mouseY)
+    private int mouseGetChestColumn(final float mouseX, final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -827,7 +1238,52 @@ public class Player implements GameObject
         return -1;
     }
 
-    private boolean mouseIsInCreative(int mouseX, int mouseY)
+    private boolean mouseIsInDispenserDropper(final float mouseX,
+                                              final float mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= dispenserDropperLeft;
+        y -= dispenserDropperBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.DISPENSER_DROPPER_COLUMNS && y >= 0
+                && y < cellSize * Block.DISPENSER_DROPPER_ROWS)
+            return true;
+        return false;
+    }
+
+    private int mouseGetDispenserDropperRow(final float mouseX,
+                                            final float mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= dispenserDropperLeft;
+        y -= dispenserDropperBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.DISPENSER_DROPPER_COLUMNS && y >= 0
+                && y < cellSize * Block.DISPENSER_DROPPER_ROWS)
+            return (int)Math.floor(y / cellSize);
+        return -1;
+    }
+
+    private int mouseGetDispenserDropperColumn(final float mouseX,
+                                               final float mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= dispenserDropperLeft;
+        y -= dispenserDropperBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.DISPENSER_DROPPER_COLUMNS && y >= 0
+                && y < cellSize * Block.DISPENSER_DROPPER_ROWS)
+            return (int)Math.floor(x / cellSize);
+        return -1;
+    }
+
+    private boolean mouseIsInCreative(final float mouseX, final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -841,7 +1297,7 @@ public class Player implements GameObject
         return false;
     }
 
-    private int mouseGetCreativeY(int mouseX, int mouseY)
+    private int mouseGetCreativeY(final float mouseX, final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -855,7 +1311,7 @@ public class Player implements GameObject
         return -1;
     }
 
-    private int mouseGetCreativeX(int mouseX, int mouseY)
+    private int mouseGetCreativeX(final float mouseX, final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -869,7 +1325,8 @@ public class Player implements GameObject
         return -1;
     }
 
-    private boolean mouseIsInCreativeUpButton(int mouseX, int mouseY)
+    private boolean mouseIsInCreativeUpButton(final float mouseX,
+                                              final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -881,7 +1338,8 @@ public class Player implements GameObject
         return false;
     }
 
-    private boolean mouseIsInCreativeDownButton(int mouseX, int mouseY)
+    private boolean mouseIsInCreativeDownButton(final float mouseX,
+                                                final float mouseY)
     {
         float x = mouseGetSimX(mouseX);
         float y = mouseGetSimY(mouseY);
@@ -893,7 +1351,8 @@ public class Player implements GameObject
         return false;
     }
 
-    private boolean mouseIsInInventoryOrHotbar(int mouseX, int mouseY)
+    private boolean mouseIsInInventoryOrHotbar(final float mouseX,
+                                               final float mouseY)
     {
         float mx = mouseGetSimX(mouseX);
         float my = mouseGetSimY(mouseY);
@@ -915,7 +1374,8 @@ public class Player implements GameObject
         return false;
     }
 
-    private int mouseGetInventoryOrHotbarRow(int mouseX, int mouseY)
+    private int mouseGetInventoryOrHotbarRow(final float mouseX,
+                                             final float mouseY)
     {
         float mx = mouseGetSimX(mouseX);
         float my = mouseGetSimY(mouseY);
@@ -937,7 +1397,8 @@ public class Player implements GameObject
         return -1;
     }
 
-    private int mouseGetInventoryOrHotbarColumn(int mouseX, int mouseY)
+    private int mouseGetInventoryOrHotbarColumn(final float mouseX,
+                                                final float mouseY)
     {
         float mx = mouseGetSimX(mouseX);
         float my = mouseGetSimY(mouseY);
@@ -965,6 +1426,200 @@ public class Player implements GameObject
                                                 this.selectionX)];
     }
 
+    private boolean mouseIsInHotbar(final float mouseX, final float mouseY)
+    {
+        float x = mouseX / Main.ScreenXRes() * 2.0f - 1.0f;
+        x *= Main.aspectRatio();
+        float y = 1.0f - mouseY / Main.ScreenYRes() * 2.0f;
+        for(int i = 0; i < Block.CHEST_COLUMNS; i++)
+        {
+            if(x >= getHotbarLeft(i) && x <= getHotbarRight(i)
+                    && y >= getHotbarBottom(i) && y <= getHotbarTop(i))
+                return true;
+        }
+        return false;
+    }
+
+    private int mouseGetHotbarIndex(final float mouseX, final float mouseY)
+    {
+        float x = mouseX / Main.ScreenXRes() * 2.0f - 1.0f;
+        x *= Main.aspectRatio();
+        float y = 1.0f - mouseY / Main.ScreenYRes() * 2.0f;
+        for(int i = 0; i < Block.CHEST_COLUMNS; i++)
+        {
+            if(x >= getHotbarLeft(i) && x <= getHotbarRight(i)
+                    && y >= getHotbarBottom(i) && y <= getHotbarTop(i))
+                return i;
+        }
+        return -1;
+    }
+
+    private boolean mouseIsInButton(final float mouseX,
+                                    final float mouseY,
+                                    final float left,
+                                    final float bottom)
+    {
+        float x = mouseX / Main.ScreenXRes() * 2.0f - 1.0f;
+        x *= Main.aspectRatio();
+        float y = 1.0f - mouseY / Main.ScreenYRes() * 2.0f;
+        if(x >= left && x <= left + touchButtonWidth && y >= bottom
+                && y <= bottom + touchButtonHeight)
+            return true;
+        return false;
+    }
+
+    private boolean
+        mouseIsInPlaceButton(final float mouseX, final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getPlaceButtonLeft(),
+                               getPlaceButtonBottom());
+    }
+
+    private boolean
+        mouseIsInReturnButton(final float mouseX, final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getReturnButtonLeft(),
+                               getReturnButtonBottom());
+    }
+
+    private boolean
+        mouseIsInPauseButton(final float mouseX, final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getPauseButtonLeft(),
+                               getPauseButtonBottom());
+    }
+
+    private boolean mouseIsInInventoryButton(final float mouseX,
+                                             final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getInventoryButtonLeft(),
+                               getInventoryButtonBottom());
+    }
+
+    private boolean mouseIsInJumpButton(final float mouseX, final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getJumpButtonLeft(),
+                               getJumpButtonBottom());
+    }
+
+    private boolean mouseIsInFlyButton(final float mouseX, final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getFlyButtonLeft(),
+                               getFlyButtonBottom());
+    }
+
+    private boolean mouseIsInMoveDownButton(final float mouseX,
+                                            final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getMoveDownButtonLeft(),
+                               getMoveDownButtonBottom());
+    }
+
+    private boolean
+        mouseIsInMoveUpButton(final float mouseX, final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getMoveUpButtonLeft(),
+                               getMoveUpButtonBottom());
+    }
+
+    private boolean mouseIsInMoveLeftButton(final float mouseX,
+                                            final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getMoveLeftButtonLeft(),
+                               getMoveLeftButtonBottom());
+    }
+
+    private boolean mouseIsInMoveRightButton(final float mouseX,
+                                             final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getMoveRightButtonLeft(),
+                               getMoveRightButtonBottom());
+    }
+
+    private boolean isMoveRightPressed()
+    {
+        if(this.state != State.Normal)
+            return false;
+        if(this.isDragOperation)
+            return false;
+        if(!Main.mouse.isButtonDown(Mouse.BUTTON_LEFT))
+            return false;
+        return mouseIsInMoveRightButton(Main.mouse.getX(), Main.mouse.getY());
+    }
+
+    private boolean isMoveUpPressed()
+    {
+        if(this.state != State.Normal)
+            return false;
+        if(this.isDragOperation)
+            return false;
+        if(!Main.mouse.isButtonDown(Mouse.BUTTON_LEFT))
+            return false;
+        return mouseIsInMoveUpButton(Main.mouse.getX(), Main.mouse.getY());
+    }
+
+    private boolean isMoveLeftPressed()
+    {
+        if(this.state != State.Normal)
+            return false;
+        if(this.isDragOperation)
+            return false;
+        if(!Main.mouse.isButtonDown(Mouse.BUTTON_LEFT))
+            return false;
+        return mouseIsInMoveLeftButton(Main.mouse.getX(), Main.mouse.getY());
+    }
+
+    private boolean isMoveDownPressed()
+    {
+        if(this.state != State.Normal)
+            return false;
+        if(this.isDragOperation)
+            return false;
+        if(!Main.mouse.isButtonDown(Mouse.BUTTON_LEFT))
+            return false;
+        return mouseIsInMoveDownButton(Main.mouse.getX(), Main.mouse.getY());
+    }
+
+    private boolean isJumpPressed()
+    {
+        if(this.state != State.Normal)
+            return false;
+        if(this.isDragOperation)
+            return false;
+        if(!Main.mouse.isButtonDown(Mouse.BUTTON_LEFT))
+            return false;
+        return mouseIsInJumpButton(Main.mouse.getX(), Main.mouse.getY());
+    }
+
+    private boolean
+        mouseIsInSneakButton(final float mouseX, final float mouseY)
+    {
+        return mouseIsInButton(mouseX,
+                               mouseY,
+                               getSneakButtonLeft(),
+                               getSneakButtonBottom());
+    }
+
     /** @author jacob */
     public static enum MouseMoveKind
     {
@@ -989,35 +1644,76 @@ public class Player implements GameObject
      * @param mouseLButton
      *            if the mouse's left button is pressed
      * @return the mouse move kind */
-    public MouseMoveKind handleMouseMove(int mouseX,
-                                         int mouseY,
-                                         boolean mouseLButton)
+    public MouseMoveKind handleMouseMove(final float mouseX,
+                                         final float mouseY,
+                                         final boolean mouseLButton)
     {
-        if(this.paused)
+        if(Main.DEBUG && Main.platform.isTouchScreen())
         {
-            this.wasPaused = true;
-            this.deleteAnimTime = -1;
-            return MouseMoveKind.Normal;
+            float x = mouseX / Main.ScreenXRes() * 2.0f - 1.0f;
+            x *= Main.aspectRatio();
+            float y = 1.0f - mouseY / Main.ScreenYRes() * 2.0f;
+            Main.addToFrameText("X : " + Float.toString(x) + " Y : "
+                    + Float.toString(y) + "\n");
         }
         switch(this.state)
         {
         case Normal:
         {
-            if(this.wasPaused)
+            if(Main.platform.isTouchScreen())
+            {
+                if(mouseLButton)
+                {
+                    if(Math.hypot(mouseX - this.startMouseX, mouseY
+                            - this.startMouseY) > Main.mouse.getDragThreshold())
+                    {
+                        this.isDragOperation = true;
+                    }
+                }
+            }
+            if(this.wasPaused && !Main.platform.isTouchScreen())
             {
                 this.wasPaused = false;
                 this.deleteAnimTime = -1;
                 return MouseMoveKind.GrabbedAndCentered;
             }
             this.wasPaused = false;
-            this.viewPhi += (mouseY - (Main.ScreenYRes / 2)) / 100.0;
-            if(this.viewPhi < -Math.PI / 2)
-                this.viewPhi = -(float)Math.PI / 2;
-            else if(this.viewPhi > Math.PI / 2)
-                this.viewPhi = (float)Math.PI / 2;
-            this.viewTheta += (mouseX - (Main.ScreenXRes / 2)) / 100.0;
-            this.viewTheta %= (float)(Math.PI * 2);
-            if(mouseLButton)
+            if(this.isDragOperation && Main.platform.isTouchScreen())
+            {
+                this.viewPhi -= (mouseY - this.lastMouseY) / 100.0;
+                if(this.viewPhi < -Math.PI / 2)
+                    this.viewPhi = -(float)Math.PI / 2;
+                else if(this.viewPhi > Math.PI / 2)
+                    this.viewPhi = (float)Math.PI / 2;
+                this.viewTheta -= (mouseX - this.lastMouseX) / 100.0;
+                this.viewTheta %= (float)(Math.PI * 2);
+                this.lastMouseX = mouseX;
+                this.lastMouseY = mouseY;
+                this.mouseDownTime = 0;
+                this.deleteAnimTime = -1;
+            }
+            else if(!Main.platform.isTouchScreen())
+            {
+                this.viewPhi += (mouseY - (Main.ScreenYRes() / 2)) / 100.0;
+                if(this.viewPhi < -Math.PI / 2)
+                    this.viewPhi = -(float)Math.PI / 2;
+                else if(this.viewPhi > Math.PI / 2)
+                    this.viewPhi = (float)Math.PI / 2;
+                this.viewTheta += (mouseX - (Main.ScreenXRes() / 2)) / 100.0;
+                this.viewTheta %= (float)(Math.PI * 2);
+            }
+            if(mouseLButton
+                    && ((!this.isDragOperation
+                            && !isMoveUpPressed()
+                            && !isMoveDownPressed()
+                            && !isMoveLeftPressed()
+                            && !isMoveRightPressed()
+                            && !isJumpPressed()
+                            && (!mouseIsInFlyButton(mouseX, mouseY) || !Main.isCreativeMode)
+                            && !mouseIsInSneakButton(mouseX, mouseY)
+                            && !mouseIsInHotbar(mouseX, mouseY)
+                            && !mouseIsInPauseButton(mouseX, mouseY) && !mouseIsInPlaceButton(mouseX,
+                                                                                              mouseY)) || !Main.platform.isTouchScreen()))
             {
                 int x = this.blockX, y = this.blockY, z = this.blockZ;
                 Block b = getSelectedBlock();
@@ -1057,7 +1753,12 @@ public class Player implements GameObject
                     deletePeriod = bdd.digTime;
                 if(deletePeriod < 0.25)
                     deletePeriod = 0.25f;
-                this.mouseDownTime += Main.getFrameDuration();
+                if(Main.platform.isTouchScreen() && this.touchWaitTime > 0)
+                {
+                    this.touchWaitTime -= Main.getFrameDuration();
+                }
+                else
+                    this.mouseDownTime += Main.getFrameDuration();
                 if(b == null || !b.canDig() || !isSameBlock || bdd == null)
                 {
                     this.mouseDownTime = 0;
@@ -1086,7 +1787,23 @@ public class Player implements GameObject
                         curHotbar = takeBlock();
                         curHotbar = new Block(curHotbar);
                         if(curHotbar.toolUseTool())
-                            giveBlock(curHotbar, true);
+                            if(!giveBlock(curHotbar, true))
+                                dropBlock(curHotbar);
+                    }
+                }
+            }
+            if(mouseLButton && mouseIsInHotbar(mouseX, mouseY))
+            {
+                float oldTime = this.mouseDownTime;
+                this.mouseDownTime += Main.getFrameDuration();
+                float newTime = this.mouseDownTime;
+                if(newTime >= 0.5f)
+                {
+                    oldTime = Math.max(0.5f, oldTime);
+                    int throwCount = (int)(Math.ceil(newTime * 3) - Math.ceil(oldTime * 3));
+                    for(int i = 0; i < throwCount; i++)
+                    {
+                        throwBlock(takeBlock());
                     }
                 }
             }
@@ -1135,6 +1852,20 @@ public class Player implements GameObject
             return (this.dragCount > 0) ? MouseMoveKind.Grabbed
                     : MouseMoveKind.Normal;
         }
+        case DispenserDropper:
+        {
+            this.wasPaused = true;
+            this.deleteAnimTime = -1;
+            if(mouseX != this.lastMouseX || mouseY != this.lastMouseY)
+            {
+                this.lastMouseX = mouseX;
+                this.lastMouseY = mouseY;
+                this.dragX = mouseGetSimX(mouseX);
+                this.dragY = mouseGetSimY(mouseY);
+            }
+            return (this.dragCount > 0) ? MouseMoveKind.Grabbed
+                    : MouseMoveKind.Normal;
+        }
         }
         return MouseMoveKind.Normal;
     }
@@ -1151,7 +1882,10 @@ public class Player implements GameObject
     }
 
     // returns the number of block given
-    private int giveBlock(Block b, int count, int row, int column)
+    private int giveBlock(final Block b,
+                          final int count,
+                          final int row,
+                          final int column)
     {
         if(count <= 0)
             return 0;
@@ -1180,9 +1914,11 @@ public class Player implements GameObject
      *            if <code>b</code> should be set as the players currently
      *            selected block
      * @return if the block can be given to this player */
-    public boolean giveBlock(Block b, boolean setCurrentBlock)
+    public boolean giveBlock(final Block b, final boolean setCurrentBlock)
     {
         if(b == null || b.getType() == BlockType.BTEmpty || Main.isCreativeMode)
+            return true;
+        if(giveBlock(b, 1, Block.CHEST_ROWS, this.selectionX) > 0)
             return true;
         for(int row = Block.CHEST_ROWS; row >= 0; row--)
         {
@@ -1216,7 +1952,7 @@ public class Player implements GameObject
         return retval;
     }
 
-    private Block takeBlock(Block type)
+    private Block takeBlock(final Block type)
     {
         if(type == null || type.getType() == BlockType.BTEmpty)
             return null;
@@ -1263,52 +1999,68 @@ public class Player implements GameObject
         }
     }
 
-    private boolean canPlaceBlock(Block selb, int bx, int by, int bz)
+    private static Vector canPlaceBlock_t1 = Vector.allocate();
+
+    private boolean canPlaceBlock(final Block selb,
+                                  final int bx,
+                                  final int by,
+                                  final int bz)
     {
         if(selb == null || this.state != State.Normal
                 || getCurrentHotbarBlock() == null
                 || getCurrentHotbarBlock().isItem())
             return false;
-        if(Math.floor(this.position.x) == bx
-                && Math.floor(this.position.y) == by
-                && Math.floor(this.position.z) == bz
+        if(Math.floor(this.position.getX()) == bx
+                && Math.floor(this.position.getY()) == by
+                && Math.floor(this.position.getZ()) == bz
                 && !getCurrentHotbarBlock().isPlaceableWhileInside())
             return false;
         if(!selb.isReplaceable())
             return false;
-        Vector relpos = this.position.sub(new Vector(bx, by, bz));
+        Vector relpos = Vector.sub(canPlaceBlock_t1, this.position, bx, by, bz);
         if(selb.adjustPlayerPosition(relpos, distLimit) == null)
             return false;
         return true;
     }
 
-    private void internalSetPositionH(Vector pos)
+    private static Vector internalSetPositionH_newpos = Vector.allocate();
+    private static Vector internalSetPositionH_t1 = Vector.allocate();
+    private static Vector internalSetPositionH_bpos = Vector.allocate();
+    private static Vector internalSetPositionH_relpos = Vector.allocate();
+
+    private void internalSetPositionH(final Vector pos)
     {
-        Vector newpos = new Vector(pos);
-        int x = (int)Math.floor(newpos.x), y = (int)Math.floor(newpos.y), z = (int)Math.floor(newpos.z);
+        Vector newpos = Vector.set(internalSetPositionH_newpos, pos);
+        int x = (int)Math.floor(newpos.getX()), y = (int)Math.floor(newpos.getY()), z = (int)Math.floor(newpos.getZ());
         {
             Block b1 = world.getBlockEval(x, y, z);
             Block b2 = world.getBlockEval(x, y - 1, z);
             boolean setPosition = false;
             while(b1 != null
                     && b2 != null
-                    && (b1.adjustPlayerPosition(newpos.sub(new Vector(x, y, z)),
-                                                distLimit) == null || b2.adjustPlayerPosition(newpos.sub(new Vector(x,
-                                                                                                                    y - 1,
-                                                                                                                    z)),
+                    && (b1.adjustPlayerPosition(Vector.sub(internalSetPositionH_t1,
+                                                           newpos,
+                                                           x,
+                                                           y,
+                                                           z),
+                                                distLimit) == null || b2.adjustPlayerPosition(Vector.sub(internalSetPositionH_t1,
+                                                                                                         newpos,
+                                                                                                         x,
+                                                                                                         y - 1,
+                                                                                                         z),
                                                                                               distLimit) == null))
             {
                 y++;
-                newpos.y = y + distLimit + 1e-3f - (PlayerHeight - 1.0f)
-                        + b2.getHeight();
+                newpos.setY(y + distLimit + 1e-3f - (PlayerHeight - 1.0f)
+                        + b2.getHeight());
                 b1 = world.getBlockEval(x, y, z);
                 b2 = world.getBlockEval(x, y - 1, z);
                 setPosition = true;
             }
             if(setPosition)
             {
-                this.position = new Vector(newpos);
-                this.velocity = new Vector(0);
+                this.position.set(newpos);
+                this.velocity.set(Vector.ZERO);
             }
         }
         for(int dx = -1; dx <= 1; dx++)
@@ -1322,12 +2074,15 @@ public class Player implements GameObject
                         Block b = world.getBlock(x + dx, y + dy - i, z + dz);
                         if(b == null)
                             return;
-                        Vector bpos = new Vector(x + dx, y + dy - i, z + dz);
-                        Vector relpos = newpos.sub(bpos);
+                        Vector bpos = Vector.set(internalSetPositionH_bpos, x
+                                + dx, y + dy - i, z + dz);
+                        Vector relpos = Vector.sub(internalSetPositionH_relpos,
+                                                   newpos,
+                                                   bpos);
                         relpos = b.adjustPlayerPosition(relpos, distLimit);
                         if(relpos == null)
                             return;
-                        newpos = relpos.add(bpos);
+                        Vector.add(newpos, relpos, bpos);
                     }
                 }
             }
@@ -1343,12 +2098,15 @@ public class Player implements GameObject
                         Block b = world.getBlock(x + dx, y + dy - i, z + dz);
                         if(b == null)
                             return;
-                        Vector bpos = new Vector(x + dx, y + dy - i, z + dz);
-                        Vector relpos = newpos.sub(bpos);
+                        Vector bpos = Vector.set(internalSetPositionH_bpos, x
+                                + dx, y + dy - i, z + dz);
+                        Vector relpos = Vector.sub(internalSetPositionH_relpos,
+                                                   newpos,
+                                                   bpos);
                         relpos = b.adjustPlayerPosition(relpos, distLimit);
                         if(relpos == null)
                             return;
-                        newpos = relpos.add(bpos);
+                        Vector.add(newpos, relpos, bpos);
                     }
                 }
             }
@@ -1364,32 +2122,54 @@ public class Player implements GameObject
                         Block b = world.getBlock(x + dx, y + dy - i, z + dz);
                         if(b == null)
                             return;
-                        Vector bpos = new Vector(x + dx, y + dy - i, z + dz);
-                        Vector relpos = newpos.sub(bpos);
+                        Vector bpos = Vector.set(internalSetPositionH_bpos, x
+                                + dx, y + dy - i, z + dz);
+                        Vector relpos = Vector.sub(internalSetPositionH_relpos,
+                                                   newpos,
+                                                   bpos);
                         relpos = b.adjustPlayerPosition(relpos, distLimit);
                         if(relpos == null)
                             return;
-                        newpos = relpos.add(bpos);
+                        Vector.add(newpos, relpos, bpos);
                     }
                 }
             }
         }
-        this.position = newpos;
+        this.position.set(newpos);
     }
 
-    private void internalSetPosition(Vector pos)
+    private static Vector internalSetPosition_deltapos = Vector.allocate();
+    private static Vector internalSetPosition_t1 = Vector.allocate();
+
+    private void internalSetPosition(final Vector pos)
     {
-        Vector deltapos = pos.sub(this.position);
+        Vector deltapos = Vector.sub(internalSetPosition_deltapos,
+                                     pos,
+                                     this.position);
         final int count = 100;
-        deltapos = deltapos.mul(1.0f / count);
+        deltapos = deltapos.mulAndSet(1.0f / count);
         for(int i = 0; i < count; i++)
         {
-            internalSetPositionH(this.position.add(deltapos));
+            internalSetPositionH(Vector.add(internalSetPosition_t1,
+                                            this.position,
+                                            deltapos));
         }
     }
 
     private boolean handleInventoryOrHotbarClick(final Main.MouseEvent event)
     {
+        if(!event.isDown && Main.platform.isTouchScreen()
+                && mouseIsInReturnButton(event.mouseX, event.mouseY))
+        {
+            quitToNormal();
+            return true;
+        }
+        if(!event.isDown && mouseIsInPauseButton(event.mouseX, event.mouseY))
+        {
+            Main.needPause = true;
+            quitToNormal();
+            return true;
+        }
         if(!event.isDown || event.button != Main.MouseEvent.LEFT)
             return false;
         if(mouseIsInInventoryOrHotbar(event.mouseX, event.mouseY))
@@ -1440,31 +2220,125 @@ public class Player implements GameObject
                 / CREATIVE_COLUMNS - Block.CHEST_ROWS);
     }
 
-    private void throwBlock(Block b)
+    private static Vector throwBlock_t1 = Vector.allocate();
+
+    private void throwBlock(final Block b)
     {
         if(b == null || b.getType() == BlockType.BTEmpty)
             return;
         world.insertEntity(Entity.NewThrownBlock(this.position,
                                                  b,
-                                                 getForwardVector().mul(5.0f)));
+                                                 Vector.mul(throwBlock_t1,
+                                                            getForwardVector(),
+                                                            8.0f)));
     }
+
+    private void dropBlock(final Block b)
+    {
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return;
+        world.insertEntity(Entity.NewBlock(this.position, b, Vector.ZERO));
+    }
+
+    private Vector handleMouseUpDown_t1 = Vector.allocate();
 
     /** @param event
      *            the event */
     public void handleMouseUpDown(final Main.MouseEvent event)
     {
-        if(this.paused)
+        if(event.button == -1 && event.dWheel == 0)
             return;
         switch(this.state)
         {
         case Normal:
         {
             this.deleteAnimTime = -1;
-            if(event.isDown && event.button == Main.MouseEvent.LEFT)
+            if(Main.platform.isTouchScreen())
+            {
+                if(event.isDown)
+                {
+                    this.startMouseX = event.mouseX;
+                    this.startMouseY = event.mouseY;
+                    this.isDragOperation = false;
+                    this.lastMouseX = event.mouseX;
+                    this.lastMouseY = event.mouseY;
+                    this.mouseDownTime = 0;
+                    this.touchWaitTime = 0.5f;
+                    return;
+                }
+                if(!event.isDown && this.isDragOperation)
+                {
+                    this.mouseDownTime = 0;
+                    this.isDragOperation = false;
+                    return;
+                }
+                if(!event.isDown && mouseIsInHotbar(event.mouseX, event.mouseY)
+                        && !this.isDragOperation)
+                {
+                    this.selectionX = mouseGetHotbarIndex(event.mouseX,
+                                                          event.mouseY);
+                    this.mouseDownTime = 0;
+                    return;
+                }
+                if(!event.isDown
+                        && mouseIsInPauseButton(event.mouseX, event.mouseY)
+                        && !this.isDragOperation)
+                {
+                    Main.needPause = true;
+                    this.mouseDownTime = 0;
+                    return;
+                }
+                if(!event.isDown
+                        && mouseIsInInventoryButton(event.mouseX, event.mouseY)
+                        && !this.isDragOperation)
+                {
+                    this.deleteAnimTime = -1;
+                    this.workbenchSize = 2;
+                    this.state = State.Workbench;
+                    for(int x = 0; x < this.workbenchSize; x++)
+                        for(int y = 0; y < this.workbenchSize; y++)
+                            this.workbench[x + y * this.workbenchSize] = null;
+                    this.lastMouseX = -1;
+                    this.lastMouseY = -1;
+                    this.dragCount = 0;
+                    this.dragType = null;
+                    this.mouseDownTime = 0;
+                    return;
+                }
+                if(!event.isDown
+                        && mouseIsInFlyButton(event.mouseX, event.mouseY)
+                        && !this.isDragOperation && Main.isCreativeMode)
+                {
+                    this.isFlying = !this.isFlying;
+                    this.mouseDownTime = 0;
+                    return;
+                }
+                if(!event.isDown
+                        && mouseIsInSneakButton(event.mouseX, event.mouseY)
+                        && !this.isDragOperation)
+                {
+                    this.isSneaking = !this.isSneaking;
+                    this.mouseDownTime = 0;
+                    return;
+                }
+                if(!event.isDown
+                        && mouseIsInJumpButton(event.mouseX, event.mouseY)
+                        && !this.isDragOperation)
+                {
+                    handleJump();
+                    this.mouseDownTime = 0;
+                    return;
+                }
+            }
+            if(event.isDown && event.button == Main.MouseEvent.LEFT
+                    && !Main.platform.isTouchScreen())
             {
                 this.mouseDownTime = 0;
             }
-            else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
+            else if((!Main.platform.isTouchScreen() && event.isDown && event.button == Main.MouseEvent.RIGHT)
+                    || (Main.platform.isTouchScreen() && !event.isDown
+                            && !this.isDragOperation && mouseIsInPlaceButton(event.mouseX,
+                                                                             event.mouseY)))
             {
                 if(getCurrentHotbarBlock() == null)
                     return;
@@ -1479,8 +2353,8 @@ public class Player implements GameObject
                     {
                         if(oldb.isItemInBucket())
                         {
-                            if(!giveBlock(oldb, false))
-                                throwBlock(oldb);
+                            if(!giveBlock(oldb.getItemInBucket(), false))
+                                dropBlock(oldb.getItemInBucket());
                             newb = new Block();
                             // world.AddModNode(blockX, blockY, blockZ, newb);
                             // TODO finish
@@ -1491,7 +2365,8 @@ public class Player implements GameObject
                             didAnything = true;
                         }
                     }
-                    giveBlock(newb, true);
+                    if(!giveBlock(newb, true))
+                        dropBlock(newb);
                     if(didAnything)
                         return;
                 }
@@ -1542,13 +2417,14 @@ public class Player implements GameObject
                                        this.blockZ,
                                        newb);
                         if(!Main.isCreativeMode && isItemInBucket)
-                            giveBlock(Block.NewBucket(), false);
+                            if(!giveBlock(Block.NewBucket(), false))
+                                dropBlock(Block.NewBucket());
                         Main.play(Main.popAudio);
-                        internalSetPosition(this.position);
+                        internalSetPosition(this.handleMouseUpDown_t1.set(this.position));
                         this.deleteAnimTime = -1;
                         return;
                     }
-                    internalSetPosition(this.position);
+                    internalSetPosition(this.handleMouseUpDown_t1.set(this.position));
                     this.deleteAnimTime = -1;
                 }
                 if(tempBlock != null)
@@ -1564,7 +2440,8 @@ public class Player implements GameObject
             {
                 prevCurBlockType();
             }
-            else if(!event.isDown && event.button == Main.MouseEvent.LEFT)
+            else if(!event.isDown
+                    && ((event.button == Main.MouseEvent.LEFT && !Main.platform.isTouchScreen()) || (Main.platform.isTouchScreen() && !this.isDragOperation)))
             {
                 Block b = getSelectedBlock();
                 boolean didAction = false;
@@ -1591,6 +2468,14 @@ public class Player implements GameObject
                 else if(b != null && b.getType() == BlockType.BTFurnace)
                 {
                     this.state = State.Furnace;
+                    this.dragCount = 0;
+                    this.dragType = null;
+                    didAction = true;
+                }
+                else if(b != null
+                        && (b.getType() == BlockType.BTDispenser || b.getType() == BlockType.BTDropper))
+                {
+                    this.state = State.DispenserDropper;
                     this.dragCount = 0;
                     this.dragType = null;
                     didAction = true;
@@ -1635,6 +2520,16 @@ public class Player implements GameObject
                 else if(b != null && b.getType() == BlockType.BTTNT)
                 {
                     // TODO finish
+                }
+                else if(b != null
+                        && b.getType() == BlockType.BTRedstoneComparator)
+                {
+                    b = new Block(b);
+                    b.redstoneComparatorToggleSubtractMode();
+                    // world.addModNode(blockX, blockY, blockZ, b);
+                    // TODO finish
+                    world.setBlock(this.blockX, this.blockY, this.blockZ, b);
+                    didAction = true;
                 }
                 if(didAction)
                     Main.play(Main.clickAudio);
@@ -1683,6 +2578,11 @@ public class Player implements GameObject
                             }
                             else if(b.equals(this.dragType))
                                 this.dragCount = Block.BLOCK_STACK_SIZE;
+                            else
+                            {
+                                this.dragCount = 0;
+                                this.dragType = null;
+                            }
                         }
                         else if(mouseIsInCreativeUpButton(event.mouseX,
                                                           event.mouseY))
@@ -1758,7 +2658,8 @@ public class Player implements GameObject
                                 || chest.getType() != BlockType.BTChest)
                         {
                             for(int i = 0; i < this.dragCount; i++)
-                                giveBlock(this.dragType, false);
+                                if(!giveBlock(this.dragType, false))
+                                    dropBlock(this.dragType);
                             this.state = State.Normal;
                             return;
                         }
@@ -1836,7 +2737,8 @@ public class Player implements GameObject
                             else
                             {
                                 for(int i = 0; i < this.dragCount; i++)
-                                    giveBlock(this.dragType, false);
+                                    if(!giveBlock(this.dragType, false))
+                                        dropBlock(this.dragType);
                                 this.state = State.Normal;
                                 return;
                             }
@@ -1866,7 +2768,8 @@ public class Player implements GameObject
                             else
                             {
                                 for(int i = 0; i < this.dragCount; i++)
-                                    giveBlock(this.dragType, false);
+                                    if(!giveBlock(this.dragType, false))
+                                        dropBlock(this.dragType);
                                 this.state = State.Normal;
                                 return;
                             }
@@ -1891,7 +2794,8 @@ public class Player implements GameObject
                         else
                         {
                             for(int i = 0; i < this.dragCount; i++)
-                                giveBlock(this.dragType, false);
+                                if(!giveBlock(this.dragType, false))
+                                    dropBlock(this.dragType);
                             this.state = State.Normal;
                             return;
                         }
@@ -1913,36 +2817,137 @@ public class Player implements GameObject
             }
             break;
         }
+        case DispenserDropper:
+        {
+            this.deleteAnimTime = -1;
+            if(!handleInventoryOrHotbarClick(event))
+            {
+                if(event.isDown && event.button == Main.MouseEvent.LEFT)
+                {
+                    if(mouseIsInDispenserDropper(event.mouseX, event.mouseY))
+                    {
+                        int row = mouseGetDispenserDropperRow(event.mouseX,
+                                                              event.mouseY);
+                        int column = mouseGetDispenserDropperColumn(event.mouseX,
+                                                                    event.mouseY);
+                        Block dispenserDropper = world.getBlock(this.blockX,
+                                                                this.blockY,
+                                                                this.blockZ);
+                        if(dispenserDropper == null
+                                || (dispenserDropper.getType() != BlockType.BTDispenser && dispenserDropper.getType() != BlockType.BTDropper))
+                        {
+                            for(int i = 0; i < this.dragCount; i++)
+                                if(!giveBlock(this.dragType, false))
+                                    dropBlock(this.dragType);
+                            this.state = State.Normal;
+                            return;
+                        }
+                        dispenserDropper = new Block(dispenserDropper);
+                        if(this.dragCount <= 0)
+                        {
+                            if(dispenserDropper.dispenserDropperGetBlockCount(row,
+                                                                              column) > 0)
+                            {
+                                this.dragType = dispenserDropper.dispenserDropperGetBlockType(row,
+                                                                                              column);
+                                this.dragCount = dispenserDropper.dispenserDropperRemoveBlocks(this.dragType,
+                                                                                               dispenserDropper.dispenserDropperGetBlockCount(row,
+                                                                                                                                              column),
+                                                                                               row,
+                                                                                               column);
+                                if(this.dragCount <= 0)
+                                    this.dragType = null;
+                            }
+                        }
+                        else if(dispenserDropper.dispenserDropperGetBlockCount(row,
+                                                                               column) <= 0)
+                        {
+                            this.dragCount -= dispenserDropper.dispenserDropperAddBlocks(this.dragType,
+                                                                                         this.dragCount,
+                                                                                         row,
+                                                                                         column);
+                            if(this.dragCount <= 0)
+                                this.dragType = null;
+                        }
+                        else
+                        // pick
+                        // up
+                        // more
+                        // blocks
+                        {
+                            int transferCount = Math.min(dispenserDropper.dispenserDropperGetBlockCount(row,
+                                                                                                        column),
+                                                         Block.BLOCK_STACK_SIZE
+                                                                 - this.dragCount);
+                            transferCount = dispenserDropper.dispenserDropperRemoveBlocks(this.dragType,
+                                                                                          transferCount,
+                                                                                          row,
+                                                                                          column);
+                            this.dragCount += transferCount;
+                        }
+                        // world.addModNode(blockX, blockY, blockZ,
+                        // dispenserDropper);
+                        // TODO finish
+                        world.setBlock(this.blockX,
+                                       this.blockY,
+                                       this.blockZ,
+                                       dispenserDropper);
+                    }
+                }
+                else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
+                {
+                }
+            }
+            break;
+        }
         }
     }
 
+    private static Vector isOnGround_newpos = Vector.allocate();
+    private static Vector isOnGround_t1 = Vector.allocate();
+
     private boolean isOnGround()
     {
-        Vector newpos = this.position.sub(new Vector(0, 0.01f + distLimit, 0));
-        int x = (int)Math.floor(newpos.x), y = (int)Math.floor(newpos.y), z = (int)Math.floor(newpos.z);
+        Vector newpos = Vector.sub(isOnGround_newpos,
+                                   this.position,
+                                   0,
+                                   0.01f + distLimit,
+                                   0);
+        int x = (int)Math.floor(newpos.getX()), y = (int)Math.floor(newpos.getY()), z = (int)Math.floor(newpos.getZ());
         Block b1 = world.getBlockEval(x, y, z);
         Block b2 = world.getBlockEval(x, y - 1, z);
-        if((b1 != null && b1.adjustPlayerPosition(newpos.sub(new Vector(x, y, z)),
-                                                  distLimit) == null)
-                || (b2 != null && b2.adjustPlayerPosition(newpos.sub(new Vector(x,
-                                                                                y - 1,
-                                                                                z)),
+        if((b1 != null && b1.adjustPlayerPosition(Vector.sub(isOnGround_t1,
+                                                             newpos,
+                                                             x,
+                                                             y,
+                                                             z), distLimit) == null)
+                || (b2 != null && b2.adjustPlayerPosition(Vector.sub(isOnGround_t1,
+                                                                     newpos,
+                                                                     x,
+                                                                     y - 1,
+                                                                     z),
                                                           distLimit) == null))
         {
             return true;
         }
         else if(b1 == null || b2 == null)
         {
-            this.velocity = new Vector(0);
+            this.velocity.set(Vector.ZERO);
             return false;
         }
         return false;
     }
 
+    private static Vector isInWater_newpos = Vector.allocate();
+
     private boolean isInWater()
     {
-        Vector newpos = this.position.sub(new Vector(0, 0.01f + distLimit, 0));
-        int x = (int)Math.floor(newpos.x), y = (int)Math.floor(newpos.y), z = (int)Math.floor(newpos.z);
+        Vector newpos = Vector.sub(isInWater_newpos,
+                                   this.position,
+                                   0,
+                                   0.01f + distLimit,
+                                   0);
+        int x = (int)Math.floor(newpos.getX()), y = (int)Math.floor(newpos.getY()), z = (int)Math.floor(newpos.getZ());
         Block b1 = world.getBlockEval(x, y, z);
         Block b2 = world.getBlockEval(x, y - 1, z);
         if(b1 != null && b1.getType() == BlockType.BTWater)
@@ -1952,20 +2957,42 @@ public class Player implements GameObject
         return false;
     }
 
+    private static Vector isInClimbableBlock_newpos = Vector.allocate();
+
     private boolean isInClimbableBlock()
     {
-        Vector newpos = this.position.add(new Vector(0, 0.25f, 0));
-        int x = (int)Math.floor(newpos.x), y = (int)Math.floor(newpos.y), z = (int)Math.floor(newpos.z);
+        Vector newpos = Vector.add(isInClimbableBlock_newpos,
+                                   this.position,
+                                   0,
+                                   0.25f,
+                                   0);
+        int x = (int)Math.floor(newpos.getX()), y = (int)Math.floor(newpos.getY()), z = (int)Math.floor(newpos.getZ());
         Block b = world.getBlockEval(x, y - 1, z);
         if(b != null && b.getType().isClimbable())
             return true;
         return false;
     }
 
+    private void handleJump()
+    {
+        if(isOnGround())
+        {
+            this.velocity.set(0,
+                              1.6f * (float)Math.sqrt(World.GravityAcceleration),
+                              0);
+        }
+    }
+
+    private Vector checkForStandingOnPressurePlate_newpos = Vector.allocate();
+
     private void checkForStandingOnPressurePlate()
     {
-        Vector newpos = this.position.add(new Vector(0, 0.25f, 0));
-        int x = (int)Math.floor(newpos.x), y = (int)Math.floor(newpos.y), z = (int)Math.floor(newpos.z);
+        Vector newpos = Vector.add(this.checkForStandingOnPressurePlate_newpos,
+                                   this.position,
+                                   0,
+                                   0.25f,
+                                   0);
+        int x = (int)Math.floor(newpos.getX()), y = (int)Math.floor(newpos.getY()), z = (int)Math.floor(newpos.getZ());
         Block b = world.getBlockEval(x, y - 1, z);
         if(b != null
                 && (b.getType() == BlockType.BTWoodPressurePlate || b.getType() == BlockType.BTStonePressurePlate))
@@ -1976,89 +3003,97 @@ public class Player implements GameObject
         }
     }
 
+    private static Vector getLadder_newpos = Vector.allocate();
+
     private Block getLadder()
     {
-        Vector newpos = this.position.add(new Vector(0, 0.25f, 0));
-        int x = (int)Math.floor(newpos.x), y = (int)Math.floor(newpos.y), z = (int)Math.floor(newpos.z);
+        Vector newpos = Vector.add(getLadder_newpos, this.position, 0, 0.25f, 0);
+        int x = (int)Math.floor(newpos.getX()), y = (int)Math.floor(newpos.getY()), z = (int)Math.floor(newpos.getZ());
         return world.getBlockEval(x, y - 1, z);
     }
+
+    private static Vector move_acc = Vector.allocate();
+    private static Vector move_newvel = Vector.allocate();
+    private static Vector move_v = Vector.allocate();
+    private static Vector move_startPos = Vector.allocate();
+    private static Vector move_t1 = Vector.allocate();
+    private static Vector move_t2 = Vector.allocate();
+    private static Vector move_pos = Vector.allocate();
+    private static Vector move_forwardVec = Vector.allocate();
+    private static Vector move_newPos = Vector.allocate();
 
     @Override
     public void move()
     {
-        internalSetPosition(this.position);
-        if(this.paused)
-        {
-            this.isShiftDown = false;
-            return;
-        }
+        internalSetPosition(move_t1.set(this.position));
         switch(this.state)
         {
         case Normal:
         {
-            boolean isFlying = Main.isKeyDown(Main.KEY_F)
-                    && Main.isCreativeMode;
+            boolean isFlying = (Main.platform.isTouchScreen() ? this.isFlying
+                    : Main.isKeyDown(Main.KEY_F)) && Main.isCreativeMode;
             boolean inWater = isInWater();
             boolean inClimbableBlock = isInClimbableBlock();
-            Vector origvelocity = new Vector(this.velocity);
+            boolean isSneaking = Main.platform.isTouchScreen() ? this.isSneaking
+                    : Main.isKeyDown(Main.KEY_SHIFT);
             if(isFlying)
             {
                 float newMag = this.velocity.abs() - 15
                         * (float)Main.getFrameDuration();
                 if(newMag <= 0)
-                    this.velocity = new Vector(0);
+                    this.velocity.set(Vector.ZERO);
                 else
-                    this.velocity = this.velocity.normalize().mul(newMag);
+                    this.velocity = this.velocity.normalizeAndSet()
+                                                 .mulAndSet(newMag);
             }
             else if(inWater)
             {
-                Vector acc = this.velocity.mul(-(float)Main.getFrameDuration());
-                Vector newvel = this.velocity.add(acc);
+                Vector acc = Vector.mul(move_acc,
+                                        this.velocity,
+                                        -(float)Main.getFrameDuration());
+                Vector newvel = Vector.add(move_newvel, this.velocity, acc);
                 if(this.velocity.abs_squared() <= acc.abs_squared()
                         || this.velocity.dot(newvel) <= 0
                         || this.velocity.abs_squared() < 1e-4 * 1e-4)
-                    this.velocity = new Vector(0);
+                    this.velocity.set(Vector.ZERO);
                 else
-                    this.velocity = newvel;
+                    this.velocity.set(newvel);
             }
             else if(inClimbableBlock)
             {
-                if(!Main.isKeyDown(Main.KEY_SHIFT))
-                    this.velocity.y = Math.max(-1.5f,
-                                               this.velocity.y
-                                                       - World.GravityAcceleration
-                                                       / 2.0f
-                                                       * (float)Main.getFrameDuration());
+                if(!isSneaking)
+                    this.velocity.setY(Math.max(-1.5f,
+                                                this.velocity.getY()
+                                                        - World.GravityAcceleration
+                                                        / 2.0f
+                                                        * (float)Main.getFrameDuration()));
                 else
-                    this.velocity.y = Math.max(0,
-                                               this.velocity.y
-                                                       - World.GravityAcceleration
-                                                       / 2.0f
-                                                       * (float)Main.getFrameDuration());
+                    this.velocity.setY(Math.max(0,
+                                                this.velocity.getY()
+                                                        - World.GravityAcceleration
+                                                        / 2.0f
+                                                        * (float)Main.getFrameDuration()));
             }
             else
             {
-                this.velocity.y -= World.GravityAcceleration
-                        * (float)Main.getFrameDuration();
+                this.velocity.setY(this.velocity.getY()
+                        - World.GravityAcceleration
+                        * (float)Main.getFrameDuration());
             }
-            Vector v = this.velocity.mul((float)Main.getFrameDuration());
-            if(v.abs() > 1.0f)
+            Vector v = Vector.mul(move_v,
+                                  this.velocity,
+                                  (float)Main.getFrameDuration());
             {
-                v = v.normalize();
-                if(this.velocity.abs_squared() > origvelocity.abs_squared())
-                    this.velocity = origvelocity;
-            }
-            {
-                Vector startPos = new Vector(this.position);
-                internalSetPosition(this.position.add(v));
-                if(startPos.sub(this.position).abs_squared() < 1e-1f * 1e-1f * v.abs_squared())
-                    this.velocity = this.velocity.mul((float)Math.pow(0.03f,
-                                                                      Main.getFrameDuration()));
+                Vector startPos = move_startPos.set(this.position);
+                internalSetPosition(Vector.add(move_t1, this.position, v));
+                if(Vector.sub(move_t1, startPos, this.position).abs_squared() < 1e-1f * 1e-1f * v.abs_squared())
+                    this.velocity = this.velocity.mulAndSet((float)Math.pow(0.03f,
+                                                                            Main.getFrameDuration()));
             }
             if(isOnGround())
             {
                 checkForStandingOnPressurePlate();
-                this.velocity = new Vector(0);
+                this.velocity.set(Vector.ZERO);
             }
             Vector forwardVec;
             if(isFlying)
@@ -2071,63 +3106,80 @@ public class Player implements GameObject
                 Block ladder = getLadder();
                 if(ladder.getType() == BlockType.BTLadder)
                 {
-                    Vector pos = this.position.sub(new Vector((float)Math.floor(this.position.x),
-                                                              0,
-                                                              (float)Math.floor(this.position.z)));
-                    pos.y = 0.5f;
+                    Vector pos = Vector.sub(move_pos,
+                                            this.position,
+                                            (float)Math.floor(this.position.getX()),
+                                            0,
+                                            (float)Math.floor(this.position.getZ()));
+                    pos.setY(0.5f);
                     if(ladder.climbableIsPlayerPushingIntoLadder(pos,
                                                                  forwardVec))
                     {
-                        forwardVec = new Vector(0, 1, 0);
+                        forwardVec = move_forwardVec.set(0, 1, 0);
                     }
                 }
             }
             else
                 forwardVec = getMoveForwardVector();
             boolean isMoving = false;
-            Vector startPos = new Vector(this.position);
-            if(!Main.isKeyDown(Main.KEY_W) || !Main.isKeyDown(Main.KEY_S))
+            Vector startPos = move_startPos.set(this.position);
+            boolean isMovingForward = Main.platform.isTouchScreen() ? isMoveUpPressed()
+                    : Main.isKeyDown(Main.KEY_W);
+            boolean isMovingBackward = Main.platform.isTouchScreen() ? isMoveDownPressed()
+                    : Main.isKeyDown(Main.KEY_S);
+            if(!isMovingForward || !isMovingBackward)
             {
-                if(Main.isKeyDown(Main.KEY_W))
+                if(isMovingForward)
                 {
-                    Vector newPos = this.position.add(forwardVec.mul(3.5f * (float)Main.getFrameDuration()));
-                    internalSetPosition(new Vector(newPos));
+                    Vector newPos = Vector.add(move_newPos,
+                                               this.position,
+                                               Vector.mul(move_t1,
+                                                          forwardVec,
+                                                          3.5f * (float)Main.getFrameDuration()));
+                    internalSetPosition(newPos);
                     if(!this.position.equals(newPos) && inClimbableBlock)
                     {
                         forwardVec = getMoveForwardVector();
                         Block ladder = getLadder();
-                        Vector pos = this.position.sub(new Vector((float)Math.floor(this.position.x),
-                                                                  0,
-                                                                  (float)Math.floor(this.position.z)));
-                        pos.y = 0.5f;
+                        Vector pos = Vector.sub(move_pos,
+                                                this.position,
+                                                (float)Math.floor(this.position.getX()),
+                                                0,
+                                                (float)Math.floor(this.position.getZ()));
+                        pos.setY(0.5f);
                         if(ladder.climbableIsPlayerPushingIntoLadder(pos,
                                                                      forwardVec))
                         {
-                            forwardVec = new Vector(0, 1, 0);
-                            internalSetPosition(this.position.add(forwardVec.mul(3.5f * (float)Main.getFrameDuration())));
+                            forwardVec = move_forwardVec.set(0, 1, 0);
+                            internalSetPosition(Vector.add(move_t1,
+                                                           this.position,
+                                                           Vector.mul(move_t2,
+                                                                      forwardVec,
+                                                                      3.5f * (float)Main.getFrameDuration())));
                         }
                     }
                     isMoving = !startPos.equals(this.position);
                 }
-                if(Main.isKeyDown(Main.KEY_S))
+                if(isMovingBackward)
                 {
-                    internalSetPosition(this.position.sub(forwardVec.mul(3.5f * (float)Main.getFrameDuration())));
+                    internalSetPosition(Vector.sub(move_t1,
+                                                   this.position,
+                                                   Vector.mul(move_t2,
+                                                              forwardVec,
+                                                              3.5f * (float)Main.getFrameDuration())));
                     isMoving = !startPos.equals(this.position);
                 }
             }
             if(!isFlying && inWater && !isMoving)
             {
-                this.velocity.y -= World.GravityAcceleration
-                        * (float)Main.getFrameDuration() * 0.25f;
+                this.velocity.setY(this.velocity.getY()
+                        - World.GravityAcceleration
+                        * (float)Main.getFrameDuration() * 0.25f);
             }
-            if(Main.isKeyDown(Main.KEY_SPACE))
+            if(Main.platform.isTouchScreen() ? isJumpPressed()
+                    : Main.isKeyDown(Main.KEY_SPACE))
             {
-                if(isOnGround())
-                {
-                    this.velocity = new Vector(0,
-                                               1.6f * (float)Math.sqrt(World.GravityAcceleration),
-                                               0);
-                }
+                handleJump();
             }
             break;
         }
@@ -2146,16 +3198,12 @@ public class Player implements GameObject
             this.isShiftDown = false;
             break;
         }
+        case DispenserDropper:
+        {
+            this.isShiftDown = false;
+            break;
         }
-    }
-
-    /** @param paused
-     *            if this player should be paused */
-    public void setPaused(boolean paused)
-    {
-        if(this.paused || paused)
-            this.wasPaused = true;
-        this.paused = paused;
+        }
     }
 
     private void quitToNormal()
@@ -2168,7 +3216,8 @@ public class Player implements GameObject
         {
             this.deleteAnimTime = -1;
             for(int i = 0; i < this.dragCount; i++)
-                giveBlock(this.dragType, false);
+                if(!giveBlock(this.dragType, false))
+                    dropBlock(this.dragType);
             this.state = State.Normal;
             for(int x = 0; x < this.workbenchSize; x++)
             {
@@ -2176,7 +3225,9 @@ public class Player implements GameObject
                 {
                     if(this.workbench[x + this.workbenchSize * y] == null)
                         continue;
-                    giveBlock(this.workbench[x + this.workbenchSize * y], false);
+                    if(!giveBlock(this.workbench[x + this.workbenchSize * y],
+                                  false))
+                        dropBlock(this.workbench[x + this.workbenchSize * y]);
                     this.workbench[x + this.workbenchSize * y] = null;
                 }
             }
@@ -2184,10 +3235,12 @@ public class Player implements GameObject
             break;
         }
         case Chest:
+        case DispenserDropper:
         {
             this.deleteAnimTime = -1;
             for(int i = 0; i < this.dragCount; i++)
-                giveBlock(this.dragType, false);
+                if(!giveBlock(this.dragType, false))
+                    dropBlock(this.dragType);
             this.state = State.Normal;
             this.wasPaused = true;
             break;
@@ -2196,7 +3249,8 @@ public class Player implements GameObject
         {
             this.deleteAnimTime = -1;
             for(int i = 0; i < this.dragCount; i++)
-                giveBlock(this.dragType, false);
+                if(!giveBlock(this.dragType, false))
+                    dropBlock(this.dragType);
             this.state = State.Normal;
             this.wasPaused = true;
             break;
@@ -2206,8 +3260,10 @@ public class Player implements GameObject
 
     /** @param event
      *            the event to handle */
-    public void handleKeyboardEvent(Main.KeyboardEvent event)
+    public void handleKeyboardEvent(final Main.KeyboardEvent event)
     {
+        if(Main.platform.isTouchScreen())
+            return;
         if(event.isDown)
         {
             if(event.key == Main.KEY_F2)
@@ -2215,15 +3271,6 @@ public class Player implements GameObject
                 Main.saveAll();
                 return;
             }
-            if(event.key == Main.KEY_P)
-            {
-                setPaused(!this.paused);
-                if(this.paused)
-                    this.wasPaused = true;
-                return;
-            }
-            if(this.paused)
-                return;
             switch(this.state)
             {
             case Normal:
@@ -2255,6 +3302,7 @@ public class Player implements GameObject
                 break;
             }
             case Chest:
+            case DispenserDropper:
             {
                 this.deleteAnimTime = -1;
                 if(event.key == Main.KEY_ESCAPE || event.key == Main.KEY_Q)
@@ -2272,8 +3320,6 @@ public class Player implements GameObject
         }
         else if(!event.isDown)
         {
-            if(this.paused)
-                return;
         }
     }
 
@@ -2283,7 +3329,7 @@ public class Player implements GameObject
      *            <code>OutputStream</code> to write to
      * @throws IOException
      *             the exception thrown */
-    public void write(DataOutput o) throws IOException
+    public void write(final DataOutput o) throws IOException
     {
         this.position.write(o);
         this.velocity.write(o);
@@ -2310,7 +3356,7 @@ public class Player implements GameObject
      * @return the read <code>Player</code>
      * @throws IOException
      *             the exception thrown */
-    public static Player read(DataInput i) throws IOException
+    public static Player read(final DataInput i) throws IOException
     {
         Player retval = new Player(Vector.read(i));
         retval.velocity = Vector.read(i);
@@ -2336,6 +3382,8 @@ public class Player implements GameObject
         return retval;
     }
 
+    private static Vector push_t1 = Vector.allocate();
+
     /** push this player if it's inside of &lt;<code>bx</code>, <code>by</code>,
      * <code>bz</code>&gt; out in the direction &lt;<code>dx</code>,
      * <code>dy</code>, <code>dz</code>&gt;
@@ -2352,15 +3400,20 @@ public class Player implements GameObject
      *            y coordinate of the direction to push
      * @param dz
      *            z coordinate of the direction to push */
-    public void push(int bx, int by, int bz, int dx, int dy, int dz)
+    public void push(final int bx,
+                     final int by,
+                     final int bz,
+                     final int dx,
+                     final int dy,
+                     final int dz)
     {
         boolean doPush = false;
         for(int pdy = -1; pdy <= 0; pdy++)
         {
-            Vector p = this.position.add(new Vector(0, pdy, 0));
-            int x = (int)Math.floor(p.x);
-            int y = (int)Math.floor(p.y);
-            int z = (int)Math.floor(p.z);
+            Vector p = Vector.add(push_t1, this.position, 0, pdy, 0);
+            int x = (int)Math.floor(p.getX());
+            int y = (int)Math.floor(p.getY());
+            int z = (int)Math.floor(p.getZ());
             if(x == bx && y == by && z == bz)
             {
                 doPush = true;
@@ -2369,6 +3422,6 @@ public class Player implements GameObject
         }
         if(!doPush)
             return;
-        internalSetPosition(this.position.add(new Vector(dx, dy, dz)));
+        internalSetPosition(Vector.add(push_t1, this.position, dx, dy, dz));
     }
 }

@@ -56,16 +56,16 @@ public class Block implements GameObject
         {
         }
 
-        public Data(Data rt)
+        public Data(final Data rt)
         {
             this.intdata = rt.intdata;
             this.BlockCounts = rt.BlockCounts;
             this.BlockTypes = null;
             if(this.BlockCounts != null)
             {
-                this.BlockCounts = new int[CHEST_ROWS * CHEST_COLUMNS];
-                this.BlockTypes = new Block[CHEST_ROWS * CHEST_COLUMNS];
-                for(int i = 0; i < CHEST_ROWS * CHEST_COLUMNS; i++)
+                this.BlockCounts = new int[rt.BlockCounts.length];
+                this.BlockTypes = new Block[rt.BlockCounts.length];
+                for(int i = 0; i < rt.BlockCounts.length; i++)
                 {
                     this.BlockCounts[i] = rt.BlockCounts[i];
                     this.BlockTypes[i] = rt.BlockTypes[i];
@@ -85,7 +85,7 @@ public class Block implements GameObject
     private int lighting[] = null;
     private int curSunlightFactor = 0;
 
-    private Block(BlockType newtype)
+    private Block(final BlockType newtype)
     {
         this.type = newtype;
     }
@@ -120,7 +120,7 @@ public class Block implements GameObject
      * 
      * @param rt
      *            block to create a copy of */
-    public Block(Block rt)
+    public Block(final Block rt)
     {
         this.type = rt.type;
         this.data = new Data(rt.data);
@@ -135,7 +135,7 @@ public class Block implements GameObject
      *            the frame to set the block to show. limited from 0 to 7.
      * @return new delete animation
      * @see #NewDeleteAnim(float t) */
-    public static Block NewDeleteBlock(int frame)
+    public static Block NewDeleteBlock(final int frame)
     {
         Block retval = new Block(BlockType.BTDeleteBlock);
         retval.data.intdata = Math.min(Math.max(frame, 0), 7);
@@ -153,7 +153,7 @@ public class Block implements GameObject
      * @param orientation
      *            the orientation of the new button
      * @return new stone button */
-    public static Block NewStoneButton(int ontime, int orientation)
+    public static Block NewStoneButton(final int ontime, final int orientation)
     {
         Block retval = new Block(BlockType.BTStoneButton);
         int neworientation = 4;
@@ -170,7 +170,7 @@ public class Block implements GameObject
      * @param orientation
      *            the orientation of the new button
      * @return new wood button */
-    public static Block NewWoodButton(int ontime, int orientation)
+    public static Block NewWoodButton(final int ontime, final int orientation)
     {
         Block retval = new Block(BlockType.BTWoodButton);
         int neworientation = 4;
@@ -203,10 +203,10 @@ public class Block implements GameObject
      * @param destcount
      *            the number of blocks already smelted
      * @return new furnace */
-    public static Block NewFurnace(int fuelleft,
-                                   Block sourceblock,
-                                   int srccount,
-                                   int destcount)
+    public static Block NewFurnace(final int fuelleft,
+                                   final Block sourceblock,
+                                   final int srccount,
+                                   final int destcount)
     {
         Block retval = new Block(BlockType.BTFurnace);
         retval.data.intdata = fuelleft;
@@ -238,7 +238,7 @@ public class Block implements GameObject
     /** @param treeType
      *            the tree type
      * @return new sapling */
-    public static Block NewSapling(TreeType treeType)
+    public static Block NewSapling(final TreeType treeType)
     {
         Block retval = new Block(BlockType.BTSapling);
         retval.data.intdata = treeType.ordinal();
@@ -268,7 +268,8 @@ public class Block implements GameObject
      *            <li>3 : all sides with bark</li>
      *            </ul>
      * @return new wood block */
-    public static Block NewWood(Tree.TreeType treeType, int orientation)
+    public static Block NewWood(final Tree.TreeType treeType,
+                                final int orientation)
     {
         Block retval = new Block(BlockType.BTWood);
         retval.data.intdata = treeType.ordinal();
@@ -286,7 +287,8 @@ public class Block implements GameObject
      * @param distFromWood
      *            the distance from wood
      * @return new leaves block that can decay */
-    public static Block NewLeaves(Tree.TreeType treeType, int distFromWood)
+    public static Block NewLeaves(final Tree.TreeType treeType,
+                                  final int distFromWood)
     {
         Block retval = new Block(BlockType.BTLeaves);
         retval.data.intdata = treeType.ordinal();
@@ -298,7 +300,7 @@ public class Block implements GameObject
     /** @param treeType
      *            the tree type
      * @return new leaves block that can't decay */
-    public static Block NewLeaves(Tree.TreeType treeType)
+    public static Block NewLeaves(final Tree.TreeType treeType)
     {
         Block retval = new Block(BlockType.BTLeaves);
         retval.data.intdata = treeType.ordinal();
@@ -309,7 +311,7 @@ public class Block implements GameObject
     /** @param treeType
      *            the tree type
      * @return new plank */
-    public static Block NewPlank(Tree.TreeType treeType)
+    public static Block NewPlank(final Tree.TreeType treeType)
     {
         Block retval = new Block(BlockType.BTPlank);
         retval.data.intdata = treeType.ordinal();
@@ -350,7 +352,7 @@ public class Block implements GameObject
      *            <li>8 : lava spring that is supported</li>
      *            </ul>
      * @return new lava block */
-    public static Block NewLava(int amount)
+    public static Block NewLava(final int amount)
     {
         Block retval = new Block(BlockType.BTLava);
         retval.data.intdata = Math.min(8, Math.max(-8, amount));
@@ -360,7 +362,7 @@ public class Block implements GameObject
     /** @return new supported lava spring block */
     public static Block NewStationaryLava()
     {
-        return NewLava(8);
+        return NewLava(-8);
     }
 
     /** @param amount
@@ -373,7 +375,7 @@ public class Block implements GameObject
      *            <li>8 : water spring that is supported</li>
      *            </ul>
      * @return new water block */
-    public static Block NewWater(int amount)
+    public static Block NewWater(final int amount)
     {
         Block retval = new Block(BlockType.BTWater);
         retval.data.intdata = Math.min(8, Math.max(-8, amount));
@@ -383,7 +385,7 @@ public class Block implements GameObject
     /** @return new supported water spring block */
     public static Block NewStationaryWater()
     {
-        return NewWater(8);
+        return NewWater(-8);
     }
 
     /** @return new glass block */
@@ -419,7 +421,7 @@ public class Block implements GameObject
      *            from 0 to 1.
      * @return new delete animation
      * @see #NewDeleteBlock(int amount) */
-    public static Block NewDeleteAnim(float t)
+    public static Block NewDeleteAnim(final float t)
     {
         return NewDeleteBlock((int)Math.floor(Math.max(0.0f, Math.min(1.0f, t)) * 8.0f));
     }
@@ -491,7 +493,7 @@ public class Block implements GameObject
      * @param orientation
      *            the orientation mask of the new block.
      * @return new redstone dust block */
-    public static Block NewRedstoneDust(int power, int orientation)
+    public static Block NewRedstoneDust(final int power, final int orientation)
     {
         int newOrientation = orientation;
         newOrientation &= 0xFF;
@@ -527,7 +529,8 @@ public class Block implements GameObject
      * @param orientation
      *            orientation of the new torch
      * @return new redstone torch */
-    public static Block NewRedstoneTorch(boolean state, int orientation)
+    public static Block NewRedstoneTorch(final boolean state,
+                                         final int orientation)
     {
         int newOrientation = 4;
         if(orientation >= 0 && orientation <= 4)
@@ -541,7 +544,7 @@ public class Block implements GameObject
     /** @param orientation
      *            orientation of the new torch
      * @return new torch */
-    public static Block NewTorch(int orientation)
+    public static Block NewTorch(final int orientation)
     {
         int newOrientation = 4;
         if(orientation >= 0 && orientation <= 4)
@@ -620,7 +623,7 @@ public class Block implements GameObject
     /** @param orientation
      *            orientation of the new ladder
      * @return new ladder */
-    public static Block NewLadder(int orientation)
+    public static Block NewLadder(final int orientation)
     {
         Block retval = new Block(BlockType.BTLadder);
         retval.data.orientation = Math.max(0, Math.min(3, orientation));
@@ -644,10 +647,10 @@ public class Block implements GameObject
      * @param orientation
      *            the orientation
      * @return the new redstone repeater */
-    public static Block NewRedstoneRepeater(boolean value,
-                                            int stepsleft,
-                                            int delay,
-                                            int orientation)
+    public static Block NewRedstoneRepeater(final boolean value,
+                                            final int stepsleft,
+                                            final int delay,
+                                            final int orientation)
     {
         Block retval;
         if(value)
@@ -676,7 +679,7 @@ public class Block implements GameObject
      * @param orientation
      *            the new lever's orientation
      * @return the new lever */
-    public static Block NewLever(boolean value, int orientation)
+    public static Block NewLever(final boolean value, final int orientation)
     {
         Block retval = new Block(BlockType.BTLever);
         retval.data.intdata = value ? 1 : 0;
@@ -695,7 +698,8 @@ public class Block implements GameObject
      * @param extended
      *            if the new piston is extended
      * @return new piston */
-    public static Block NewPiston(int orientation, boolean extended)
+    public static Block
+        NewPiston(final int orientation, final boolean extended)
     {
         Block retval = new Block(BlockType.BTPiston);
         retval.data.orientation = Math.max(0, Math.min(5, orientation));
@@ -709,7 +713,8 @@ public class Block implements GameObject
      * @param extended
      *            if the new sticky piston is extended
      * @return new sticky piston */
-    public static Block NewStickyPiston(int orientation, boolean extended)
+    public static Block NewStickyPiston(final int orientation,
+                                        final boolean extended)
     {
         Block retval = new Block(BlockType.BTStickyPiston);
         retval.data.orientation = Math.max(0, Math.min(5, orientation));
@@ -721,7 +726,7 @@ public class Block implements GameObject
     /** @param orientation
      *            the new piston's head's orientation
      * @return new piston's head */
-    public static Block NewPistonHead(int orientation)
+    public static Block NewPistonHead(final int orientation)
     {
         Block retval = new Block(BlockType.BTPistonHead);
         retval.data.orientation = Math.max(0, Math.min(5, orientation));
@@ -731,7 +736,7 @@ public class Block implements GameObject
     /** @param orientation
      *            the new sticky piston's head's orientation
      * @return new sticky piston's head */
-    public static Block NewStickyPistonHead(int orientation)
+    public static Block NewStickyPistonHead(final int orientation)
     {
         Block retval = new Block(BlockType.BTStickyPistonHead);
         retval.data.orientation = Math.max(0, Math.min(5, orientation));
@@ -783,7 +788,7 @@ public class Block implements GameObject
     /** @param depth
      *            the depth (1 - 8)
      * @return new snow */
-    public static Block NewSnow(int depth)
+    public static Block NewSnow(final int depth)
     {
         Block retval = new Block(BlockType.BTSnow);
         retval.data.intdata = Math.max(1, Math.min(8, depth));
@@ -793,7 +798,7 @@ public class Block implements GameObject
     /** @param orientation
      *            orientation of the new vines
      * @return new vines */
-    public static Block NewVines(int orientation)
+    public static Block NewVines(final int orientation)
     {
         Block retval = new Block(BlockType.BTVines);
         retval.data.orientation = Math.max(0, Math.min(3, orientation));
@@ -842,33 +847,108 @@ public class Block implements GameObject
         return new Block(BlockType.BTShears);
     }
 
-    private static RenderingStream drawFace(RenderingStream rs,
-                                            TextureHandle texture,
-                                            Vector p1,
-                                            Vector p2,
-                                            Vector p3,
-                                            Vector p4,
-                                            float u1,
-                                            float v1,
-                                            float u2,
-                                            float v2,
-                                            float u3,
-                                            float v3,
-                                            float u4,
-                                            float v4,
-                                            int bx,
-                                            int by,
-                                            int bz,
-                                            boolean doublesided,
-                                            boolean isEntity,
-                                            boolean isAsItem,
-                                            boolean isItemGlowing)
+    /** create a new redstone comparator
+     * 
+     * @param subtractMode
+     *            if the comparator is in subtract mode
+     * @param currentOutput
+     *            the output strength
+     * @param orientation
+     *            the orientation
+     * @return the new redstone comparator */
+    public static Block NewRedstoneComparator(final boolean subtractMode,
+                                              final int currentOutput,
+                                              final int orientation)
+    {
+        Block retval = new Block(BlockType.BTRedstoneComparator);
+        retval.data.orientation = Math.max(0, Math.min(3, orientation));
+        retval.data.intdata = Math.max(0, Math.min(15, currentOutput));
+        retval.data.step = subtractMode ? 1 : 0;
+        return retval;
+    }
+
+    public static Block NewQuartz()
+    {
+        return new Block(BlockType.BTQuartz);
+    }
+
+    public static Block NewDispenser(final int orientation)
+    {
+        Block retval = new Block(BlockType.BTDispenser);
+        retval.data.intdata = orientation;
+        retval.data.BlockCounts = new int[DISPENSER_DROPPER_ROWS
+                * DISPENSER_DROPPER_COLUMNS];
+        retval.data.BlockTypes = new Block[DISPENSER_DROPPER_ROWS
+                * DISPENSER_DROPPER_COLUMNS];
+        if(orientation == -1)
+            retval.data.orientation = 2;
+        else
+            retval.data.orientation = Math.max(0, Math.min(5, orientation));
+        return retval;
+    }
+
+    public static Block NewDropper(final int orientation)
+    {
+        Block retval = new Block(BlockType.BTDropper);
+        retval.data.intdata = orientation;
+        retval.data.BlockCounts = new int[DISPENSER_DROPPER_ROWS
+                * DISPENSER_DROPPER_COLUMNS];
+        retval.data.BlockTypes = new Block[DISPENSER_DROPPER_ROWS
+                * DISPENSER_DROPPER_COLUMNS];
+        if(orientation == -1)
+            retval.data.orientation = 2;
+        else
+            retval.data.orientation = Math.max(0, Math.min(5, orientation));
+        return retval;
+    }
+
+    public static Block NewCobweb()
+    {
+        return new Block(BlockType.BTCobweb);
+    }
+
+    public static Block NewString()
+    {
+        return new Block(BlockType.BTString);
+    }
+
+    public static Block NewBow()
+    {
+        return new Block(BlockType.BTBow);
+    }
+
+    private static Vector drawFace_t1 = Vector.allocate();
+    private static Vector drawFace_t2 = Vector.allocate();
+
+    private static RenderingStream drawFace(final RenderingStream rs,
+                                            final TextureHandle texture,
+                                            final Vector p1,
+                                            final Vector p2,
+                                            final Vector p3,
+                                            final Vector p4,
+                                            final float u1,
+                                            final float v1,
+                                            final float u2,
+                                            final float v2,
+                                            final float u3,
+                                            final float v3,
+                                            final float u4,
+                                            final float v4,
+                                            final int bx,
+                                            final int by,
+                                            final int bz,
+                                            final boolean doublesided,
+                                            final boolean isEntity,
+                                            final boolean isAsItem,
+                                            final boolean isItemGlowing)
     {
         float c1, c2, c3, c4;
-        Vector normal = p2.sub(p1).cross(p3.sub(p1)).normalize();
+        Vector normal = Vector.sub(drawFace_t1, p2, p1)
+                              .crossAndSet(Vector.sub(drawFace_t2, p3, p1))
+                              .normalizeAndSet();
         if(isAsItem || isItemGlowing)
         {
-            c1 = normal.dot(new Vector(0, 1, 0));
+            c1 = normal.dot(Vector.Y);
             if(c1 < 0)
                 c1 = 0;
             c1 += 0.3f;
@@ -894,30 +974,16 @@ public class Block implements GameObject
             c3 = world.getLighting(p3, bx, by, bz);
             c4 = world.getLighting(p4, bx, by, bz);
         }
-        rs.add(new RenderingStream.Polygon(texture).addVertex(p1,
-                                                              u1,
-                                                              v1,
-                                                              Color.VA(c1, 1.0f))
-                                                   .addVertex(p2,
-                                                              u2,
-                                                              v2,
-                                                              Color.VA(c2, 1.0f))
-                                                   .addVertex(p3,
-                                                              u3,
-                                                              v3,
-                                                              Color.VA(c3, 1.0f)));
-        rs.add(new RenderingStream.Polygon(texture).addVertex(p3,
-                                                              u3,
-                                                              v3,
-                                                              Color.VA(c3, 1.0f))
-                                                   .addVertex(p4,
-                                                              u4,
-                                                              v4,
-                                                              Color.VA(c4, 1.0f))
-                                                   .addVertex(p1,
-                                                              u1,
-                                                              v1,
-                                                              Color.VA(c1, 1.0f)));
+        rs.beginTriangle(texture);
+        rs.vertex(p1, u1, v1, c1, c1, c1, 1.0f);
+        rs.vertex(p2, u2, v2, c2, c2, c2, 1.0f);
+        rs.vertex(p3, u3, v3, c3, c3, c3, 1.0f);
+        rs.endTriangle();
+        rs.beginTriangle(texture);
+        rs.vertex(p3, u3, v3, c3, c3, c3, 1.0f);
+        rs.vertex(p4, u4, v4, c4, c4, c4, 1.0f);
+        rs.vertex(p1, u1, v1, c1, c1, c1, 1.0f);
+        rs.endTriangle();
         if(doublesided)
             drawFace(rs,
                      texture,
@@ -943,30 +1009,33 @@ public class Block implements GameObject
         return rs;
     }
 
-    private static RenderingStream drawFace(RenderingStream rs,
-                                            TextureAtlas.TextureHandle texture,
-                                            Vector p1,
-                                            Vector p2,
-                                            Vector p3,
-                                            float u1,
-                                            float v1,
-                                            float u2,
-                                            float v2,
-                                            float u3,
-                                            float v3,
-                                            int bx,
-                                            int by,
-                                            int bz,
-                                            boolean doublesided,
-                                            boolean isEntity,
-                                            boolean isAsItem,
-                                            boolean isItemGlowing)
+    private static RenderingStream
+        drawFace(final RenderingStream rs,
+                 final TextureAtlas.TextureHandle texture,
+                 final Vector p1,
+                 final Vector p2,
+                 final Vector p3,
+                 final float u1,
+                 final float v1,
+                 final float u2,
+                 final float v2,
+                 final float u3,
+                 final float v3,
+                 final int bx,
+                 final int by,
+                 final int bz,
+                 final boolean doublesided,
+                 final boolean isEntity,
+                 final boolean isAsItem,
+                 final boolean isItemGlowing)
     {
         float c1, c2, c3;
-        Vector normal = p2.sub(p1).cross(p3.sub(p1)).normalize();
-        if(isAsItem)
+        Vector normal = Vector.sub(drawFace_t1, p2, p1)
+                              .crossAndSet(Vector.sub(drawFace_t2, p3, p1))
+                              .normalizeAndSet();
+        if(isAsItem || isItemGlowing)
         {
-            c1 = normal.dot(new Vector(0, 1, 0));
+            c1 = normal.dot(Vector.Y);
             if(c1 < 0)
                 c1 = 0;
             c1 += 0.3f;
@@ -989,18 +1058,11 @@ public class Block implements GameObject
             c2 = world.getLighting(p2, bx, by, bz);
             c3 = world.getLighting(p3, bx, by, bz);
         }
-        rs.add(new RenderingStream.Polygon(texture).addVertex(p1,
-                                                              u1,
-                                                              v1,
-                                                              Color.VA(c1, 1.0f))
-                                                   .addVertex(p2,
-                                                              u2,
-                                                              v2,
-                                                              Color.VA(c2, 1.0f))
-                                                   .addVertex(p3,
-                                                              u3,
-                                                              v3,
-                                                              Color.VA(c3, 1.0f)));
+        rs.beginTriangle(texture);
+        rs.vertex(p1, u1, v1, c1, c1, c1, 1.0f);
+        rs.vertex(p2, u2, v2, c2, c2, c2, 1.0f);
+        rs.vertex(p3, u3, v3, c3, c3, c3, 1.0f);
+        rs.endTriangle();
         if(doublesided)
             drawFace(rs,
                      texture,
@@ -1023,21 +1085,28 @@ public class Block implements GameObject
         return rs;
     }
 
-    private static RenderingStream drawItem(RenderingStream rs,
-                                            Matrix localToBlock,
-                                            Matrix blockToWorld,
-                                            int bx,
-                                            int by,
-                                            int bz,
-                                            TextureHandle img,
-                                            boolean isEntity,
-                                            boolean isAsItem)
+    private static Matrix drawItem_localToWorld = new Matrix();
+    private static Vector drawItem_p1 = Vector.allocate();
+    private static Vector drawItem_p2 = Vector.allocate();
+    private static Vector drawItem_p3 = Vector.allocate();
+    private static Vector drawItem_p4 = Vector.allocate();
+
+    private static RenderingStream drawItem(final RenderingStream rs,
+                                            final Matrix localToBlock,
+                                            final Matrix blockToWorld,
+                                            final int bx,
+                                            final int by,
+                                            final int bz,
+                                            final TextureHandle img,
+                                            final boolean isEntity,
+                                            final boolean isAsItem)
     {
-        Matrix localToWorld = localToBlock.concat(blockToWorld);
-        Vector p1 = localToWorld.apply(new Vector(0, 0, 0));
-        Vector p2 = localToWorld.apply(new Vector(1, 0, 0));
-        Vector p3 = localToWorld.apply(new Vector(0, 1, 0));
-        Vector p4 = localToWorld.apply(new Vector(1, 1, 0));
+        Matrix localToWorld = localToBlock.concat(drawItem_localToWorld,
+                                                  blockToWorld);
+        Vector p1 = localToWorld.apply(drawItem_p1, Vector.ZERO);
+        Vector p2 = localToWorld.apply(drawItem_p2, Vector.X);
+        Vector p3 = localToWorld.apply(drawItem_p3, Vector.Y);
+        Vector p4 = localToWorld.apply(drawItem_p4, Vector.XY);
         final float minu = 0, maxu = 1, minv = 0, maxv = 1;
         drawFace(rs,
                  img,
@@ -1063,25 +1132,26 @@ public class Block implements GameObject
         return rs;
     }
 
-    private static RenderingStream drawItem(RenderingStream rs,
-                                            Matrix localToBlock,
-                                            Matrix blockToWorld,
-                                            int bx,
-                                            int by,
-                                            int bz,
-                                            TextureHandle img,
-                                            boolean isEntity,
-                                            boolean isAsItem,
-                                            float minu,
-                                            float minv,
-                                            float maxu,
-                                            float maxv)
+    private static RenderingStream drawItem(final RenderingStream rs,
+                                            final Matrix localToBlock,
+                                            final Matrix blockToWorld,
+                                            final int bx,
+                                            final int by,
+                                            final int bz,
+                                            final TextureHandle img,
+                                            final boolean isEntity,
+                                            final boolean isAsItem,
+                                            final float minu,
+                                            final float minv,
+                                            final float maxu,
+                                            final float maxv)
     {
-        Matrix localToWorld = localToBlock.concat(blockToWorld);
-        Vector p1 = localToWorld.apply(new Vector(0, 0, 0));
-        Vector p2 = localToWorld.apply(new Vector(1, 0, 0));
-        Vector p3 = localToWorld.apply(new Vector(0, 1, 0));
-        Vector p4 = localToWorld.apply(new Vector(1, 1, 0));
+        Matrix localToWorld = localToBlock.concat(drawItem_localToWorld,
+                                                  blockToWorld);
+        Vector p1 = localToWorld.apply(drawItem_p1, Vector.ZERO);
+        Vector p2 = localToWorld.apply(drawItem_p2, Vector.X);
+        Vector p3 = localToWorld.apply(drawItem_p3, Vector.Y);
+        Vector p4 = localToWorld.apply(drawItem_p4, Vector.XY);
         drawFace(rs,
                  img,
                  p1,
@@ -1106,29 +1176,40 @@ public class Block implements GameObject
         return rs;
     }
 
-    private RenderingStream internalDraw(RenderingStream rs,
-                                         int drawMask,
-                                         Matrix localToBlock,
-                                         Matrix blockToWorld,
-                                         int bx,
-                                         int by,
-                                         int bz,
-                                         TextureHandle img,
-                                         boolean doubleSided,
-                                         boolean isEntity,
-                                         boolean isAsItem)
+    private static Vector internalDraw_p1 = Vector.allocate();
+    private static Vector internalDraw_p2 = Vector.allocate();
+    private static Vector internalDraw_p3 = Vector.allocate();
+    private static Vector internalDraw_p4 = Vector.allocate();
+    private static Vector internalDraw_p5 = Vector.allocate();
+    private static Vector internalDraw_p6 = Vector.allocate();
+    private static Vector internalDraw_p7 = Vector.allocate();
+    private static Vector internalDraw_p8 = Vector.allocate();
+    private static Matrix internalDraw_localToWorld = new Matrix();
+
+    private RenderingStream internalDraw(final RenderingStream rs,
+                                         final int drawMask,
+                                         final Matrix localToBlock,
+                                         final Matrix blockToWorld,
+                                         final int bx,
+                                         final int by,
+                                         final int bz,
+                                         final TextureHandle img,
+                                         final boolean doubleSided,
+                                         final boolean isEntity,
+                                         final boolean isAsItem)
     {
         if(drawMask == 0)
             return rs;
-        Matrix localToWorld = localToBlock.concat(blockToWorld);
-        Vector p1 = localToWorld.apply(new Vector(0, 0, 0));
-        Vector p2 = localToWorld.apply(new Vector(1, 0, 0));
-        Vector p3 = localToWorld.apply(new Vector(0, 1, 0));
-        Vector p4 = localToWorld.apply(new Vector(1, 1, 0));
-        Vector p5 = localToWorld.apply(new Vector(0, 0, 1));
-        Vector p6 = localToWorld.apply(new Vector(1, 0, 1));
-        Vector p7 = localToWorld.apply(new Vector(0, 1, 1));
-        Vector p8 = localToWorld.apply(new Vector(1, 1, 1));
+        Matrix localToWorld = localToBlock.concat(internalDraw_localToWorld,
+                                                  blockToWorld);
+        Vector p1 = localToWorld.apply(internalDraw_p1, Vector.ZERO);
+        Vector p2 = localToWorld.apply(internalDraw_p2, Vector.X);
+        Vector p3 = localToWorld.apply(internalDraw_p3, Vector.Y);
+        Vector p4 = localToWorld.apply(internalDraw_p4, Vector.XY);
+        Vector p5 = localToWorld.apply(internalDraw_p5, Vector.Z);
+        Vector p6 = localToWorld.apply(internalDraw_p6, Vector.XZ);
+        Vector p7 = localToWorld.apply(internalDraw_p7, Vector.YZ);
+        Vector p8 = localToWorld.apply(internalDraw_p8, Vector.XYZ);
         if((drawMask & DMaskNX) != 0)
         {
             final float minu = 0.0f, maxu = 0.25f, minv = 0.5f, maxv = 1.0f;
@@ -1291,7 +1372,7 @@ public class Block implements GameObject
     private static final boolean IGNORE_FALLING_FLUID = false;
 
     @SuppressWarnings("unused")
-    private float getFluidHeight(int x, int y, int z)
+    private float getFluidHeight(final int x, final int y, final int z)
     {
         if(Math.abs(this.data.intdata) >= 7)
             return 1.0f;
@@ -1325,15 +1406,15 @@ public class Block implements GameObject
         return retval;
     }
 
-    private float getFluidBottom(int x,
-                                 int y,
-                                 int z,
-                                 int bx,
-                                 int by,
-                                 int bz,
-                                 int dx,
-                                 int dz,
-                                 float maxV)
+    private float getFluidBottom(final int x,
+                                 final int y,
+                                 final int z,
+                                 final int bx,
+                                 final int by,
+                                 final int bz,
+                                 final int dx,
+                                 final int dz,
+                                 final float maxV)
     {
         Block b = world.getBlock(bx + dx, by, bz + dz);
         if(b == null || b.type != this.type)
@@ -1342,44 +1423,52 @@ public class Block implements GameObject
         return Math.min(maxV, h);
     }
 
-    private float interpolate(float t, float a, float b)
+    private float interpolate(final float t, final float a, final float b)
     {
         return (b - a) * t + a;
     }
 
-    private Vector interpolate(float t, Vector a, Vector b)
+    private Vector interpolate(final Vector dest,
+                               final float t,
+                               final Vector a,
+                               final Vector b)
     {
-        return b.sub(a).mul(t).add(a);
+        return Vector.sub(dest, b, a).mulAndSet(t).addAndSet(a);
     }
 
-    private RenderingStream drawFluidFace(RenderingStream rs,
-                                          TextureHandle texture,
-                                          Vector nunv,
-                                          Vector punv,
-                                          Vector pupv,
-                                          Vector nupv,
-                                          float minu,
-                                          float maxu,
-                                          float minv,
-                                          float maxv,
-                                          float tnu,
-                                          float bnu,
-                                          float tpu,
-                                          float bpu,
-                                          int bx,
-                                          int by,
-                                          int bz)
+    private static Vector drawFluidFace_nunv_p = Vector.allocate();
+    private static Vector drawFluidFace_nupv_p = Vector.allocate();
+    private static Vector drawFluidFace_punv_p = Vector.allocate();
+    private static Vector drawFluidFace_pupv_p = Vector.allocate();
+
+    private RenderingStream drawFluidFace(final RenderingStream rs,
+                                          final TextureHandle texture,
+                                          final Vector nunv,
+                                          final Vector punv,
+                                          final Vector pupv,
+                                          final Vector nupv,
+                                          final float minu,
+                                          final float maxu,
+                                          final float minv,
+                                          final float maxv,
+                                          final float tnu,
+                                          final float bnu,
+                                          final float tpu,
+                                          final float bpu,
+                                          final int bx,
+                                          final int by,
+                                          final int bz)
     {
-        Vector nunv_p = interpolate(bnu, nunv, nupv);
+        Vector nunv_p = interpolate(drawFluidFace_nunv_p, bnu, nunv, nupv);
         float nunv_u = minu;
         float nunv_v = interpolate(bnu, minv, maxv);
-        Vector nupv_p = interpolate(tnu, nunv, nupv);
+        Vector nupv_p = interpolate(drawFluidFace_nupv_p, tnu, nunv, nupv);
         float nupv_u = minu;
         float nupv_v = interpolate(tnu, minv, maxv);
-        Vector punv_p = interpolate(bpu, punv, pupv);
+        Vector punv_p = interpolate(drawFluidFace_punv_p, bpu, punv, pupv);
         float punv_u = maxu;
         float punv_v = interpolate(bpu, minv, maxv);
-        Vector pupv_p = interpolate(tpu, punv, pupv);
+        Vector pupv_p = interpolate(drawFluidFace_pupv_p, tpu, punv, pupv);
         float pupv_u = maxu;
         float pupv_v = interpolate(tpu, minv, maxv);
         drawFace(rs,
@@ -1406,12 +1495,39 @@ public class Block implements GameObject
         return rs;
     }
 
-    private RenderingStream drawFluid(RenderingStream rs,
-                                      Matrix blockToWorld,
-                                      int bx,
-                                      int by,
-                                      int bz,
-                                      TextureHandle img)
+    private boolean drawFluidDrawsFace(final Block b, final float myHeight)
+    {
+        if(b == null)
+            return false;
+        if(b.isOpaque())
+            return false;
+        if(b.getType() != this.type)
+            return true;
+        if(b.getHeight() >= myHeight)
+            return false;
+        return true;
+    }
+
+    private static Vector drawFluid_p1 = Vector.allocate();
+    private static Vector drawFluid_p2 = Vector.allocate();
+    private static Vector drawFluid_p3 = Vector.allocate();
+    private static Vector drawFluid_p4 = Vector.allocate();
+    private static Vector drawFluid_p5 = Vector.allocate();
+    private static Vector drawFluid_p6 = Vector.allocate();
+    private static Vector drawFluid_p7 = Vector.allocate();
+    private static Vector drawFluid_p8 = Vector.allocate();
+    private static Vector drawFluid_pCenter = Vector.allocate();
+    private static Vector drawFluid_nunv_p = Vector.allocate();
+    private static Vector drawFluid_nupv_p = Vector.allocate();
+    private static Vector drawFluid_punv_p = Vector.allocate();
+    private static Vector drawFluid_pupv_p = Vector.allocate();
+
+    private RenderingStream drawFluid(final RenderingStream rs,
+                                      final Matrix blockToWorld,
+                                      final int bx,
+                                      final int by,
+                                      final int bz,
+                                      final TextureHandle img)
     {
         Block nx = world.getBlock(bx - 1, by, bz);
         Block px = world.getBlock(bx + 1, by, bz);
@@ -1421,22 +1537,18 @@ public class Block implements GameObject
         Block pz = world.getBlock(bx, by, bz + 1);
         int drawMask = 0;
         float height = getHeight();
-        if(nx != null && !nx.isOpaque() && nx.type != this.type
-                && nx.getHeight() >= height)
+        if(drawFluidDrawsFace(nx, height))
             drawMask |= DMaskNX;
-        if(px != null && !px.isOpaque() && px.type != this.type
-                && px.getHeight() >= height)
+        if(drawFluidDrawsFace(px, height))
             drawMask |= DMaskPX;
         if(ny != null && !ny.isOpaque()
                 && (ny.type != this.type || ny.getHeight() < 1.0f))
             drawMask |= DMaskNY;
         if(py != null && !py.isOpaque() && py.type != this.type)
             drawMask |= DMaskPY;
-        if(nz != null && !nz.isOpaque() && nz.type != this.type
-                && nz.getHeight() >= height)
+        if(drawFluidDrawsFace(nz, height))
             drawMask |= DMaskNZ;
-        if(pz != null && !pz.isOpaque() && pz.type != this.type
-                && pz.getHeight() >= height)
+        if(drawFluidDrawsFace(pz, height))
             drawMask |= DMaskPZ;
         if(height < 1.0f)
             drawMask |= DMaskPY;
@@ -1455,15 +1567,19 @@ public class Block implements GameObject
         float b11px = getFluidBottom(bx + 1, by, bz + 1, bx, by, bz, 1, 0, t11);
         float b11pz = getFluidBottom(bx + 1, by, bz + 1, bx, by, bz, 0, 1, t11);
         float avgt = (t00 + t01 + t10 + t11) / 4.0f;
-        Vector p1 = blockToWorld.apply(new Vector(0, 0, 0));
-        Vector p2 = blockToWorld.apply(new Vector(1, 0, 0));
-        Vector p3 = blockToWorld.apply(new Vector(0, 1, 0));
-        Vector p4 = blockToWorld.apply(new Vector(1, 1, 0));
-        Vector p5 = blockToWorld.apply(new Vector(0, 0, 1));
-        Vector p6 = blockToWorld.apply(new Vector(1, 0, 1));
-        Vector p7 = blockToWorld.apply(new Vector(0, 1, 1));
-        Vector p8 = blockToWorld.apply(new Vector(1, 1, 1));
-        Vector pCenter = blockToWorld.apply(new Vector(0.5f, avgt, 0.5f));
+        Vector p1 = blockToWorld.apply(drawFluid_p1, Vector.ZERO);
+        Vector p2 = blockToWorld.apply(drawFluid_p2, Vector.X);
+        Vector p3 = blockToWorld.apply(drawFluid_p3, Vector.Y);
+        Vector p4 = blockToWorld.apply(drawFluid_p4, Vector.XY);
+        Vector p5 = blockToWorld.apply(drawFluid_p5, Vector.Z);
+        Vector p6 = blockToWorld.apply(drawFluid_p6, Vector.XZ);
+        Vector p7 = blockToWorld.apply(drawFluid_p7, Vector.YZ);
+        Vector p8 = blockToWorld.apply(drawFluid_p8, Vector.XYZ);
+        Vector pCenter = blockToWorld.apply(drawFluid_pCenter,
+                                            Vector.set(drawFluid_pCenter,
+                                                       0.5f,
+                                                       avgt,
+                                                       0.5f));
         if((drawMask & DMaskNX) != 0)
         {
             final float minu = 0.0f, maxu = 0.25f, minv = 0.5f, maxv = 1.0f;
@@ -1591,10 +1707,10 @@ public class Block implements GameObject
             final float minu = 0.25f, maxu = 0.5f, minv = 0.0f, maxv = 0.5f;
             final float cu = (minu + maxu) / 2.0f, cv = (minv + maxv) / 2.0f;
             // p3, p7, p8, p4
-            Vector nupv_p = interpolate(t00, p1, p3);
-            Vector nunv_p = interpolate(t01, p5, p7);
-            Vector punv_p = interpolate(t11, p6, p8);
-            Vector pupv_p = interpolate(t10, p2, p4);
+            Vector nupv_p = interpolate(drawFluid_nupv_p, t00, p1, p3);
+            Vector nunv_p = interpolate(drawFluid_nunv_p, t01, p5, p7);
+            Vector punv_p = interpolate(drawFluid_punv_p, t11, p6, p8);
+            Vector pupv_p = interpolate(drawFluid_pupv_p, t10, p2, p4);
             drawFace(rs,
                      img,
                      nupv_p,
@@ -1671,15 +1787,15 @@ public class Block implements GameObject
         return rs;
     }
 
-    private RenderingStream drawSolid(RenderingStream rs,
-                                      Matrix blockToWorld,
-                                      int bx,
-                                      int by,
-                                      int bz,
-                                      boolean drawAllSides,
-                                      TextureHandle img,
-                                      boolean isEntity,
-                                      boolean isAsItem)
+    private RenderingStream drawSolid(final RenderingStream rs,
+                                      final Matrix blockToWorld,
+                                      final int bx,
+                                      final int by,
+                                      final int bz,
+                                      final boolean drawAllSides,
+                                      final TextureHandle img,
+                                      final boolean isEntity,
+                                      final boolean isAsItem)
     {
         int drawMask;
         if(isAsItem || isEntity || drawAllSides)
@@ -1710,7 +1826,7 @@ public class Block implements GameObject
         }
         internalDraw(rs,
                      drawMask,
-                     Matrix.identity(),
+                     Matrix.IDENTITY,
                      blockToWorld,
                      bx,
                      by,
@@ -1722,14 +1838,14 @@ public class Block implements GameObject
         return rs;
     }
 
-    private RenderingStream drawSolid(RenderingStream rs,
-                                      Matrix blockToWorld,
-                                      int bx,
-                                      int by,
-                                      int bz,
-                                      boolean drawAllSides,
-                                      boolean isEntity,
-                                      boolean isAsItem)
+    private RenderingStream drawSolid(final RenderingStream rs,
+                                      final Matrix blockToWorld,
+                                      final int bx,
+                                      final int by,
+                                      final int bz,
+                                      final boolean drawAllSides,
+                                      final boolean isEntity,
+                                      final boolean isAsItem)
     {
         return drawSolid(rs,
                          blockToWorld,
@@ -1742,22 +1858,34 @@ public class Block implements GameObject
                          isAsItem);
     }
 
-    private RenderingStream drawSim3D(RenderingStream rs,
-                                      Matrix localToBlock,
-                                      Matrix blockToWorld,
-                                      int bx,
-                                      int by,
-                                      int bz,
-                                      boolean isEntity,
-                                      boolean isAsItem,
-                                      TextureHandle img)
+    private static Vector drawSim3D_p1 = Vector.allocate();
+    private static Vector drawSim3D_p2 = Vector.allocate();
+    private static Vector drawSim3D_p3 = Vector.allocate();
+    private static Vector drawSim3D_p4 = Vector.allocate();
+    private static Matrix drawSim3D_localToWorld = new Matrix();
+
+    private RenderingStream drawSim3D(final RenderingStream rs,
+                                      final Matrix localToBlock,
+                                      final Matrix blockToWorld,
+                                      final int bx,
+                                      final int by,
+                                      final int bz,
+                                      final boolean isEntity,
+                                      final boolean isAsItem,
+                                      final TextureHandle img)
     {
-        Matrix localToWorld = localToBlock.concat(blockToWorld);
+        Matrix localToWorld = localToBlock.concat(drawSim3D_localToWorld,
+                                                  blockToWorld);
+        if(isAsItem)
         {
-            Vector p1 = localToWorld.apply(new Vector(0, 0, 0.5f));
-            Vector p2 = localToWorld.apply(new Vector(1, 0, 0.5f));
-            Vector p3 = localToWorld.apply(new Vector(0, 1, 0.5f));
-            Vector p4 = localToWorld.apply(new Vector(1, 1, 0.5f));
+            Vector p1 = localToWorld.apply(drawSim3D_p1,
+                                           Vector.set(drawSim3D_p1, 0, 0, 0.5f));
+            Vector p2 = localToWorld.apply(drawSim3D_p2,
+                                           Vector.set(drawSim3D_p2, 1, 0, 0.5f));
+            Vector p3 = localToWorld.apply(drawSim3D_p3,
+                                           Vector.set(drawSim3D_p3, 0, 1, 0.5f));
+            Vector p4 = localToWorld.apply(drawSim3D_p4,
+                                           Vector.set(drawSim3D_p4, 1, 1, 0.5f));
             final float minu = 0, maxu = 0.5f, minv = 0, maxv = 1;
             drawFace(rs,
                      img,
@@ -1780,14 +1908,50 @@ public class Block implements GameObject
                      isEntity,
                      isAsItem,
                      false);
+            return rs;
         }
-        if(!isAsItem)
         {
-            Vector p1 = localToWorld.apply(new Vector(0.5f, 0, 0));
-            Vector p2 = localToWorld.apply(new Vector(0.5f, 0, 1));
-            Vector p3 = localToWorld.apply(new Vector(0.5f, 1, 0));
-            Vector p4 = localToWorld.apply(new Vector(0.5f, 1, 1));
+            Vector p1 = localToWorld.apply(drawSim3D_p1,
+                                           Vector.set(drawSim3D_p1, 1, 0, 0));
+            Vector p2 = localToWorld.apply(drawSim3D_p2,
+                                           Vector.set(drawSim3D_p2, 0, 0, 1));
+            Vector p3 = localToWorld.apply(drawSim3D_p3,
+                                           Vector.set(drawSim3D_p3, 1, 1, 0));
+            Vector p4 = localToWorld.apply(drawSim3D_p4,
+                                           Vector.set(drawSim3D_p4, 0, 1, 1));
             final float minu = 0.5f, maxu = 1, minv = 0, maxv = 1;
+            drawFace(rs,
+                     img,
+                     p1,
+                     p2,
+                     p4,
+                     p3,
+                     minu,
+                     minv,
+                     maxu,
+                     minv,
+                     maxu,
+                     maxv,
+                     minu,
+                     maxv,
+                     bx,
+                     by,
+                     bz,
+                     true,
+                     isEntity,
+                     isAsItem,
+                     false);
+        }
+        {
+            Vector p1 = localToWorld.apply(drawSim3D_p1,
+                                           Vector.set(drawSim3D_p1, 0, 0, 0));
+            Vector p2 = localToWorld.apply(drawSim3D_p2,
+                                           Vector.set(drawSim3D_p2, 1, 0, 1f));
+            Vector p3 = localToWorld.apply(drawSim3D_p3,
+                                           Vector.set(drawSim3D_p3, 0, 1, 0f));
+            Vector p4 = localToWorld.apply(drawSim3D_p4,
+                                           Vector.set(drawSim3D_p4, 1, 1, 1f));
+            final float minu = 0, maxu = 0.5f, minv = 0, maxv = 1;
             drawFace(rs,
                      img,
                      p1,
@@ -1814,12 +1978,17 @@ public class Block implements GameObject
     }
 
     @Override
-    public RenderingStream draw(RenderingStream rs, Matrix blockToWorld)
+    public RenderingStream draw(final RenderingStream rs,
+                                final Matrix blockToWorld)
     {
         return draw(rs, blockToWorld, false, false);
     }
 
-    private static Matrix getButtonTransform(int orientation, boolean pushed)
+    private static Matrix getButtonTransformInternal_t1 = new Matrix();
+    private static Matrix getButtonTransformInternal_t2 = new Matrix();
+
+    private static Matrix getButtonTransformInternal(final int orientation,
+                                                     final boolean pushed)
     {
         final float ButtonSize = 0.2f;
         final float ButtonDepth = 0.1f;
@@ -1827,125 +1996,275 @@ public class Block implements GameObject
         float depth = ButtonDepth;
         if(pushed)
             depth = ButtonPushedDepth;
-        Matrix tform = Matrix.translate(-0.5f, 0.0f, -0.5f)
-                             .concat(Matrix.scale(ButtonSize, depth, ButtonSize));
-        tform = tform.concat(Matrix.translate(0.0f, -0.5f, 0.0f));
+        Matrix tform = Matrix.setToTranslate(getButtonTransformInternal_t1,
+                                             -0.5f,
+                                             0.0f,
+                                             -0.5f)
+                             .concatAndSet(Matrix.setToScale(getButtonTransformInternal_t2,
+                                                             ButtonSize,
+                                                             depth,
+                                                             ButtonSize));
+        tform = tform.concatAndSet(Matrix.setToTranslate(getButtonTransformInternal_t2,
+                                                         0.0f,
+                                                         -0.5f,
+                                                         0.0f));
         switch(orientation)
         {
         case 0: // -X
-            tform = tform.concat(Matrix.rotatez(-Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateZ(getButtonTransformInternal_t2,
+                                                           -Math.PI / 2));
             break;
         case 1: // -Z
-            tform = tform.concat(Matrix.rotatex(Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getButtonTransformInternal_t2,
+                                                           Math.PI / 2));
             break;
         case 2: // +X
-            tform = tform.concat(Matrix.rotatez(Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateZ(getButtonTransformInternal_t2,
+                                                           Math.PI / 2));
             break;
         case 3: // +Z
-            tform = tform.concat(Matrix.rotatex(-Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getButtonTransformInternal_t2,
+                                                           -Math.PI / 2));
             break;
         // case 4: // -Y
         default:
             break;
         }
-        return tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
+        return tform.concatAndSet(Matrix.setToTranslate(getButtonTransformInternal_t2,
+                                                        0.5f,
+                                                        0.5f,
+                                                        0.5f));
     }
 
-    private static Matrix getTorchTransform(int orientation)
+    private static final Matrix[][] buttonTransforms;
+    static
+    {
+        buttonTransforms = new Matrix[5][];
+        for(int i = 0; i < 5; i++)
+        {
+            buttonTransforms[i] = new Matrix[2];
+            buttonTransforms[i][0] = getButtonTransformInternal(i, false).getImmutable();
+            buttonTransforms[i][1] = getButtonTransformInternal(i, true).getImmutable();
+        }
+    }
+
+    private static Matrix getButtonTransform(final int orientation,
+                                             final boolean pushed)
+    {
+        int bIndex = pushed ? 1 : 0;
+        if(orientation < 0 || orientation >= 5)
+            return buttonTransforms[4][bIndex];
+        return buttonTransforms[orientation][bIndex];
+    }
+
+    private static Matrix getTorchTransfromInternal_t1 = new Matrix();
+    private static Matrix getTorchTransfromInternal_t2 = new Matrix();
+
+    private static Matrix getTorchTransformInternal(final int orientation)
     {
         final float xzscale = 1 / 8f, yscale = 6 / 8f;
-        Matrix tform = Matrix.translate(-0.5f, 0.0f, -0.5f)
-                             .concat(Matrix.scale(xzscale, yscale, xzscale));
-        tform = tform.concat(Matrix.translate(0.5f, 0.0f, 0.5f));
+        Matrix tform = Matrix.setToTranslate(getTorchTransfromInternal_t1,
+                                             -0.5f,
+                                             0.0f,
+                                             -0.5f)
+                             .concatAndSet(Matrix.setToScale(getTorchTransfromInternal_t2,
+                                                             xzscale,
+                                                             yscale,
+                                                             xzscale));
+        tform = tform.concatAndSet(Matrix.setToTranslate(getTorchTransfromInternal_t2,
+                                                         0.5f,
+                                                         0.0f,
+                                                         0.5f));
         final float distfromedge = 0.5f - xzscale / 2.0f;
         final float distfromtop = 1.0f - yscale;
         switch(orientation)
         {
         case 0: // -X
-            tform = tform.concat(Matrix.translate(-distfromedge,
-                                                  distfromtop / 2,
-                                                  0));
+            tform = tform.concatAndSet(Matrix.setToTranslate(getTorchTransfromInternal_t2,
+                                                             -distfromedge,
+                                                             distfromtop / 2,
+                                                             0));
             break;
         case 1: // -Z
-            tform = tform.concat(Matrix.translate(0,
-                                                  distfromtop / 2,
-                                                  -distfromedge));
+            tform = tform.concatAndSet(Matrix.setToTranslate(getTorchTransfromInternal_t2,
+                                                             0,
+                                                             distfromtop / 2,
+                                                             -distfromedge));
             break;
         case 2: // +X
-            tform = tform.concat(Matrix.translate(distfromedge,
-                                                  distfromtop / 2,
-                                                  0));
+            tform = tform.concatAndSet(Matrix.setToTranslate(getTorchTransfromInternal_t2,
+                                                             distfromedge,
+                                                             distfromtop / 2,
+                                                             0));
             break;
         case 3: // +Z
-            tform = tform.concat(Matrix.translate(0,
-                                                  distfromtop / 2,
-                                                  distfromedge));
+            tform = tform.concatAndSet(Matrix.setToTranslate(getTorchTransfromInternal_t2,
+                                                             0,
+                                                             distfromtop / 2,
+                                                             distfromedge));
             break;
         // case 4: // -Y
         default:
             break;
         }
-        return tform;
+        return tform.getImmutable();
     }
 
-    private static Matrix getLeverTransform(int orientation)
+    private static final Matrix[] torchTransforms;
+    static
     {
-        Matrix tform = Matrix.translate(-0.5f, 0, -0.5f);
-        tform = tform.concat(Matrix.scale(8.0f / 16, 3.0f / 16, 6.0f / 16));
-        tform = tform.concat(Matrix.translate(0.0f, -0.5f, 0.0f));
+        torchTransforms = new Matrix[5];
+        for(int i = 0; i < 5; i++)
+            torchTransforms[i] = getTorchTransformInternal(i);
+    }
+
+    private static Matrix getTorchTransform(final int orientation)
+    {
+        if(orientation < 0 || orientation >= 5)
+            return torchTransforms[4];
+        return torchTransforms[orientation];
+    }
+
+    private static Matrix getLeverTransformInternal_t1 = new Matrix();
+    private static Matrix getLeverTransformInternal_t2 = new Matrix();
+
+    private static Matrix getLeverTransformInternal(final int orientation)
+    {
+        Matrix tform = Matrix.setToTranslate(getLeverTransformInternal_t1,
+                                             -0.5f,
+                                             0,
+                                             -0.5f);
+        tform = tform.concatAndSet(Matrix.setToScale(getLeverTransformInternal_t2,
+                                                     8.0f / 16,
+                                                     3.0f / 16,
+                                                     6.0f / 16));
+        tform = tform.concatAndSet(Matrix.setToTranslate(getLeverTransformInternal_t2,
+                                                         0.0f,
+                                                         -0.5f,
+                                                         0.0f));
         switch(orientation)
         {
         case 0: // -X
-            tform = tform.concat(Matrix.rotatez(-Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateZ(getLeverTransformInternal_t2,
+                                                           -Math.PI / 2));
             break;
         case 1: // -Z
-            tform = tform.concat(Matrix.rotatex(Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getLeverTransformInternal_t2,
+                                                           Math.PI / 2));
             break;
         case 2: // +X
-            tform = tform.concat(Matrix.rotatez(Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateZ(getLeverTransformInternal_t2,
+                                                           Math.PI / 2));
             break;
         case 3: // +Z
-            tform = tform.concat(Matrix.rotatex(-Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getLeverTransformInternal_t2,
+                                                           -Math.PI / 2));
             break;
         case 5: // +Y
-            tform = tform.concat(Matrix.rotatex(-Math.PI));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getLeverTransformInternal_t2,
+                                                           -Math.PI));
             break;
         // case 4: // -Y
         default:
             break;
         }
-        return tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
+        return tform.concatAndSet(Matrix.setToTranslate(getLeverTransformInternal_t2,
+                                                        0.5f,
+                                                        0.5f,
+                                                        0.5f))
+                    .getImmutable();
     }
+
+    private static final Matrix[] leverTransforms;
+    static
+    {
+        leverTransforms = new Matrix[6];
+        for(int i = 0; i < 6; i++)
+            leverTransforms[i] = getLeverTransformInternal(i);
+    }
+
+    private static Matrix getLeverTransform(final int orientation)
+    {
+        if(orientation < 0 || orientation >= 6)
+            return leverTransforms[4];
+        return leverTransforms[orientation];
+    }
+
+    private static Matrix getLeverHandleTransformInternal_t1 = new Matrix();
+    private static Matrix getLeverHandleTransformInternal_t2 = new Matrix();
 
     private static Matrix
-        getLeverHandleTransform(int orientation, boolean state)
+        getLeverHandleTransformInternal(final int orientation,
+                                        final boolean state)
     {
-        Matrix tform = Matrix.translate(-0.5f, 0, -0.5f);
-        tform = tform.concat(Matrix.scale(2.0f / 16, 8.0f / 16, 2.0f / 16));
-        tform = tform.concat(Matrix.rotatez(state ? Math.PI / 6 : -Math.PI / 6));
-        tform = tform.concat(Matrix.translate(0.0f, -0.5f, 0.0f));
+        Matrix tform = Matrix.setToTranslate(getLeverHandleTransformInternal_t1,
+                                             -0.5f,
+                                             0,
+                                             -0.5f);
+        tform = tform.concatAndSet(Matrix.setToScale(getLeverHandleTransformInternal_t2,
+                                                     2.0f / 16,
+                                                     8.0f / 16,
+                                                     2.0f / 16));
+        tform = tform.concatAndSet(Matrix.setToRotateZ(getLeverHandleTransformInternal_t2,
+                                                       state ? Math.PI / 6
+                                                               : -Math.PI / 6));
+        tform = tform.concatAndSet(Matrix.setToTranslate(getLeverHandleTransformInternal_t2,
+                                                         0.0f,
+                                                         -0.5f,
+                                                         0.0f));
         switch(orientation)
         {
         case 0: // -X
-            tform = tform.concat(Matrix.rotatez(-Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateZ(getLeverHandleTransformInternal_t2,
+                                                           -Math.PI / 2));
             break;
         case 1: // -Z
-            tform = tform.concat(Matrix.rotatex(Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getLeverHandleTransformInternal_t2,
+                                                           Math.PI / 2));
             break;
         case 2: // +X
-            tform = tform.concat(Matrix.rotatez(Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateZ(getLeverHandleTransformInternal_t2,
+                                                           Math.PI / 2));
             break;
         case 3: // +Z
-            tform = tform.concat(Matrix.rotatex(-Math.PI / 2));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getLeverHandleTransformInternal_t2,
+                                                           -Math.PI / 2));
             break;
         case 5: // +Y
-            tform = tform.concat(Matrix.rotatex(-Math.PI));
+            tform = tform.concatAndSet(Matrix.setToRotateX(getLeverHandleTransformInternal_t2,
+                                                           -Math.PI));
             break;
         // case 4: // -Y
         default:
             break;
         }
-        return tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
+        return tform.concatAndSet(Matrix.setToTranslate(getLeverHandleTransformInternal_t2,
+                                                        0.5f,
+                                                        0.5f,
+                                                        0.5f))
+                    .getImmutable();
+    }
+
+    private static final Matrix[][] leverHandleTransforms;
+    static
+    {
+        leverHandleTransforms = new Matrix[6][];
+        for(int i = 0; i < 6; i++)
+        {
+            leverHandleTransforms[i] = new Matrix[2];
+            leverHandleTransforms[i][0] = getLeverHandleTransformInternal(i,
+                                                                          false);
+            leverHandleTransforms[i][1] = getLeverHandleTransformInternal(i,
+                                                                          true);
+        }
+    }
+
+    private static Matrix getLeverHandleTransform(final int orientation,
+                                                  final boolean state)
+    {
+        if(orientation < 0 || orientation >= 6)
+            return leverHandleTransforms[4][state ? 1 : 0];
+        return leverHandleTransforms[orientation][state ? 1 : 0];
     }
 
     /** @return the use count for this tool */
@@ -1967,9 +2286,13 @@ public class Block implements GameObject
         TextureAtlas.addImage(new Image(Color.RGB(1.0f, 1.0f, 0.0f))),
         TextureAtlas.addImage(new Image(Color.RGB(0.0f, 1.0f, 0.0f))),
     };
+    private static Vector drawToolUsage_t1 = Vector.allocate();
+    private static Vector drawToolUsage_t2 = Vector.allocate();
+    private static Vector drawToolUsage_t3 = Vector.allocate();
+    private static Vector drawToolUsage_t4 = Vector.allocate();
 
-    private RenderingStream drawToolUsage(RenderingStream rs,
-                                          Matrix blockToWorld)
+    private RenderingStream drawToolUsage(final RenderingStream rs,
+                                          final Matrix blockToWorld)
     {
         if(toolGetUseCount() <= 0)
             return rs;
@@ -1980,10 +2303,10 @@ public class Block implements GameObject
         rs.concatMatrix(blockToWorld);
         drawFace(rs,
                  toolUsageBackground,
-                 new Vector(15 / 16f, 3 / 16f, 0.05f),
-                 new Vector(15 / 16f, 1 / 16f, 0.05f),
-                 new Vector(dividerPos, 1 / 16f, 0.05f),
-                 new Vector(dividerPos, 3 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t1, 15 / 16f, 3 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t2, 15 / 16f, 1 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t3, dividerPos, 1 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t4, dividerPos, 3 / 16f, 0.05f),
                  0,
                  0,
                  0,
@@ -2004,10 +2327,10 @@ public class Block implements GameObject
                                               Math.min(toolUsageForeground.length - 1,
                                                        (int)Math.floor(relativeUseLeft
                                                                * toolUsageForeground.length)))],
-                 new Vector(dividerPos, 1 / 16f, 0.05f),
-                 new Vector(dividerPos, 3 / 16f, 0.05f),
-                 new Vector(1 / 16f, 3 / 16f, 0.05f),
-                 new Vector(1 / 16f, 1 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t1, dividerPos, 1 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t2, dividerPos, 3 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t3, 1 / 16f, 3 / 16f, 0.05f),
+                 Vector.set(drawToolUsage_t4, 1 / 16f, 1 / 16f, 0.05f),
                  0,
                  0,
                  0,
@@ -2027,16 +2350,21 @@ public class Block implements GameObject
         return rs;
     }
 
-    private RenderingStream draw(RenderingStream rs,
-                                 Matrix blockToWorld,
-                                 boolean isEntity,
-                                 boolean isAsItem)
+    private static Vector draw_pos = Vector.allocate();
+    private static Matrix draw_t1 = new Matrix();
+    private static Matrix draw_t2 = new Matrix();
+    private static Matrix draw_rotateMat = new Matrix();
+
+    private RenderingStream draw(final RenderingStream rs,
+                                 final Matrix blockToWorld,
+                                 final boolean isEntity,
+                                 final boolean isAsItem)
     {
         int bx, by, bz;
-        Vector pos = blockToWorld.apply(new Vector(0));
-        bx = (int)Math.floor(pos.x + 0.5);
-        by = (int)Math.floor(pos.y + 0.5);
-        bz = (int)Math.floor(pos.z + 0.5);
+        Vector pos = blockToWorld.apply(draw_pos, Vector.ZERO);
+        bx = (int)Math.floor(pos.getX() + 0.5);
+        by = (int)Math.floor(pos.getY() + 0.5);
+        bz = (int)Math.floor(pos.getZ() + 0.5);
         switch(this.type.drawType)
         {
         case BDTCustom:
@@ -2044,7 +2372,8 @@ public class Block implements GameObject
             {
             case BTFurnace:
                 if(this.data.intdata > 0 && this.data.blockdata != null
-                        && this.data.srccount > 0)
+                        && this.data.srccount > 0
+                        && this.data.destcount < BLOCK_STACK_SIZE)
                     drawSolid(rs,
                               blockToWorld,
                               bx,
@@ -2071,11 +2400,19 @@ public class Block implements GameObject
                 TextureHandle ImgBase = this.type.textures[(this.data.orientation & 0xA)
                         | ((this.data.orientation << 2) & 0x4)
                         | ((this.data.orientation >> 2) & 0x1)];
-                Matrix tform = Matrix.translate(-0.5f, -0.5f, -0.5f)
-                                     .concat(Matrix.scale(0.98f))
-                                     .concat(Matrix.translate(0.5f, 0.5f, 0.5f));
+                Matrix tform = Matrix.setToTranslate(draw_t1,
+                                                     -0.5f,
+                                                     -0.5f,
+                                                     -0.5f)
+                                     .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                     0.98f))
+                                     .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                         0.5f,
+                                                                         0.5f,
+                                                                         0.5f));
                 drawItem(rs,
-                         Matrix.rotatex(Math.PI / 2).concat(tform),
+                         Matrix.setToRotateX(draw_t2, Math.PI / 2)
+                               .concatAndSet(tform),
                          blockToWorld,
                          bx,
                          by,
@@ -2105,24 +2442,16 @@ public class Block implements GameObject
                              isAsItem);
                 break;
             }
-            case BTSapling:
-                drawSim3D(rs,
-                          Matrix.identity(),
-                          blockToWorld,
-                          bx,
-                          by,
-                          bz,
-                          isEntity,
-                          isAsItem,
-                          this.type.textures[/*this.data.intdata*/0]); // TODO
-                                                                        // fix
-                break;
             case BTDeleteBlock:
                 internalDraw(rs,
                              0x3F,
-                             Matrix.translate(-0.5f, -0.5f, -0.5f)
-                                   .concat(Matrix.scale(1.05f))
-                                   .concat(Matrix.translate(0.5f, 0.5f, 0.5f)),
+                             Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, -0.5f)
+                                   .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                   1.05f))
+                                   .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                       0.5f,
+                                                                       0.5f,
+                                                                       0.5f)),
                              blockToWorld,
                              bx,
                              by,
@@ -2138,7 +2467,7 @@ public class Block implements GameObject
                 case 0:
                     internalDraw(rs,
                                  0x3F,
-                                 Matrix.identity(),
+                                 Matrix.IDENTITY,
                                  blockToWorld,
                                  bx,
                                  by,
@@ -2151,11 +2480,16 @@ public class Block implements GameObject
                 case 1:
                     internalDraw(rs,
                                  0x3F,
-                                 Matrix.translate(-0.5f, -0.5f, -0.5f)
-                                       .concat(Matrix.rotatez(Math.PI / 2))
-                                       .concat(Matrix.translate(0.5f,
-                                                                0.5f,
-                                                                0.5f)),
+                                 Matrix.setToTranslate(draw_t1,
+                                                       -0.5f,
+                                                       -0.5f,
+                                                       -0.5f)
+                                       .concatAndSet(Matrix.setToRotateZ(draw_t2,
+                                                                         Math.PI / 2))
+                                       .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                           0.5f,
+                                                                           0.5f,
+                                                                           0.5f)),
                                  blockToWorld,
                                  bx,
                                  by,
@@ -2168,11 +2502,16 @@ public class Block implements GameObject
                 case 2:
                     internalDraw(rs,
                                  0x3F,
-                                 Matrix.translate(-0.5f, -0.5f, -0.5f)
-                                       .concat(Matrix.rotatex(Math.PI / 2))
-                                       .concat(Matrix.translate(0.5f,
-                                                                0.5f,
-                                                                0.5f)),
+                                 Matrix.setToTranslate(draw_t1,
+                                                       -0.5f,
+                                                       -0.5f,
+                                                       -0.5f)
+                                       .concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                         Math.PI / 2))
+                                       .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                           0.5f,
+                                                                           0.5f,
+                                                                           0.5f)),
                                  blockToWorld,
                                  bx,
                                  by,
@@ -2185,7 +2524,7 @@ public class Block implements GameObject
                 case 3:
                     internalDraw(rs,
                                  DMaskNX | DMaskNZ | DMaskPX | DMaskPZ,
-                                 Matrix.identity(),
+                                 Matrix.IDENTITY,
                                  blockToWorld,
                                  bx,
                                  by,
@@ -2196,11 +2535,16 @@ public class Block implements GameObject
                                  isAsItem);
                     internalDraw(rs,
                                  DMaskNZ | DMaskPZ,
-                                 Matrix.translate(-0.5f, -0.5f, -0.5f)
-                                       .concat(Matrix.rotatex(Math.PI / 2))
-                                       .concat(Matrix.translate(0.5f,
-                                                                0.5f,
-                                                                0.5f)),
+                                 Matrix.setToTranslate(draw_t1,
+                                                       -0.5f,
+                                                       -0.5f,
+                                                       -0.5f)
+                                       .concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                         Math.PI / 2))
+                                       .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                           0.5f,
+                                                                           0.5f,
+                                                                           0.5f)),
                                  blockToWorld,
                                  bx,
                                  by,
@@ -2226,10 +2570,15 @@ public class Block implements GameObject
             case BTLadder:
             case BTVines:
                 drawItem(rs,
-                         Matrix.translate(-0.5f, -0.5f, -0.49f)
-                               .concat(Matrix.rotatey(Math.PI / 2.0
-                                       * (1 - this.data.orientation)))
-                               .concat(Matrix.translate(0.5f, 0.5f, 0.5f)),
+                         Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, -0.49f)
+                               .concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                                 Math.PI
+                                                                         / 2.0
+                                                                         * (1 - this.data.orientation)))
+                               .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                   0.5f,
+                                                                   0.5f,
+                                                                   0.5f)),
                          blockToWorld,
                          bx,
                          by,
@@ -2241,16 +2590,22 @@ public class Block implements GameObject
             case BTRedstoneRepeaterOff:
             case BTRedstoneRepeaterOn:
             {
-                Matrix rotateMat = Matrix.translate(-0.5f, -0.5f, -0.49f)
-                                         .concat(Matrix.rotatey(Math.PI / 2.0
-                                                 * (1 - this.data.orientation)))
-                                         .concat(Matrix.translate(0.5f,
-                                                                  0.5f,
-                                                                  0.5f));
+                Matrix rotateMat = Matrix.setToTranslate(draw_rotateMat,
+                                                         -0.5f,
+                                                         -0.5f,
+                                                         -0.49f)
+                                         .concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                                           Math.PI
+                                                                                   / 2.0
+                                                                                   * (1 - this.data.orientation)))
+                                         .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                             0.5f,
+                                                                             0.5f,
+                                                                             0.5f));
                 internalDraw(rs,
                              0x3F,
-                             Matrix.scale(1.0f, 1.0f / 8, 1.0f)
-                                   .concat(rotateMat),
+                             Matrix.setToScale(draw_t2, 1.0f, 1.0f / 8, 1.0f)
+                                   .concatAndSet(rotateMat),
                              blockToWorld,
                              bx,
                              by,
@@ -2266,10 +2621,19 @@ public class Block implements GameObject
                     torchTexture = BlockType.BTRedstoneTorchOff.textures[0];
                 Matrix tform;
                 tform = getTorchTransform(4);
-                tform = tform.concat(Matrix.scale(1.0f, 0.6f, 1.0f));
-                tform = tform.concat(Matrix.translate(-0.5f, 0, -0.5f));
-                tform = tform.concat(Matrix.translate(0.5f, 0, 3.0f / 16));
-                tform = tform.concat(rotateMat);
+                tform = tform.concat(draw_t1, Matrix.setToScale(draw_t2,
+                                                                1.0f,
+                                                                0.6f,
+                                                                1.0f));
+                tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                 -0.5f,
+                                                                 0,
+                                                                 -0.5f));
+                tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                 0.5f,
+                                                                 0,
+                                                                 3.0f / 16));
+                tform = tform.concatAndSet(rotateMat);
                 internalDraw(rs,
                              0x3F,
                              tform,
@@ -2284,12 +2648,16 @@ public class Block implements GameObject
                 if(!isEntity && !isAsItem
                         && redstoneRepeaterIsLatched(bx, by, bz))
                 {
-                    tform = Matrix.translate(-0.5f, -0.5f, -0.5f);
-                    tform = tform.concat(Matrix.scale(1.0f, 1.0f / 8, 1.0f / 8));
-                    tform = tform.concat(Matrix.translate(0.5f,
-                                                          3.0f / 16,
-                                                          7.0f / 16));
-                    tform = tform.concat(rotateMat);
+                    tform = Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, -0.5f);
+                    tform = tform.concatAndSet(Matrix.setToScale(draw_t2,
+                                                                 1.0f,
+                                                                 1.0f / 8,
+                                                                 1.0f / 8));
+                    tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                     0.5f,
+                                                                     3.0f / 16,
+                                                                     7.0f / 16));
+                    tform = tform.concatAndSet(rotateMat);
                     internalDraw(rs,
                                  0x3F,
                                  tform,
@@ -2305,12 +2673,15 @@ public class Block implements GameObject
                 else
                 {
                     tform = getTorchTransform(4);
-                    tform = tform.concat(Matrix.scale(1.0f, 0.6f, 1.0f));
-                    tform = tform.concat(Matrix.translate(-0.5f, 0, -0.5f));
-                    tform = tform.concat(Matrix.translate(0.5f,
-                                                          0,
-                                                          (5.0f + 2.0f * this.data.intdata) / 16));
-                    tform = tform.concat(rotateMat);
+                    tform = tform.concat(draw_t1, Matrix.setToScale(draw_t2,
+                                                                    1.0f,
+                                                                    0.6f,
+                                                                    1.0f));
+                    tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                     0,
+                                                                     0,
+                                                                     (5.0f + 2.0f * this.data.intdata) / 16 - 0.5f));
+                    tform = tform.concatAndSet(rotateMat);
                     internalDraw(rs,
                                  0x3F,
                                  tform,
@@ -2355,29 +2726,41 @@ public class Block implements GameObject
             case BTPiston:
             case BTStickyPiston:
             {
-                Matrix rotateMat, tform = Matrix.translate(-0.5f, -0.5f, -0.5f);
+                Matrix rotateMat, tform = Matrix.setToTranslate(draw_t1,
+                                                                -0.5f,
+                                                                -0.5f,
+                                                                -0.5f);
                 switch(getNegOrientation(this.data.orientation))
                 {
                 case 0: // -X
-                    tform = tform.concat(Matrix.rotatez(-Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateZ(draw_t2,
+                                                                   -Math.PI / 2));
                     break;
                 case 1: // -Z
-                    tform = tform.concat(Matrix.rotatex(Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                   Math.PI / 2));
                     break;
                 case 2: // +X
-                    tform = tform.concat(Matrix.rotatez(Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateZ(draw_t2,
+                                                                   Math.PI / 2));
                     break;
                 case 3: // +Z
-                    tform = tform.concat(Matrix.rotatex(-Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                   -Math.PI / 2));
                     break;
                 case 5: // +Y
-                    tform = tform.concat(Matrix.rotatex(-Math.PI));
+                    tform = tform.concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                   -Math.PI));
                     break;
                 // case 4: // -Y
                 default:
                     break;
                 }
-                rotateMat = tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
+                rotateMat = tform.concat(draw_rotateMat,
+                                         Matrix.setToTranslate(draw_t2,
+                                                               0.5f,
+                                                               0.5f,
+                                                               0.5f));
                 if(this.data.intdata == 0)
                 {
                     internalDraw(rs,
@@ -2394,7 +2777,8 @@ public class Block implements GameObject
                 }
                 else
                 {
-                    tform = Matrix.scale(1.0f, 0.75f, 1.0f).concat(rotateMat);
+                    tform = Matrix.setToScale(draw_t1, 1.0f, 0.75f, 1.0f)
+                                  .concatAndSet(rotateMat);
                     internalDraw(rs,
                                  0x3F,
                                  tform,
@@ -2412,32 +2796,47 @@ public class Block implements GameObject
             case BTPistonHead:
             case BTStickyPistonHead:
             {
-                Matrix rotateMat, tform = Matrix.translate(-0.5f, -0.5f, -0.5f);
+                Matrix rotateMat, tform = Matrix.setToTranslate(draw_t1,
+                                                                -0.5f,
+                                                                -0.5f,
+                                                                -0.5f);
                 switch(getNegOrientation(this.data.orientation))
                 {
                 case 0: // -X
-                    tform = tform.concat(Matrix.rotatez(-Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateZ(draw_t2,
+                                                                   -Math.PI / 2));
                     break;
                 case 1: // -Z
-                    tform = tform.concat(Matrix.rotatex(Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                   Math.PI / 2));
                     break;
                 case 2: // +X
-                    tform = tform.concat(Matrix.rotatez(Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateZ(draw_t2,
+                                                                   Math.PI / 2));
                     break;
                 case 3: // +Z
-                    tform = tform.concat(Matrix.rotatex(-Math.PI / 2));
+                    tform = tform.concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                   -Math.PI / 2));
                     break;
                 case 5: // +Y
-                    tform = tform.concat(Matrix.rotatex(-Math.PI));
+                    tform = tform.concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                   -Math.PI));
                     break;
                 // case 4: // -Y
                 default:
                     break;
                 }
-                rotateMat = tform.concat(Matrix.translate(0.5f, 0.5f, 0.5f));
-                tform = Matrix.scale(1.0f, 0.25f, 1.0f)
-                              .concat(Matrix.translate(0, 0.75f, 0))
-                              .concat(rotateMat);
+                rotateMat = tform.concat(draw_rotateMat,
+                                         Matrix.setToTranslate(draw_t2,
+                                                               0.5f,
+                                                               0.5f,
+                                                               0.5f));
+                tform = Matrix.setToScale(draw_t1, 1.0f, 0.25f, 1.0f)
+                              .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                  0,
+                                                                  0.75f,
+                                                                  0))
+                              .concatAndSet(rotateMat);
                 internalDraw(rs,
                              0x3F,
                              tform,
@@ -2449,11 +2848,12 @@ public class Block implements GameObject
                              false,
                              isEntity,
                              isAsItem);
-                tform = Matrix.scale(2.0f / 16, 1.0f, 2.0f / 16)
-                              .concat(Matrix.translate(-1.0f / 16 + 0.5f,
-                                                       -0.25f,
-                                                       -1.0f / 16 + 0.5f))
-                              .concat(rotateMat);
+                tform = Matrix.setToScale(draw_t1, 2.0f / 16, 1.0f, 2.0f / 16)
+                              .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                  -1.0f / 16 + 0.5f,
+                                                                  -0.25f,
+                                                                  -1.0f / 16 + 0.5f))
+                              .concatAndSet(rotateMat);
                 internalDraw(rs,
                              0x3F,
                              tform,
@@ -2472,7 +2872,7 @@ public class Block implements GameObject
             {
                 internalDraw(rs,
                              0x3F,
-                             Matrix.scale(1.0f, 1.0f / 16, 1.0f),
+                             Matrix.setToScale(draw_t1, 1.0f, 1.0f / 16, 1.0f),
                              blockToWorld,
                              bx,
                              by,
@@ -2487,7 +2887,10 @@ public class Block implements GameObject
             {
                 internalDraw(rs,
                              0x3F,
-                             Matrix.scale(1.0f, this.data.intdata / 8.0f, 1.0f),
+                             Matrix.setToScale(draw_t1,
+                                               1.0f,
+                                               this.data.intdata / 8.0f,
+                                               1.0f),
                              blockToWorld,
                              bx,
                              by,
@@ -2518,13 +2921,199 @@ public class Block implements GameObject
                           isAsItem);
                 break;
             }
+            case BTRedstoneComparator:
+            {
+                Matrix rotateMat = Matrix.setToTranslate(draw_rotateMat,
+                                                         -0.5f,
+                                                         -0.5f,
+                                                         -0.49f)
+                                         .concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                                           Math.PI
+                                                                                   / 2.0
+                                                                                   * (1 - this.data.orientation)))
+                                         .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                             0.5f,
+                                                                             0.5f,
+                                                                             0.5f));
+                internalDraw(rs,
+                             0x3F,
+                             Matrix.setToScale(draw_t1, 1.0f, 1.0f / 8, 1.0f)
+                                   .concatAndSet(rotateMat),
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             this.type.textures[this.data.intdata > 0 ? 1 : 0],
+                             false,
+                             isEntity,
+                             isAsItem);
+                TextureHandle torchTexture;
+                if(this.data.step != 0)
+                    torchTexture = BlockType.BTRedstoneTorchOn.textures[0];
+                else
+                    torchTexture = BlockType.BTRedstoneTorchOff.textures[0];
+                Matrix tform;
+                tform = getTorchTransform(4);
+                tform = tform.concat(draw_t1, Matrix.setToScale(draw_t2,
+                                                                1.0f,
+                                                                0.6f,
+                                                                1.0f));
+                tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                 -0.5f,
+                                                                 0,
+                                                                 -0.5f));
+                tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                 0.5f,
+                                                                 0,
+                                                                 3.0f / 16));
+                tform = tform.concatAndSet(rotateMat);
+                internalDraw(rs,
+                             0x3F,
+                             tform,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             torchTexture,
+                             false,
+                             isEntity,
+                             isAsItem);
+                if(this.data.intdata > 0)
+                    torchTexture = BlockType.BTRedstoneTorchOn.textures[0];
+                else
+                    torchTexture = BlockType.BTRedstoneTorchOff.textures[0];
+                tform = getTorchTransform(4);
+                tform = tform.concat(draw_t1, Matrix.setToScale(draw_t2,
+                                                                1.0f,
+                                                                0.6f,
+                                                                1.0f));
+                tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                 3.0f / 16,
+                                                                 0,
+                                                                 12f / 16 - 0.5f));
+                tform = tform.concatAndSet(rotateMat);
+                internalDraw(rs,
+                             0x3F,
+                             tform,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             torchTexture,
+                             false,
+                             isEntity,
+                             isAsItem);
+                tform = getTorchTransform(4);
+                tform = tform.concat(draw_t1, Matrix.setToScale(draw_t2,
+                                                                1.0f,
+                                                                0.6f,
+                                                                1.0f));
+                tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                 -3.0f / 16,
+                                                                 0,
+                                                                 12f / 16 - 0.5f));
+                tform = tform.concatAndSet(rotateMat);
+                internalDraw(rs,
+                             0x3F,
+                             tform,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             torchTexture,
+                             false,
+                             isEntity,
+                             isAsItem);
+                break;
+            }
+            case BTDispenser:
+            case BTDropper:
+            {
+                int drawMask;
+                if(isAsItem || isEntity)
+                {
+                    drawMask = 0x3F;
+                }
+                else
+                {
+                    Block nx = world.getBlock(bx - 1, by, bz);
+                    Block px = world.getBlock(bx + 1, by, bz);
+                    Block ny = world.getBlock(bx, by - 1, bz);
+                    Block py = world.getBlock(bx, by + 1, bz);
+                    Block nz = world.getBlock(bx, by, bz - 1);
+                    Block pz = world.getBlock(bx, by, bz + 1);
+                    drawMask = 0;
+                    if(nx != null && !nx.isOpaque())
+                        drawMask |= DMaskNX;
+                    if(px != null && !px.isOpaque())
+                        drawMask |= DMaskPX;
+                    if(ny != null && !ny.isOpaque())
+                        drawMask |= DMaskNY;
+                    if(py != null && !py.isOpaque())
+                        drawMask |= DMaskPY;
+                    if(nz != null && !nz.isOpaque())
+                        drawMask |= DMaskNZ;
+                    if(pz != null && !pz.isOpaque())
+                        drawMask |= DMaskPZ;
+                }
+                int drawMaskFrame = drawMask;
+                int drawMaskOpening = drawMask;
+                int mask;
+                switch(this.data.orientation)
+                {
+                case 0:
+                    mask = DMaskNX;
+                    break;
+                case 1:
+                    mask = DMaskNZ;
+                    break;
+                case 2:
+                    mask = DMaskPX;
+                    break;
+                case 3:
+                    mask = DMaskPZ;
+                    break;
+                case 4:
+                    mask = DMaskNY;
+                    break;
+                case 5:
+                default:
+                    mask = DMaskPY;
+                    break;
+                }
+                drawMaskFrame = drawMaskFrame & ~mask;
+                drawMaskOpening = drawMaskOpening & mask;
+                internalDraw(rs,
+                             drawMaskFrame,
+                             Matrix.IDENTITY,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             this.type.textures[1],
+                             false,
+                             isEntity,
+                             isAsItem);
+                internalDraw(rs,
+                             drawMaskOpening,
+                             Matrix.IDENTITY,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             this.type.textures[0],
+                             false,
+                             isEntity,
+                             isAsItem);
+                break;
+            }
             default:
                 break;
             }
             break;
         case BDTItem:
             drawItem(rs,
-                     Matrix.identity(),
+                     Matrix.IDENTITY,
                      blockToWorld,
                      bx,
                      by,
@@ -2593,7 +3182,7 @@ public class Block implements GameObject
             break;
         case BDTTool:
             drawItem(rs,
-                     Matrix.identity(),
+                     Matrix.IDENTITY,
                      blockToWorld,
                      bx,
                      by,
@@ -2602,6 +3191,20 @@ public class Block implements GameObject
                      isEntity,
                      isAsItem);
             drawToolUsage(rs, blockToWorld);
+            break;
+        case BDTSim3D:
+            drawSim3D(rs,
+                      Matrix.IDENTITY,
+                      blockToWorld,
+                      bx,
+                      by,
+                      bz,
+                      isEntity,
+                      isAsItem,
+                      this.type.textures[/*
+                                          * this.data.intdata
+                                          */0]); // TODO
+                                                 // fix
             break;
         }
         return rs;
@@ -2632,7 +3235,9 @@ public class Block implements GameObject
      *            <code>getEmitLight()</code> to 15.
      * @return true if the lighting of the block changed
      * @see #getEmitLight() */
-    public boolean setLighting(int sunlight, int scatteredSunlight, int light)
+    public boolean setLighting(final int sunlight,
+                               final int scatteredSunlight,
+                               final int light)
     {
         int newSunlight = Math.max(0, Math.min(15, sunlight));
         int newScatteredSunlight = Math.max(newSunlight,
@@ -2697,8 +3302,13 @@ public class Block implements GameObject
             {
             case BTFurnace:
                 if(this.data.intdata > 0 && this.data.blockdata != null
-                        && this.data.srccount > 0)
+                        && this.data.srccount > 0
+                        && this.data.destcount < BLOCK_STACK_SIZE)
                     return 13;
+                return 0;
+            case BTRedstoneComparator:
+                if(this.data.intdata > 0)
+                    return 9;
                 return 0;
             default:
                 retval = 15;
@@ -2713,7 +3323,7 @@ public class Block implements GameObject
      * 
      * @param rt
      *            the block to copy the lighting from */
-    public void copyLighting(Block rt)
+    public void copyLighting(final Block rt)
     {
         setLighting(rt.sunlight, rt.scatteredSunlight, rt.light);
     }
@@ -2728,7 +3338,7 @@ public class Block implements GameObject
      *            the amount that sunlight counts for. limited from 0 (none) to
      *            15 (full).
      * @return the amount of light in this block */
-    public int getLighting(int sunlightFactor)
+    public int getLighting(final int sunlightFactor)
     {
         return Math.max((this.scatteredSunlight * sunlightFactor) / 15,
                         this.light);
@@ -2741,7 +3351,7 @@ public class Block implements GameObject
      *            used to check for the right array to return
      * @return the lighting array for <code>sunlightFactor</code> or null if
      *         there isn't one */
-    public int[] getLightingArray(int sunlightFactor)
+    public int[] getLightingArray(final int sunlightFactor)
     {
         if(sunlightFactor != this.curSunlightFactor)
             return null;
@@ -2757,7 +3367,8 @@ public class Block implements GameObject
      *            used to check for the right array to return in
      *            <code>getLightingArray</code>
      * @see #getLightingArray(int sunlightFactor) */
-    public void setLightingArray(int lighting[], int sunlightFactor)
+    public void
+        setLightingArray(final int lighting[], final int sunlightFactor)
     {
         if(lighting != null && lighting.length != 8)
             throw new IllegalArgumentException("new lighting array is wrong length");
@@ -2778,11 +3389,17 @@ public class Block implements GameObject
                 return false;
             if(this.data.intdata <= 0)
                 return false;
+            if(this.data.destcount >= BLOCK_STACK_SIZE)
+                return false;
             return true;
         default:
             return this.type.isParticleGenerate();
         }
     }
+
+    private static Vector generateParticles_t1 = Vector.allocate();
+    private static Vector generateParticles_t2 = Vector.allocate();
+    private static Vector generateParticles_blockOrigin = Vector.allocate();
 
     /** called when this block needs to generate particles
      * 
@@ -2797,13 +3414,16 @@ public class Block implements GameObject
      * @param curTime
      *            time for this frame
      * @see #isParticleGenerate() */
-    public void generateParticles(int bx,
-                                  int by,
-                                  int bz,
-                                  double lastTime,
-                                  double curTime)
+    public void generateParticles(final int bx,
+                                  final int by,
+                                  final int bz,
+                                  final double lastTime,
+                                  final double curTime)
     {
-        Vector blockOrigin = new Vector(bx, by, bz);
+        Vector blockOrigin = Vector.set(generateParticles_blockOrigin,
+                                        bx,
+                                        by,
+                                        bz);
         switch(this.type)
         {
         case BTDeleteBlock:
@@ -2837,18 +3457,21 @@ public class Block implements GameObject
                 return;
             if(this.data.intdata <= 0)
                 return;
+            if(this.data.destcount >= BLOCK_STACK_SIZE)
+                return;
             final float ParticlesPerSecond = 30;
             int count = (int)(Math.floor(curTime * ParticlesPerSecond) - Math.floor(lastTime
                     * ParticlesPerSecond));
             for(int i = 0; i < count; i++)
             {
-                Entity p = Entity.NewParticle(blockOrigin.add(new Vector(World.fRand(0,
-                                                                                     1),
-                                                                         1.0f,
-                                                                         World.fRand(0,
-                                                                                     1))),
+                Entity p = Entity.NewParticle(Vector.add(generateParticles_t1,
+                                                         blockOrigin,
+                                                         World.fRand(0, 1),
+                                                         1.0f,
+                                                         World.fRand(0, 1)),
                                               ParticleType.SmokeAnim,
-                                              World.vRand(1.0f));
+                                              World.vRand(generateParticles_t2,
+                                                          1.0f));
                 world.insertEntity(p);
             }
             return;
@@ -2863,7 +3486,11 @@ public class Block implements GameObject
             return;
         case BTRedstoneDustOn:
         {
-            Vector pos = blockOrigin.add(new Vector(0.5f, 0, 0.5f));
+            Vector pos = Vector.add(generateParticles_t1,
+                                    blockOrigin,
+                                    0.5f,
+                                    0,
+                                    0.5f);
             final float ParticlesPerSecond = 3;
             int count = (int)(Math.floor(curTime * ParticlesPerSecond) - Math.floor(lastTime
                     * ParticlesPerSecond));
@@ -2871,7 +3498,8 @@ public class Block implements GameObject
             {
                 Entity p = Entity.NewParticle(pos,
                                               ParticleType.RedstoneFire,
-                                              World.vRand(0.1f));
+                                              World.vRand(generateParticles_t2,
+                                                          0.1f));
                 world.insertEntity(p);
             }
             return;
@@ -2922,10 +3550,12 @@ public class Block implements GameObject
             return;
         case BTTorch:
         {
-            Vector pos = getTorchTransform(this.data.orientation).apply(new Vector(0.5f,
+            Vector pos = getTorchTransform(this.data.orientation).apply(generateParticles_t1,
+                                                                        Vector.set(generateParticles_t2,
+                                                                                   0.5f,
                                                                                    1.0f,
                                                                                    0.5f))
-                                                                 .add(blockOrigin);
+                                                                 .addAndSet(blockOrigin);
             {
                 final float ParticlesPerSecond = 5;
                 int count = (int)(Math.floor(curTime * ParticlesPerSecond) - Math.floor(lastTime
@@ -2935,7 +3565,8 @@ public class Block implements GameObject
                     Entity p;
                     p = Entity.NewParticle(pos,
                                            ParticleType.FireAnim,
-                                           World.vRand(0.1f));
+                                           World.vRand(generateParticles_t2,
+                                                       0.1f));
                     world.insertEntity(p);
                 }
             }
@@ -2948,7 +3579,8 @@ public class Block implements GameObject
                     Entity p;
                     p = Entity.NewParticle(pos,
                                            ParticleType.SmokeAnim,
-                                           World.vRand(0.1f));
+                                           World.vRand(generateParticles_t2,
+                                                       0.1f));
                     world.insertEntity(p);
                 }
             }
@@ -2966,7 +3598,7 @@ public class Block implements GameObject
         case BTRedstoneRepeaterOn:
         {
             // Matrix rotateMat = Matrix.translate(-0.5f, -0.5f, -0.49f)
-            // .concat(Matrix.rotatey(Math.PI / 2.0
+            // .concat(Matrix.rotateY(Math.PI / 2.0
             // * (1 - this.data.orientation)))
             // .concat(Matrix.translate(0.5f, 0.5f, 0.5f));
             // final float ParticlesPerSecond = 2;
@@ -3041,11 +3673,18 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return;
         }
     }
 
-    private boolean isLiquidSupported(int bx, int by, int bz)
+    private boolean isLiquidSupported(final int bx, final int by, final int bz)
     {
         Block ny = world.getBlockEval(bx, by - 1, bz);
         if(ny == null)
@@ -3075,7 +3714,7 @@ public class Block implements GameObject
      * @param bz
      *            block z coordinate
      * @return the block that this block changes to or null if it doesn't change */
-    public Block move(int bx, int by, int bz)
+    public Block move(final int bx, final int by, final int bz)
     {
         switch(this.type)
         {
@@ -3166,7 +3805,8 @@ public class Block implements GameObject
             Block sourceblock = this.data.blockdata;
             int destcount = this.data.destcount;
             int srccount = this.data.srccount;
-            if(fuelleft <= 0 || sourceblock == null || srccount <= 0)
+            if(fuelleft <= 0 || sourceblock == null || srccount <= 0
+                    || destcount >= BLOCK_STACK_SIZE)
                 return null;
             if(world.getCurTime() < this.data.runTime)
             {
@@ -3427,6 +4067,13 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             break;
         case BTSnow:
         {
@@ -3459,7 +4106,7 @@ public class Block implements GameObject
      * @param bz
      *            block z coordinate
      * @return the block that this block changes to or null if it doesn't change */
-    public Block moveRandom(int bx, int by, int bz)
+    public Block moveRandom(final int bx, final int by, final int bz)
     {
         switch(this.type)
         {
@@ -3624,12 +4271,21 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             break;
         }
         return null;
     }
 
-    private boolean redstoneRepeaterIsLatched(int bx, int by, int bz)
+    private boolean redstoneRepeaterIsLatched(final int bx,
+                                              final int by,
+                                              final int bz)
     {
         for(int angle = -1; angle <= 1; angle += 2)
         {
@@ -3649,6 +4305,8 @@ public class Block implements GameObject
         return false;
     }
 
+    private static Vector TNTExplode_t1 = Vector.allocate();
+
     /** explode this TNT block
      * 
      * @param bx
@@ -3657,11 +4315,16 @@ public class Block implements GameObject
      *            y coordinate of this block
      * @param bz
      *            z coordinate of this block */
-    public void TNTExplode(int bx, int by, int bz)
+    public void TNTExplode(final int bx, final int by, final int bz)
     {
-        world.insertEntity(Entity.NewPrimedTNT(new Vector(bx, by, bz), 1));
+        world.insertEntity(Entity.NewPrimedTNT(Vector.set(TNTExplode_t1,
+                                                          bx,
+                                                          by,
+                                                          bz), 1));
         world.setBlock(bx, by, bz, new Block());
     }
+
+    private static Vector redstoneMove_t1 = Vector.allocate();
 
     /** called to evaluate redstone moves
      * 
@@ -3672,7 +4335,7 @@ public class Block implements GameObject
      * @param bz
      *            block z coordinate
      * @return the block that this block changes to or null if it doesn't change */
-    public Block redstoneMove(int bx, int by, int bz)
+    public Block redstoneMove(final int bx, final int by, final int bz)
     {
         switch(this.type)
         {
@@ -3879,7 +4542,10 @@ public class Block implements GameObject
             }
             if(isOn)
             {
-                world.insertEntity(Entity.NewPrimedTNT(new Vector(bx, by, bz),
+                world.insertEntity(Entity.NewPrimedTNT(Vector.set(redstoneMove_t1,
+                                                                  bx,
+                                                                  by,
+                                                                  bz),
                                                        1));
                 return new Block();
             }
@@ -3907,6 +4573,443 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
+            return null;
+        case BTRedstoneComparator:
+        {
+            int backInput = getEvalRedstoneIOValue(bx
+                                                           - getOrientationDX(this.data.orientation),
+                                                   by
+                                                           - getOrientationDY(this.data.orientation),
+                                                   bz
+                                                           - getOrientationDZ(this.data.orientation),
+                                                   this.data.orientation);
+            int backInputLevel = 0;
+            if(backInput == REDSTONE_POWER_STRONG)
+                backInputLevel = 15;
+            else if(backInput >= REDSTONE_POWER_WEAK_MIN
+                    && backInput <= REDSTONE_POWER_WEAK_MAX)
+                backInputLevel = 1 + backInput - REDSTONE_POWER_WEAK_MIN;
+            if(backInputLevel == 0)
+            {
+                Block b = world.getBlockEval(bx
+                        - getOrientationDX(this.data.orientation), by
+                        - getOrientationDY(this.data.orientation), bz
+                        - getOrientationDZ(this.data.orientation));
+                if(b != null)
+                {
+                    int containerLevel = b.getContainerLevel();
+                    if(containerLevel >= 0)
+                        backInputLevel = containerLevel;
+                    else if(b.isSolid())
+                    {
+                        b = world.getBlockEval(bx
+                                                       - 2
+                                                       * getOrientationDX(this.data.orientation),
+                                               by
+                                                       - 2
+                                                       * getOrientationDY(this.data.orientation),
+                                               bz
+                                                       - 2
+                                                       * getOrientationDZ(this.data.orientation));
+                        if(b != null)
+                        {
+                            containerLevel = b.getContainerLevel();
+                            if(containerLevel >= 0)
+                                backInputLevel = containerLevel;
+                        }
+                    }
+                }
+            }
+            int sideInputLevel = 0;
+            {
+                int o = getRotatedOrientation(5, 1, this.data.orientation);
+                int sideInput = getEvalRedstoneIOValue(bx - getOrientationDX(o),
+                                                       by - getOrientationDY(o),
+                                                       bz - getOrientationDZ(o),
+                                                       o);
+                int v = 0;
+                if(sideInput == REDSTONE_POWER_STRONG)
+                    v = 15;
+                else if(sideInput >= REDSTONE_POWER_WEAK_MIN
+                        && sideInput <= REDSTONE_POWER_WEAK_MAX)
+                    v = 1 + sideInput - REDSTONE_POWER_WEAK_MIN;
+                sideInputLevel = Math.max(sideInputLevel, v);
+            }
+            {
+                int o = getRotatedOrientation(5, -1, this.data.orientation);
+                int sideInput = getEvalRedstoneIOValue(bx - getOrientationDX(o),
+                                                       by - getOrientationDY(o),
+                                                       bz - getOrientationDZ(o),
+                                                       o);
+                int v = 0;
+                if(sideInput == REDSTONE_POWER_STRONG)
+                    v = 15;
+                else if(sideInput >= REDSTONE_POWER_WEAK_MIN
+                        && sideInput <= REDSTONE_POWER_WEAK_MAX)
+                    v = 1 + sideInput - REDSTONE_POWER_WEAK_MIN;
+                sideInputLevel = Math.max(sideInputLevel, v);
+            }
+            int newOutputLevel;
+            if(this.data.step != 0) // is subtract mode
+            {
+                newOutputLevel = Math.max(0, backInputLevel - sideInputLevel);
+            }
+            else
+            {
+                if(backInputLevel >= sideInputLevel)
+                    newOutputLevel = backInputLevel;
+                else
+                    newOutputLevel = 0;
+            }
+            if(this.data.intdata != newOutputLevel)
+                return NewRedstoneComparator(this.data.step != 0,
+                                             newOutputLevel,
+                                             this.data.orientation);
+            return null;
+        }
+        case BTDispenser:
+        {
+            boolean isOn = false;
+            for(int orientation = 0; orientation < 6; orientation++)
+            {
+                int dx = getOrientationDX(orientation);
+                int dy = getOrientationDY(orientation);
+                int dz = getOrientationDZ(orientation);
+                int x = bx + dx, y = by + dy, z = bz + dz;
+                int curPower = getEvalRedstoneIOValue(x,
+                                                      y,
+                                                      z,
+                                                      getNegOrientation(orientation));
+                if(curPower == REDSTONE_POWER_STRONG)
+                {
+                    isOn = true;
+                    break;
+                }
+                if(curPower >= REDSTONE_POWER_WEAK_MIN
+                        && curPower <= REDSTONE_POWER_WEAK_MAX)
+                {
+                    isOn = true;
+                    break;
+                }
+            }
+            if(this.data.intdata == 0 && !isOn)
+                return null;
+            if(this.data.intdata != 0 && isOn)
+                return null;
+            Block retval = new Block(this);
+            retval.data.intdata = isOn ? 1 : 0;
+            if(isOn)
+                retval.dispenserDispenseBlock(bx, by, bz);
+            return retval;
+        }
+        case BTDropper:
+        {
+            boolean isOn = false;
+            for(int orientation = 0; orientation < 6; orientation++)
+            {
+                int dx = getOrientationDX(orientation);
+                int dy = getOrientationDY(orientation);
+                int dz = getOrientationDZ(orientation);
+                int x = bx + dx, y = by + dy, z = bz + dz;
+                int curPower = getEvalRedstoneIOValue(x,
+                                                      y,
+                                                      z,
+                                                      getNegOrientation(orientation));
+                if(curPower == REDSTONE_POWER_STRONG)
+                {
+                    isOn = true;
+                    break;
+                }
+                if(curPower >= REDSTONE_POWER_WEAK_MIN
+                        && curPower <= REDSTONE_POWER_WEAK_MAX)
+                {
+                    isOn = true;
+                    break;
+                }
+            }
+            if(this.data.intdata == 0 && !isOn)
+                return null;
+            if(this.data.intdata != 0 && isOn)
+                return null;
+            Block retval = new Block(this);
+            retval.data.intdata = isOn ? 1 : 0;
+            if(isOn)
+                retval.dropperDropBlock(bx, by, bz);
+            return retval;
+        }
+        }
+        return null;
+    }
+
+    public static final int DISPENSER_DROPPER_ROWS = 3;
+    public static final int DISPENSER_DROPPER_COLUMNS = 3;
+
+    private int getDispenserDropperSlotIndex(final int row, final int column)
+    {
+        return row + DISPENSER_DROPPER_ROWS * column;
+    }
+
+    private int pickDispenserDropperRandomSlot()
+    {
+        int count = 0;
+        for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+        {
+            for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+            {
+                int index = getDispenserDropperSlotIndex(row, column);
+                if(this.data.BlockCounts[index] > 0)
+                    count++;
+            }
+        }
+        if(count <= 0)
+            return -1;
+        int pos = (int)Math.floor(World.fRand(0, count));
+        if(pos >= count)
+            pos = count - 1;
+        count = 0;
+        for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+        {
+            for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+            {
+                int index = getDispenserDropperSlotIndex(row, column);
+                if(this.data.BlockCounts[index] > 0)
+                {
+                    if(pos == count)
+                        return index;
+                    count++;
+                }
+            }
+        }
+        return -1; // shouldn't ever get here
+    }
+
+    private void dropperDropBlock(final int bx, final int by, final int bz)
+    {
+        int index = pickDispenserDropperRandomSlot();
+        if(index == -1)
+            return;
+        Block b = this.data.BlockTypes[index];
+        this.data.BlockCounts[index]--;
+        if(this.data.BlockCounts[index] <= 0)
+            this.data.BlockTypes[index] = null;
+        int dx = getOrientationDX(this.data.orientation);
+        int dy = getOrientationDY(this.data.orientation);
+        int dz = getOrientationDZ(this.data.orientation);
+        Vector dir = Vector.allocate(dx, dy, dz);
+        b.onDrop(bx + dx, by + dy, bz + dz, dir);
+        dir.free();
+    }
+
+    private static Vector onDrop_t1 = Vector.allocate();
+    private static Vector onDrop_t2 = Vector.allocate();
+
+    private void onDrop(final int destX,
+                        final int destY,
+                        final int destZ,
+                        final Vector dir)
+    {
+        if(this.type != BlockType.BTEmpty)
+            world.insertEntity(Entity.NewBlock(onDrop_t1.set(destX + 0.5f,
+                                                             destY + 0.5f,
+                                                             destZ + 0.5f),
+                                               this,
+                                               World.vRand(onDrop_t2, 0.2f)
+                                                    .addAndSet(dir)
+                                                    .mulAndSet(5f)));
+    }
+
+    private void
+        dispenserDispenseBlock(final int bx, final int by, final int bz)
+    {
+        Block b;
+        {
+            int index = pickDispenserDropperRandomSlot();
+            if(index == -1)
+                return;
+            b = this.data.BlockTypes[index];
+            this.data.BlockCounts[index]--;
+            if(this.data.BlockCounts[index] <= 0)
+                this.data.BlockTypes[index] = null;
+        }
+        int dx = getOrientationDX(this.data.orientation);
+        int dy = getOrientationDY(this.data.orientation);
+        int dz = getOrientationDZ(this.data.orientation);
+        Vector dir = Vector.allocate(dx, dy, dz);
+        b = b.onDispense(bx + dx, by + dy, bz + dz, dir);
+        if(b != null && b.getType() != BlockType.BTEmpty)
+        {
+            findEmptySlotLoop: for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    int index = getDispenserDropperSlotIndex(row, column);
+                    if(this.data.BlockCounts[index] <= 0)
+                    {
+                        this.data.BlockCounts[index]++;
+                        this.data.BlockTypes[index] = b;
+                        b = null;
+                        break findEmptySlotLoop;
+                    }
+                    if(b.equals(this.data.BlockTypes[index]))
+                    {
+                        if(this.data.BlockCounts[index] < BLOCK_STACK_SIZE)
+                        {
+                            this.data.BlockCounts[index]++;
+                            b = null;
+                            break findEmptySlotLoop;
+                        }
+                    }
+                }
+            }
+            if(b != null)
+            {
+                b.onDrop(bx + dx, by + dy, bz + dz, dir);
+            }
+        }
+        dir.free();
+    }
+
+    private static Vector onDispense_t1 = Vector.allocate();
+    private static Vector onDispense_t2 = Vector.allocate();
+
+    private Block onDispense(final int destX,
+                             final int destY,
+                             final int destZ,
+                             final Vector dir)
+    {
+        switch(this.type)
+        {
+        case BTDeleteBlock:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return null;
+        case BTEmpty:
+            return null;
+        case BTBucket:
+        {
+            Block b = world.getBlockEval(destX, destY, destZ);
+            if(b == null || !b.isItemInBucket())
+                return this;
+            world.insertEntity(Entity.NewRemoveBlockIfEqual(onDispense_t1.set(destX,
+                                                                              destY,
+                                                                              destZ),
+                                                            b));
+            return b.getItemInBucket();
+        }
+        case BTLava:
+        case BTWater:
+        {
+            Block b = world.getBlockEval(destX, destY, destZ);
+            if(b == null || !b.isReplaceable())
+                return this;
+            world.insertEntity(Entity.NewPlaceBlockIfReplaceable(onDispense_t1.set(destX,
+                                                                                   destY,
+                                                                                   destZ),
+                                                                 this));
+            return NewBucket();
+        }
+        case BTSnow:
+            world.insertEntity(Entity.NewBlock(onDispense_t1.set(destX + 0.5f,
+                                                                 destY + 0.5f,
+                                                                 destZ + 0.5f),
+                                               this,
+                                               World.vRand(onDispense_t2, 0.2f)
+                                                    .addAndSet(dir)
+                                                    .mulAndSet(15f)));
+            return null;
+        case BTTNT:
+            world.insertEntity(Entity.NewPrimedTNT(onDispense_t1.set(destX,
+                                                                     destY,
+                                                                     destZ), 1));
+            return null;
+        case BTBedrock:
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTChest:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTDispenser:
+        case BTDropper:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTFurnace:
+        case BTGlass:
+        case BTGoldAxe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronAxe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLeaves:
+        case BTLever:
+        case BTObsidian:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTQuartz:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTShears:
+        case BTSlime:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTTorch:
+        case BTVines:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
+            world.insertEntity(Entity.NewBlock(onDrop_t1.set(destX + 0.5f,
+                                                             destY + 0.5f,
+                                                             destZ + 0.5f),
+                                               this,
+                                               World.vRand(onDrop_t2, 0.2f)
+                                                    .addAndSet(dir)
+                                                    .mulAndSet(5f)));
             return null;
         }
         return null;
@@ -3921,7 +5024,7 @@ public class Block implements GameObject
      * @param bz
      *            block z coordinate
      * @return the block that this block changes to or null if it doesn't change */
-    public Block redstoneDustMove(int bx, int by, int bz)
+    public Block redstoneDustMove(final int bx, final int by, final int bz)
     {
         if(this.type != BlockType.BTRedstoneDustOff
                 && this.type != BlockType.BTRedstoneDustOn)
@@ -4000,7 +5103,7 @@ public class Block implements GameObject
      *            block y coordinate
      * @param bz
      *            block z coordinate */
-    public void pistonMove(int bx, int by, int bz)
+    public void pistonMove(final int bx, final int by, final int bz)
     {
         if(this.type != BlockType.BTPiston
                 && this.type != BlockType.BTStickyPiston
@@ -4197,15 +5300,27 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTCobweb:
             return PushType.DropAsEntity;
         case BTSnow:
         case BTVines:
             return PushType.Remove;
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTString:
+        case BTBow:
+            return PushType.DropAsEntity;
+        case BTDispenser:
+        case BTDropper:
+            return PushType.Pushed;
         }
         return PushType.NonPushable;
     }
 
-    private boolean isBlockSupported(int bx, int by, int bz, int orientation)
+    private boolean isBlockSupported(final int bx,
+                                     final int by,
+                                     final int bz,
+                                     final int orientation)
     {
         Block px = world.getBlockEval(bx + 1, by, bz);
         Block nx = world.getBlockEval(bx - 1, by, bz);
@@ -4240,6 +5355,9 @@ public class Block implements GameObject
         return true;
     }
 
+    private static Vector evalBlockToEntity_t1 = Vector.allocate();
+    private static Vector evalBlockToEntity_t2 = Vector.allocate();
+
     /** @param bx
      *            block x coordinate
      * @param by
@@ -4248,7 +5366,7 @@ public class Block implements GameObject
      *            block z coordinate
      * @return the entity that this block changes to or null if it doesn't
      *         change */
-    public Entity evalBlockToEntity(int bx, int by, int bz)
+    public Entity evalBlockToEntity(final int bx, final int by, final int bz)
     {
         Entity retval = null;
         switch(this.type)
@@ -4272,8 +5390,10 @@ public class Block implements GameObject
         case BTGravel:
         {
             if(!isBlockSupported(bx, by, bz, 4))
-                return Entity.NewFallingBlock(new Vector(bx, by, bz),
-                                              new Block(this));
+                return Entity.NewFallingBlock(Vector.set(evalBlockToEntity_t1,
+                                                         bx,
+                                                         by,
+                                                         bz), new Block(this));
             return null;
         }
         case BTWood:
@@ -4293,11 +5413,12 @@ public class Block implements GameObject
         case BTRedstoneDustOn:
         {
             if(!isBlockSupported(bx, by, bz, 4))
-                return Entity.NewBlock(new Vector(0.5f + bx,
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
                                        BlockType.BTRedstoneDustOff.make(-1),
-                                       World.vRand(0.1f));
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
             return null;
         }
         case BTRedstoneOre:
@@ -4307,11 +5428,12 @@ public class Block implements GameObject
         case BTRedstoneTorchOn:
         {
             if(!isBlockSupported(bx, by, bz, this.data.orientation))
-                return Entity.NewBlock(new Vector(0.5f + bx,
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
                                        BlockType.BTRedstoneTorchOff.make(-1),
-                                       World.vRand(0.1f));
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
             return null;
         }
         case BTStoneButton:
@@ -4319,11 +5441,12 @@ public class Block implements GameObject
         case BTTorch:
         {
             if(!isBlockSupported(bx, by, bz, this.data.orientation))
-                return Entity.NewBlock(new Vector(0.5f + bx,
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
                                        this.type.make(-1),
-                                       World.vRand(0.1f));
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
             return null;
         }
         case BTCoal:
@@ -4353,34 +5476,38 @@ public class Block implements GameObject
         case BTLadder:
         {
             if(!isBlockSupported(bx, by, bz, this.data.orientation))
-                return Entity.NewBlock(new Vector(0.5f + bx,
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
                                        this.type.make(-1),
-                                       World.vRand(0.1f));
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
             return null;
         }
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
+        case BTRedstoneComparator:
         {
             if(!isBlockSupported(bx, by, bz, 4))
-                return Entity.NewBlock(new Vector(0.5f + bx,
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
                                        this.type.make(-1),
-                                       World.vRand(0.1f));
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
             return null;
         }
         case BTLever:
         {
             if(!isBlockSupported(bx, by, bz, this.data.orientation))
-                return Entity.NewBlock(new Vector(0.5f + bx,
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
                                                   0.5f + by,
                                                   0.5f + bz),
                                        this.type.make(-1),
-                                       World.vRand(0.1f));
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
             return null;
         }
         case BTObsidian:
@@ -4397,6 +5524,12 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return null;
         }
         return retval;
@@ -4407,192 +5540,226 @@ public class Block implements GameObject
     {
     }
 
-    private float rayIntersectsBlock(Vector origin,
-                                     Vector direction,
-                                     Matrix tform)
+    private static Matrix rayIntersectsBlock_invtform = new Matrix();
+    private static Vector rayIntersectsBlock_orig = Vector.allocate();
+    private static Vector rayIntersectsBlock_dir = Vector.allocate();
+    private static Vector rayIntersectsBlock_invdir = Vector.allocate();
+    private static Vector rayIntersectsBlock_destpos = Vector.allocate();
+    private static Vector rayIntersectsBlock_vt = Vector.allocate();
+    private static Vector rayIntersectsBlock_hx = Vector.allocate();
+    private static Vector rayIntersectsBlock_hy = Vector.allocate();
+    private static Vector rayIntersectsBlock_hz = Vector.allocate();
+    private static Vector rayIntersectsBlock_t1 = Vector.allocate();
+
+    private float rayIntersectsBlock(final Vector origin,
+                                     final Vector direction,
+                                     final Matrix tform)
     {
-        Matrix invtform = tform.invert();
-        Vector orig = invtform.apply(origin);
-        Vector dir = invtform.apply(direction)
-                             .sub(invtform.apply(new Vector(0)));
+        Matrix invtform = Matrix.setToInverse(rayIntersectsBlock_invtform,
+                                              tform);
+        Vector orig = invtform.apply(rayIntersectsBlock_orig, origin);
+        Vector dir = invtform.apply(rayIntersectsBlock_dir, direction)
+                             .subAndSet(invtform.apply(rayIntersectsBlock_t1,
+                                                       Vector.ZERO));
         final float eps = 1e-4f;
-        if(Math.abs(dir.x) < eps)
-            dir.x = eps;
-        if(Math.abs(dir.y) < eps)
-            dir.y = eps;
-        if(Math.abs(dir.z) < eps)
-            dir.z = eps;
-        Vector invdir = new Vector(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
-        Vector destpos = new Vector(1.0f);
-        if(dir.x < 0)
-            destpos.x = 0;
-        if(dir.y < 0)
-            destpos.y = 0;
-        if(dir.z < 0)
-            destpos.z = 0;
-        Vector vt = new Vector();
-        vt.x = (destpos.x - orig.x) * invdir.x;
-        vt.y = (destpos.y - orig.y) * invdir.y;
-        vt.z = (destpos.z - orig.z) * invdir.z;
+        if(Math.abs(dir.getX()) < eps)
+            dir.setX(eps);
+        if(Math.abs(dir.getY()) < eps)
+            dir.setY(eps);
+        if(Math.abs(dir.getZ()) < eps)
+            dir.setZ(eps);
+        Vector invdir = Vector.div(rayIntersectsBlock_invdir, 1, 1, 1, dir);
+        Vector destpos = Vector.set(rayIntersectsBlock_destpos, 1, 1, 1);
+        if(dir.getX() < 0)
+            destpos.setX(0);
+        if(dir.getY() < 0)
+            destpos.setY(0);
+        if(dir.getZ() < 0)
+            destpos.setZ(0);
+        Vector vt = rayIntersectsBlock_vt;
+        vt.setX((destpos.getX() - orig.getX()) * invdir.getX());
+        vt.setY((destpos.getY() - orig.getY()) * invdir.getY());
+        vt.setZ((destpos.getZ() - orig.getZ()) * invdir.getZ());
         Vector hx, hy, hz;
-        hx = dir.mul(vt.x).add(orig);
-        hy = dir.mul(vt.y).add(orig);
-        hz = dir.mul(vt.z).add(orig);
-        if(hx.x >= -eps && hx.x <= 1 + eps && hx.y >= -eps && hx.y <= 1 + eps
-                && hx.z >= -eps && hx.z <= 1 + eps)
-            return vt.x;
-        if(hy.x >= -eps && hy.x <= 1 + eps && hy.y >= -eps && hy.y <= 1 + eps
-                && hy.z >= -eps && hy.z <= 1 + eps)
-            return vt.y;
-        if(hz.x >= -eps && hz.x <= 1 + eps && hz.y >= -eps && hz.y <= 1 + eps
-                && hz.z >= -eps && hz.z <= 1 + eps)
-            return vt.z;
+        hx = Vector.mul(rayIntersectsBlock_hx, dir, vt.getX()).addAndSet(orig);
+        hy = Vector.mul(rayIntersectsBlock_hy, dir, vt.getY()).addAndSet(orig);
+        hz = Vector.mul(rayIntersectsBlock_hz, dir, vt.getZ()).addAndSet(orig);
+        if(hx.getX() >= -eps && hx.getX() <= 1 + eps && hx.getY() >= -eps
+                && hx.getY() <= 1 + eps && hx.getZ() >= -eps
+                && hx.getZ() <= 1 + eps)
+            return vt.getX();
+        if(hy.getX() >= -eps && hy.getX() <= 1 + eps && hy.getY() >= -eps
+                && hy.getY() <= 1 + eps && hy.getZ() >= -eps
+                && hy.getZ() <= 1 + eps)
+            return vt.getY();
+        if(hz.getX() >= -eps && hz.getX() <= 1 + eps && hz.getY() >= -eps
+                && hz.getY() <= 1 + eps && hz.getZ() >= -eps
+                && hz.getZ() <= 1 + eps)
+            return vt.getZ();
         return -1;
     }
 
-    private int getRayEnterSide(Vector origin, Vector direction)
+    private static Vector getRayEnterSide_dir = Vector.allocate();
+    private static Vector getRayEnterSide_orig = Vector.allocate();
+    private static Vector getRayEnterSide_invdir = Vector.allocate();
+    private static Vector getRayEnterSide_destpos = Vector.allocate();
+    private static Vector getRayEnterSide_vt = Vector.allocate();
+    private static Vector getRayEnterSide_hx = Vector.allocate();
+    private static Vector getRayEnterSide_hy = Vector.allocate();
+    private static Vector getRayEnterSide_hz = Vector.allocate();
+
+    private int getRayEnterSide(final Vector origin, final Vector direction)
     {
-        Vector dir = new Vector(direction);
-        Vector orig = new Vector(origin);
+        Vector dir = Vector.set(getRayEnterSide_dir, direction);
+        Vector orig = Vector.set(getRayEnterSide_orig, origin);
         final float eps = 1e-4f;
-        if(Math.abs(dir.x) < eps)
-            dir.x = eps;
-        if(Math.abs(dir.y) < eps)
-            dir.y = eps;
-        if(Math.abs(dir.z) < eps)
-            dir.z = eps;
-        Vector invdir = new Vector(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
-        Vector destpos = new Vector(0.0f);
-        if(dir.x < 0)
-            destpos.x = 1;
-        if(dir.y < 0)
-            destpos.y = 1;
-        if(dir.z < 0)
-            destpos.z = 1;
-        Vector vt = new Vector();
-        vt.x = (destpos.x - orig.x) * invdir.x;
-        vt.y = (destpos.y - orig.y) * invdir.y;
-        vt.z = (destpos.z - orig.z) * invdir.z;
+        if(Math.abs(dir.getX()) < eps)
+            dir.setX(eps);
+        if(Math.abs(dir.getY()) < eps)
+            dir.setY(eps);
+        if(Math.abs(dir.getZ()) < eps)
+            dir.setZ(eps);
+        Vector invdir = Vector.div(getRayEnterSide_invdir, 1, 1, 1, dir);
+        Vector destpos = Vector.set(getRayEnterSide_destpos, 0, 0, 0);
+        if(dir.getX() < 0)
+            destpos.setX(1);
+        if(dir.getY() < 0)
+            destpos.setY(1);
+        if(dir.getZ() < 0)
+            destpos.setZ(1);
+        Vector vt = getRayEnterSide_vt;
+        vt.setX((destpos.getX() - orig.getX()) * invdir.getX());
+        vt.setY((destpos.getY() - orig.getY()) * invdir.getY());
+        vt.setZ((destpos.getZ() - orig.getZ()) * invdir.getZ());
         Vector hx, hy, hz;
-        hx = dir.mul(vt.x).add(orig);
-        hy = dir.mul(vt.y).add(orig);
-        hz = dir.mul(vt.z).add(orig);
-        if(hx.x >= -eps && hx.x <= 1 + eps && hx.y >= -eps && hx.y <= 1 + eps
-                && hx.z >= -eps && hx.z <= 1 + eps)
+        hx = Vector.mul(getRayEnterSide_hx, dir, vt.getX()).addAndSet(orig);
+        hy = Vector.mul(getRayEnterSide_hy, dir, vt.getY()).addAndSet(orig);
+        hz = Vector.mul(getRayEnterSide_hz, dir, vt.getZ()).addAndSet(orig);
+        if(hx.getX() >= -eps && hx.getX() <= 1 + eps && hx.getY() >= -eps
+                && hx.getY() <= 1 + eps && hx.getZ() >= -eps
+                && hx.getZ() <= 1 + eps && vt.getX() >= -eps)
         {
-            if(dir.x < 0)
+            if(dir.getX() < 0)
                 return 2;
             return 0;
         }
-        if(hy.x >= -eps && hy.x <= 1 + eps && hy.y >= -eps && hy.y <= 1 + eps
-                && hy.z >= -eps && hy.z <= 1 + eps)
+        if(hy.getX() >= -eps && hy.getX() <= 1 + eps && hy.getY() >= -eps
+                && hy.getY() <= 1 + eps && hy.getZ() >= -eps
+                && hy.getZ() <= 1 + eps && vt.getY() >= -eps)
         {
-            if(dir.y < 0)
+            if(dir.getY() < 0)
                 return 5;
             return 4;
         }
-        if(hz.x >= -eps && hz.x <= 1 + eps && hz.y >= -eps && hz.y <= 1 + eps
-                && hz.z >= -eps && hz.z <= 1 + eps)
+        if(hz.getX() >= -eps && hz.getX() <= 1 + eps && hz.getY() >= -eps
+                && hz.getY() <= 1 + eps && hz.getZ() >= -eps
+                && hz.getZ() <= 1 + eps && vt.getZ() >= -eps)
         {
-            if(dir.z < 0)
+            if(dir.getZ() < 0)
                 return 3;
             return 1;
         }
         return -1;
     }
 
-    private int getRayExitSide(Vector origin, Vector direction)
+    private int getRayExitSide(final Vector origin, final Vector direction)
     {
-        Vector dir = new Vector(direction);
-        Vector orig = new Vector(origin);
+        Vector dir = Vector.set(getRayEnterSide_dir, direction);
+        Vector orig = Vector.set(getRayEnterSide_orig, origin);
         final float eps = 1e-4f;
-        if(Math.abs(dir.x) < eps)
-            dir.x = eps;
-        if(Math.abs(dir.y) < eps)
-            dir.y = eps;
-        if(Math.abs(dir.z) < eps)
-            dir.z = eps;
-        Vector invdir = new Vector(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
-        Vector destpos = new Vector(1.0f);
-        if(dir.x < 0)
-            destpos.x = 0;
-        if(dir.y < 0)
-            destpos.y = 0;
-        if(dir.z < 0)
-            destpos.z = 0;
-        Vector vt = new Vector();
-        vt.x = (destpos.x - orig.x) * invdir.x;
-        vt.y = (destpos.y - orig.y) * invdir.y;
-        vt.z = (destpos.z - orig.z) * invdir.z;
+        if(Math.abs(dir.getX()) < eps)
+            dir.setX(eps);
+        if(Math.abs(dir.getY()) < eps)
+            dir.setY(eps);
+        if(Math.abs(dir.getZ()) < eps)
+            dir.setZ(eps);
+        Vector invdir = Vector.div(getRayEnterSide_invdir, 1, 1, 1, dir);
+        Vector destpos = Vector.set(getRayEnterSide_destpos, 1, 1, 1);
+        if(dir.getX() < 0)
+            destpos.setX(0);
+        if(dir.getY() < 0)
+            destpos.setY(0);
+        if(dir.getZ() < 0)
+            destpos.setZ(0);
+        Vector vt = getRayEnterSide_vt;
+        vt.setX((destpos.getX() - orig.getX()) * invdir.getX());
+        vt.setY((destpos.getY() - orig.getY()) * invdir.getY());
+        vt.setZ((destpos.getZ() - orig.getZ()) * invdir.getZ());
         Vector hx, hy, hz;
-        hx = dir.mul(vt.x).add(orig);
-        hy = dir.mul(vt.y).add(orig);
-        hz = dir.mul(vt.z).add(orig);
-        if(hx.x >= -eps && hx.x <= 1 + eps && hx.y >= -eps && hx.y <= 1 + eps
-                && hx.z >= -eps && hx.z <= 1 + eps)
+        hx = Vector.mul(getRayEnterSide_hx, dir, vt.getX()).addAndSet(orig);
+        hy = Vector.mul(getRayEnterSide_hy, dir, vt.getY()).addAndSet(orig);
+        hz = Vector.mul(getRayEnterSide_hz, dir, vt.getZ()).addAndSet(orig);
+        if(hx.getX() >= -eps && hx.getX() <= 1 + eps && hx.getY() >= -eps
+                && hx.getY() <= 1 + eps && hx.getZ() >= -eps
+                && hx.getZ() <= 1 + eps)
         {
-            if(dir.x < 0)
+            if(dir.getX() < 0)
                 return 0;
             return 2;
         }
-        if(hy.x >= -eps && hy.x <= 1 + eps && hy.y >= -eps && hy.y <= 1 + eps
-                && hy.z >= -eps && hy.z <= 1 + eps)
+        if(hy.getX() >= -eps && hy.getX() <= 1 + eps && hy.getY() >= -eps
+                && hy.getY() <= 1 + eps && hy.getZ() >= -eps
+                && hy.getZ() <= 1 + eps)
         {
-            if(dir.y < 0)
+            if(dir.getY() < 0)
                 return 4;
             return 5;
         }
-        if(hz.x >= -eps && hz.x <= 1 + eps && hz.y >= -eps && hz.y <= 1 + eps
-                && hz.z >= -eps && hz.z <= 1 + eps)
+        if(hz.getX() >= -eps && hz.getX() <= 1 + eps && hz.getY() >= -eps
+                && hz.getY() <= 1 + eps && hz.getZ() >= -eps
+                && hz.getZ() <= 1 + eps)
         {
-            if(dir.z < 0)
+            if(dir.getZ() < 0)
                 return 1;
             return 3;
         }
         return -1;
     }
 
-    private float getRayExitDist(Vector origin, Vector direction)
+    private float getRayExitDist(final Vector origin, final Vector direction)
     {
-        Vector dir = new Vector(direction);
-        Vector orig = new Vector(origin);
+        Vector dir = Vector.set(getRayEnterSide_dir, direction);
+        Vector orig = Vector.set(getRayEnterSide_orig, origin);
         final float eps = 1e-4f;
-        if(Math.abs(dir.x) < eps)
-            dir.x = eps;
-        if(Math.abs(dir.y) < eps)
-            dir.y = eps;
-        if(Math.abs(dir.z) < eps)
-            dir.z = eps;
-        Vector invdir = new Vector(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
-        Vector destpos = new Vector(1.0f);
-        if(dir.x < 0)
-            destpos.x = 0;
-        if(dir.y < 0)
-            destpos.y = 0;
-        if(dir.z < 0)
-            destpos.z = 0;
-        Vector vt = new Vector();
-        vt.x = (destpos.x - orig.x) * invdir.x;
-        vt.y = (destpos.y - orig.y) * invdir.y;
-        vt.z = (destpos.z - orig.z) * invdir.z;
+        if(Math.abs(dir.getX()) < eps)
+            dir.setX(eps);
+        if(Math.abs(dir.getY()) < eps)
+            dir.setY(eps);
+        if(Math.abs(dir.getZ()) < eps)
+            dir.setZ(eps);
+        Vector invdir = Vector.div(getRayEnterSide_invdir, 1, 1, 1, dir);
+        Vector destpos = Vector.set(getRayEnterSide_destpos, 1, 1, 1);
+        if(dir.getX() < 0)
+            destpos.setX(0);
+        if(dir.getY() < 0)
+            destpos.setY(0);
+        if(dir.getZ() < 0)
+            destpos.setZ(0);
+        Vector vt = getRayEnterSide_vt;
+        vt.setX((destpos.getX() - orig.getX()) * invdir.getX());
+        vt.setY((destpos.getY() - orig.getY()) * invdir.getY());
+        vt.setZ((destpos.getZ() - orig.getZ()) * invdir.getZ());
         Vector hx, hy, hz;
-        hx = dir.mul(vt.x).add(orig);
-        hy = dir.mul(vt.y).add(orig);
-        hz = dir.mul(vt.z).add(orig);
-        if(hx.x >= -eps && hx.x <= 1 + eps && hx.y >= -eps && hx.y <= 1 + eps
-                && hx.z >= -eps && hx.z <= 1 + eps)
+        hx = Vector.mul(getRayEnterSide_hx, dir, vt.getX()).addAndSet(orig);
+        hy = Vector.mul(getRayEnterSide_hy, dir, vt.getY()).addAndSet(orig);
+        hz = Vector.mul(getRayEnterSide_hz, dir, vt.getZ()).addAndSet(orig);
+        if(hx.getX() >= -eps && hx.getX() <= 1 + eps && hx.getY() >= -eps
+                && hx.getY() <= 1 + eps && hx.getZ() >= -eps
+                && hx.getZ() <= 1 + eps)
         {
-            return vt.x;
+            return vt.getX();
         }
-        if(hy.x >= -eps && hy.x <= 1 + eps && hy.y >= -eps && hy.y <= 1 + eps
-                && hy.z >= -eps && hy.z <= 1 + eps)
+        if(hy.getX() >= -eps && hy.getX() <= 1 + eps && hy.getY() >= -eps
+                && hy.getY() <= 1 + eps && hy.getZ() >= -eps
+                && hy.getZ() <= 1 + eps)
         {
-            return vt.y;
+            return vt.getY();
         }
-        if(hz.x >= -eps && hz.x <= 1 + eps && hz.y >= -eps && hz.y <= 1 + eps
-                && hz.z >= -eps && hz.z <= 1 + eps)
+        if(hz.getX() >= -eps && hz.getX() <= 1 + eps && hz.getY() >= -eps
+                && hz.getY() <= 1 + eps && hz.getZ() >= -eps
+                && hz.getZ() <= 1 + eps)
         {
-            return vt.z;
+            return vt.getZ();
         }
         return -1;
     }
@@ -4666,6 +5833,7 @@ public class Block implements GameObject
             return 1;
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
+        case BTRedstoneComparator:
             return 1.0f / 8;
         case BTLever:
         case BTObsidian:
@@ -4691,10 +5859,20 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return 1;
         }
         return 0;
     }
+
+    private static Vector rayIntersects_t1 = Vector.allocate();
+    private static Vector rayIntersects_t2 = Vector.allocate();
+    private static Matrix rayIntersects_t3 = new Matrix();
 
     /** checks if a ray intersects this block
      * 
@@ -4707,10 +5885,10 @@ public class Block implements GameObject
      * @param hitpos
      *            the place where the ray hits the unit box this block is in
      * @return >= 0 if the ray intersects this block */
-    public float rayIntersects(Vector dir,
-                               Vector invdir,
-                               Vector pos,
-                               Vector hitpos)
+    public float rayIntersects(final Vector dir,
+                               final Vector invdir,
+                               final Vector pos,
+                               final Vector hitpos)
     {
         switch(this.type)
         {
@@ -4735,13 +5913,15 @@ public class Block implements GameObject
         case BTSnow:
         {
             float height = getHeight();
-            if(hitpos.y <= height)
+            if(hitpos.getY() <= height)
                 return 0;
-            if(dir.y > 1)
+            if(dir.getY() > 1)
                 return -1;
-            float t = (height - pos.y) * invdir.y;
-            Vector p = pos.add(dir.mul(t));
-            if(p.x < 0 || p.x > 1 || p.z < 0 || p.z > 1)
+            float t = (height - pos.getY()) * invdir.getY();
+            Vector p = Vector.add(rayIntersects_t1,
+                                  pos,
+                                  Vector.mul(rayIntersects_t2, dir, t));
+            if(p.getX() < 0 || p.getX() > 1 || p.getZ() < 0 || p.getZ() > 1)
                 return -1;
             return t;
         }
@@ -4837,9 +6017,13 @@ public class Block implements GameObject
             return -1;
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
+        case BTRedstoneComparator:
             return rayIntersectsBlock(hitpos,
                                       dir,
-                                      Matrix.scale(1.0f, 1.0f / 8, 1.0f));
+                                      Matrix.setToScale(rayIntersects_t3,
+                                                        1.0f,
+                                                        1.0f / 8,
+                                                        1.0f));
         case BTLever:
             return rayIntersectsBlock(hitpos,
                                       dir,
@@ -4867,6 +6051,12 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return 0;
         }
         return -1;
@@ -4879,7 +6069,7 @@ public class Block implements GameObject
      * @param orientation
      *            the orientation of the new block
      * @return the new block or null if <code>bt == BlockType.BTEmpty</code> */
-    public static Block make(BlockType bt, int orientation)
+    public static Block make(final BlockType bt, final int orientation)
     {
         return bt.make(orientation);
     }
@@ -4889,10 +6079,16 @@ public class Block implements GameObject
      * @param bt
      *            the type of the new block
      * @return the new block or null if <code>bt == BlockType.BTEmpty</code> */
-    public static Block make(BlockType bt)
+    public static Block make(final BlockType bt)
     {
         return make(bt, -1);
     }
+
+    private static final Matrix drawImgAsEntity_mat = Matrix.setToTranslate(new Matrix(),
+                                                                            0,
+                                                                            0,
+                                                                            0.5f)
+                                                            .getImmutable();
 
     /** @param rs
      *            the rendering stream
@@ -4901,12 +6097,12 @@ public class Block implements GameObject
      * @param img
      *            image to draw
      * @return <code>rs</code> */
-    public static RenderingStream drawImgAsEntity(RenderingStream rs,
-                                                  Matrix blockToWorld,
-                                                  TextureHandle img)
+    public static RenderingStream drawImgAsEntity(final RenderingStream rs,
+                                                  final Matrix blockToWorld,
+                                                  final TextureHandle img)
     {
         return drawItem(rs,
-                        Matrix.translate(0.0f, 0.0f, 0.5f),
+                        drawImgAsEntity_mat,
                         blockToWorld,
                         0,
                         0,
@@ -4931,16 +6127,16 @@ public class Block implements GameObject
      * @param maxv
      *            the maximum v texture coordinate
      * @return <code>rs</code> */
-    public static RenderingStream drawImgAsEntity(RenderingStream rs,
-                                                  Matrix blockToWorld,
-                                                  TextureHandle img,
-                                                  float minu,
-                                                  float minv,
-                                                  float maxu,
-                                                  float maxv)
+    public static RenderingStream drawImgAsEntity(final RenderingStream rs,
+                                                  final Matrix blockToWorld,
+                                                  final TextureHandle img,
+                                                  final float minu,
+                                                  final float minv,
+                                                  final float maxu,
+                                                  final float maxv)
     {
         return drawItem(rs,
-                        Matrix.translate(0.0f, 0.0f, 0.5f),
+                        drawImgAsEntity_mat,
                         blockToWorld,
                         0,
                         0,
@@ -4954,6 +6150,20 @@ public class Block implements GameObject
                         maxv);
     }
 
+    private static Matrix drawAsEntity_t1 = new Matrix();
+    private static Matrix drawAsEntity_t2 = new Matrix();
+    private static Block drawAsEntity_redstoneDust = NewRedstoneDust(0, 0);
+    private static Block drawAsEntity_redstoneTorch = NewRedstoneTorch(false, 1);
+    private static Block drawAsEntity_torch = NewTorch(1);
+    private static Block drawAsEntity_redstoneRepeater = NewRedstoneRepeater(false,
+                                                                             0,
+                                                                             1,
+                                                                             0);
+    private static Block drawAsEntity_redstoneComparator = NewRedstoneComparator(false,
+                                                                                 0,
+                                                                                 0);
+    private static Block drawAsEntity_lever = NewLever(false, 4);
+
     /** draw this block as an entity
      * 
      * @param rs
@@ -4961,8 +6171,8 @@ public class Block implements GameObject
      * @param blockToWorld
      *            matrix to transform block coordinates to world coordinates
      * @return <code>rs</code> */
-    public RenderingStream
-        drawAsEntity(RenderingStream rs, Matrix blockToWorld)
+    public RenderingStream drawAsEntity(final RenderingStream rs,
+                                        final Matrix blockToWorld)
     {
         switch(this.type)
         {
@@ -4981,6 +6191,7 @@ public class Block implements GameObject
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTSapling:
+        case BTCobweb:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTBedrock:
@@ -5020,10 +6231,13 @@ public class Block implements GameObject
         case BTRedstoneDustOn:
         {
             Matrix tform = blockToWorld;
-            tform = Matrix.translate(0.5f, 0.5f, 0.5f).concat(tform);
-            tform = Matrix.rotatex(Math.PI / 2).concat(tform);
-            tform = Matrix.translate(-0.5f, -0.5f, -0.5f).concat(tform);
-            Block b = NewRedstoneDust(0, 0);
+            tform = Matrix.setToTranslate(drawAsEntity_t1, 0.5f, 0.5f, 0.5f)
+                          .concatAndSet(tform);
+            tform = Matrix.setToRotateX(drawAsEntity_t2, Math.PI / 2)
+                          .concatAndSet(tform);
+            tform = Matrix.setToTranslate(drawAsEntity_t1, -0.5f, -0.5f, -0.5f)
+                          .concatAndSet(tform);
+            Block b = drawAsEntity_redstoneDust;
             b.draw(rs, tform, true, false);
             return rs;
         }
@@ -5034,19 +6248,25 @@ public class Block implements GameObject
         case BTRedstoneTorchOff:
         case BTRedstoneTorchOn:
         {
-            Block b = NewRedstoneTorch(false, 1);
-            b.draw(rs, Matrix.scale(1.42857f).concat(blockToWorld), true, false);
+            Block b = drawAsEntity_redstoneTorch;
+            b.draw(rs,
+                   Matrix.setToScale(drawAsEntity_t1, 2.0f)
+                         .concatAndSet(blockToWorld),
+                   true,
+                   false);
             return rs;
         }
         case BTStoneButton:
         case BTWoodButton:
         {
             Matrix tform = blockToWorld;
-            tform = Matrix.translate(0.5f, 0.5f, 0.5f).concat(tform);
-            tform = Matrix.rotatex(Math.PI / 2).concat(tform);
-            tform = Matrix.translate(-0.5f, -0.5f, -0.5f).concat(tform);
-            Block b = new Block(this);
-            b.draw(rs, tform, true, false);
+            tform = Matrix.setToTranslate(drawAsEntity_t1, 0.5f, 0.5f, 0.5f)
+                          .concatAndSet(tform);
+            tform = Matrix.setToRotateX(drawAsEntity_t2, Math.PI / 2)
+                          .concatAndSet(tform);
+            tform = Matrix.setToTranslate(drawAsEntity_t1, -0.5f, -0.5f, -0.5f)
+                          .concatAndSet(tform);
+            draw(rs, tform, true, false);
             return rs;
         }
         case BTCoal:
@@ -5071,8 +6291,12 @@ public class Block implements GameObject
             return rs;
         case BTTorch:
         {
-            Block b = NewTorch(1);
-            b.draw(rs, Matrix.scale(1.42857f).concat(blockToWorld), true, false);
+            Block b = drawAsEntity_torch;
+            b.draw(rs,
+                   Matrix.setToScale(drawAsEntity_t1, 2.0f)
+                         .concatAndSet(blockToWorld),
+                   true,
+                   false);
             return rs;
         }
         case BTIronPick:
@@ -5098,20 +6322,23 @@ public class Block implements GameObject
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
         {
-            Block b = NewRedstoneRepeater(false, 0, 1, 0);
-            b.draw(rs,
-                   Matrix.translate(0, 0.5f, 0).concat(blockToWorld),
-                   true,
-                   false);
+            Block b = drawAsEntity_redstoneRepeater;
+            b.draw(rs, Matrix.setToTranslate(drawAsEntity_t1, 0, 0.5f, 0)
+                             .concatAndSet(blockToWorld), true, false);
+            return rs;
+        }
+        case BTRedstoneComparator:
+        {
+            Block b = drawAsEntity_redstoneComparator;
+            b.draw(rs, Matrix.setToTranslate(drawAsEntity_t1, 0, 0.5f, 0)
+                             .concatAndSet(blockToWorld), true, false);
             return rs;
         }
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         {
-            draw(rs,
-                 Matrix.translate(0, 0.5f, 0).concat(blockToWorld),
-                 true,
-                 false);
+            draw(rs, Matrix.setToTranslate(drawAsEntity_t1, 0, 0.5f, 0)
+                           .concatAndSet(blockToWorld), true, false);
             return rs;
         }
         case BTSnow:
@@ -5119,7 +6346,7 @@ public class Block implements GameObject
             return rs;
         case BTLever:
         {
-            Block b = NewLever(false, 4);
+            Block b = drawAsEntity_lever;
             b.draw(rs, blockToWorld, true, false);
             return rs;
         }
@@ -5136,10 +6363,15 @@ public class Block implements GameObject
                             this.type.textures[this.data.intdata]);
             return rs;
         case BTTNT:
+        case BTDispenser:
+        case BTDropper:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTBlazeRod:
         case BTBlazePowder:
+        case BTQuartz:
+        case BTString:
+        case BTBow:
             drawImgAsEntity(rs,
                             blockToWorld,
                             this.type.textures[this.data.intdata]);
@@ -5149,21 +6381,36 @@ public class Block implements GameObject
     }
 
     private static final float SQRT_3 = (float)Math.sqrt(3);
+    private static Matrix drawBlockAsItem_t1 = new Matrix();
+    private static Matrix drawBlockAsItem_t2 = new Matrix();
 
-    private RenderingStream drawBlockAsItem(RenderingStream rs,
-                                            Matrix blockToWorld)
+    private RenderingStream drawBlockAsItem(final RenderingStream rs,
+                                            final Matrix blockToWorld)
     {
-        Matrix tform = Matrix.translate(-0.5f, -0.5f, -0.5f)
-                             .concat(Matrix.rotatey(-Math.PI / 4))
-                             .concat(Matrix.rotatex(Math.PI / 6))
-                             .concat(Matrix.scale(0.8f / SQRT_3,
-                                                  0.8f / SQRT_3,
-                                                  0.1f / SQRT_3))
-                             .concat(Matrix.translate(0.5f, 0.5f, 0.1f))
-                             .concat(blockToWorld);
+        Matrix tform = Matrix.setToTranslate(drawBlockAsItem_t1,
+                                             -0.5f,
+                                             -0.5f,
+                                             -0.5f)
+                             .concatAndSet(Matrix.setToRotateY(drawBlockAsItem_t2,
+                                                               -Math.PI / 4))
+                             .concatAndSet(Matrix.setToRotateX(drawBlockAsItem_t2,
+                                                               Math.PI / 6))
+                             .concatAndSet(Matrix.setToScale(drawBlockAsItem_t2,
+                                                             0.8f / SQRT_3,
+                                                             0.8f / SQRT_3,
+                                                             0.1f / SQRT_3))
+                             .concatAndSet(Matrix.setToTranslate(drawBlockAsItem_t2,
+                                                                 0.5f,
+                                                                 0.5f,
+                                                                 0.1f))
+                             .concatAndSet(blockToWorld);
         draw(rs, tform, false, true);
         return rs;
     }
+
+    private static Matrix drawAsItem_t1 = new Matrix();
+    private static Matrix drawAsItem_t2 = new Matrix();
+    private static Block drawAsItem_lever = NewLever(false, 1);
 
     /** draws as an item
      * 
@@ -5173,7 +6420,8 @@ public class Block implements GameObject
      *            the matrix that transforms block coordinates to world
      *            coordinates
      * @return <code>rs</code> */
-    public RenderingStream drawAsItem(RenderingStream rs, Matrix blockToWorld)
+    public RenderingStream drawAsItem(final RenderingStream rs,
+                                      final Matrix blockToWorld)
     {
         switch(this.type)
         {
@@ -5214,13 +6462,14 @@ public class Block implements GameObject
         case BTStickyPistonHead:
         case BTTNT:
         case BTPlank:
+        case BTDispenser:
+        case BTDropper:
             drawBlockAsItem(rs, blockToWorld);
             return rs;
         case BTSapling:
-            draw(rs,
-                 Matrix.translate(0, 0, -0.5f).concat(blockToWorld),
-                 false,
-                 true);
+        case BTCobweb:
+            draw(rs, Matrix.setToTranslate(drawAsItem_t1, 0, 0, -0.5f)
+                           .concatAndSet(blockToWorld), false, true);
             return rs;
         case BTStick:
         case BTWoodPick:
@@ -5230,28 +6479,27 @@ public class Block implements GameObject
         case BTShears:
         case BTBucket:
         {
-            Block b = new Block(this);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, blockToWorld, false, true);
+            draw(rs, blockToWorld, false, true);
             return rs;
         }
         case BTRedstoneDustOff:
         case BTRedstoneDustOn:
         {
             Matrix tform = blockToWorld;
-            tform = Matrix.translate(0.5f, 0.5f, 0.5f).concat(tform);
-            tform = Matrix.rotatex(Math.PI / 2).concat(tform);
-            tform = Matrix.translate(-0.5f, -0.5f, -0.5f).concat(tform);
-            Block b = NewRedstoneDust(0, 0);
-            b.setLighting(0, 0, 15);
+            tform = Matrix.setToTranslate(drawAsItem_t1, 0.5f, 0.5f, 0.5f)
+                          .concatAndSet(tform);
+            tform = Matrix.setToRotateX(drawAsItem_t2, Math.PI / 2)
+                          .concatAndSet(tform);
+            tform = Matrix.setToTranslate(drawAsItem_t1, -0.5f, -0.5f, -0.5f)
+                          .concatAndSet(tform);
+            Block b = drawAsEntity_redstoneDust;
             b.draw(rs, tform, false, true);
             return rs;
         }
         case BTRedstoneTorchOff:
         case BTRedstoneTorchOn:
         {
-            Block b = NewRedstoneTorch(false, 1);
-            b.setLighting(0, 0, 15);
+            Block b = drawAsEntity_redstoneTorch;
             b.draw(rs, blockToWorld, false, true);
             return rs;
         }
@@ -5259,12 +6507,13 @@ public class Block implements GameObject
         case BTWoodButton:
         {
             Matrix tform = blockToWorld;
-            tform = Matrix.translate(0.5f, 0.5f, 0.5f).concat(tform);
-            tform = Matrix.rotatex(Math.PI / 2).concat(tform);
-            tform = Matrix.translate(-0.5f, -0.5f, -0.5f).concat(tform);
-            Block b = new Block(this);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, tform, false, true);
+            tform = Matrix.setToTranslate(drawAsItem_t1, 0.5f, 0.5f, 0.5f)
+                          .concatAndSet(tform);
+            tform = Matrix.setToRotateX(drawAsItem_t2, Math.PI / 2)
+                          .concatAndSet(tform);
+            tform = Matrix.setToTranslate(drawAsItem_t1, -0.5f, -0.5f, -0.5f)
+                          .concatAndSet(tform);
+            draw(rs, tform, false, true);
             return rs;
         }
         case BTCoal:
@@ -5274,15 +6523,12 @@ public class Block implements GameObject
         case BTDiamond:
         case BTEmerald:
         {
-            Block b = new Block(this);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, blockToWorld, false, true);
+            draw(rs, blockToWorld, false, true);
             return rs;
         }
         case BTTorch:
         {
-            Block b = NewTorch(1);
-            b.setLighting(0, 0, 15);
+            Block b = drawAsEntity_torch;
             b.draw(rs, blockToWorld, false, true);
             return rs;
         }
@@ -5293,53 +6539,59 @@ public class Block implements GameObject
         case BTDiamondPick:
         case BTDiamondShovel:
         {
-            Block b = new Block(this);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, blockToWorld, false, true);
+            draw(rs, blockToWorld, false, true);
             return rs;
         }
         case BTLadder:
-        {
-            Block b = NewLadder(1);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, blockToWorld, false, true);
-            return rs;
-        }
         case BTVines:
         {
-            Block b = NewVines(1);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, blockToWorld, false, true);
+            drawItem(rs,
+                     Matrix.IDENTITY,
+                     blockToWorld,
+                     0,
+                     0,
+                     0,
+                     this.type.textures[0],
+                     false,
+                     true);
             return rs;
         }
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
         {
-            Block b = NewRedstoneRepeater(false, 0, 1, 0);
-            b.setLighting(0, 0, 15);
+            Block b = drawAsEntity_redstoneRepeater;
             Matrix tform = blockToWorld;
-            tform = Matrix.translate(0.5f, 0.5f, 0.5f).concat(tform);
-            tform = Matrix.rotatex(Math.PI / 2).concat(tform);
-            tform = Matrix.translate(-0.5f, -0.5f, -0.5f).concat(tform);
+            tform = Matrix.setToTranslate(drawAsItem_t1, 0.5f, 0.5f, 0.5f)
+                          .concatAndSet(tform);
+            tform = Matrix.setToRotateX(drawAsItem_t2, Math.PI / 2)
+                          .concatAndSet(tform);
+            tform = Matrix.setToTranslate(drawAsItem_t1, -0.5f, -0.5f, -0.5f)
+                          .concatAndSet(tform);
+            b.draw(rs, tform, false, true);
+            return rs;
+        }
+        case BTRedstoneComparator:
+        {
+            Block b = drawAsEntity_redstoneComparator;
+            Matrix tform = blockToWorld;
+            tform = Matrix.setToTranslate(drawAsItem_t1, 0.5f, 0.5f, 0.5f)
+                          .concatAndSet(tform);
+            tform = Matrix.setToRotateX(drawAsItem_t2, Math.PI / 2)
+                          .concatAndSet(tform);
+            tform = Matrix.setToTranslate(drawAsItem_t1, -0.5f, -0.5f, -0.5f)
+                          .concatAndSet(tform);
             b.draw(rs, tform, false, true);
             return rs;
         }
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         {
-            Block b = new Block(this);
-            b.setLighting(0, 0, 15);
-            Matrix tform = blockToWorld;
-            tform = Matrix.translate(0.5f, 0.5f, 0.5f).concat(tform);
-            tform = Matrix.rotatex(Math.PI / 2).concat(tform);
-            tform = Matrix.translate(-0.5f, -0.5f, -0.5f).concat(tform);
-            b.draw(rs, tform, false, true);
+            drawBlockAsItem(rs, blockToWorld);
             return rs;
         }
         case BTLever:
         {
-            Block b = NewLever(false, 1);
-            b.setLighting(0, 0, 15);
+            Block b = drawAsItem_lever;
             b.draw(rs, blockToWorld, false, true);
             return rs;
         }
@@ -5352,16 +6604,17 @@ public class Block implements GameObject
         case BTIronAxe:
         case BTGoldAxe:
         case BTDiamondAxe:
+        case BTQuartz:
+        case BTString:
+        case BTBow:
         {
-            Block b = new Block(this);
-            b.setLighting(0, 0, 15);
-            b.draw(rs, blockToWorld, false, true);
+            draw(rs, blockToWorld, false, true);
             return rs;
         }
         case BTSnow:
         {
             drawItem(rs,
-                     Matrix.identity(),
+                     Matrix.IDENTITY,
                      blockToWorld,
                      0,
                      0,
@@ -5374,7 +6627,7 @@ public class Block implements GameObject
         case BTLava:
         {
             drawItem(rs,
-                     Matrix.identity(),
+                     Matrix.IDENTITY,
                      blockToWorld,
                      0,
                      0,
@@ -5387,7 +6640,7 @@ public class Block implements GameObject
         case BTWater:
         {
             drawItem(rs,
-                     Matrix.identity(),
+                     Matrix.IDENTITY,
                      blockToWorld,
                      0,
                      0,
@@ -5416,7 +6669,7 @@ public class Block implements GameObject
          *            the new block
          * @param count
          *            the number of new blocks */
-        public ReduceDescriptor(Block b, int count)
+        public ReduceDescriptor(final Block b, final int count)
         {
             this.b = b;
             this.count = count;
@@ -5453,14 +6706,14 @@ public class Block implements GameObject
         private final BlockType bt;
 
         @Override
-        public boolean matches(Block b)
+        public boolean matches(final Block b)
         {
             if(b == null)
                 return isEmpty();
             return b.getType() == this.bt;
         }
 
-        public BlockDescriptorBlockType(BlockType bt)
+        public BlockDescriptorBlockType(final BlockType bt)
         {
             this.bt = bt;
         }
@@ -5478,7 +6731,7 @@ public class Block implements GameObject
         private final Tree.TreeType tt;
 
         @Override
-        public boolean matches(Block b)
+        public boolean matches(final Block b)
         {
             if(b == null)
                 return isEmpty();
@@ -5487,7 +6740,8 @@ public class Block implements GameObject
             return b.treeGetTreeType() == this.tt;
         }
 
-        public BlockDescriptorTreeType(BlockType bt, Tree.TreeType tt)
+        public BlockDescriptorTreeType(final BlockType bt,
+                                       final Tree.TreeType tt)
         {
             super(bt);
             this.tt = tt;
@@ -5500,10 +6754,10 @@ public class Block implements GameObject
         public final int size;
         public final ReduceDescriptor retval;
 
-        public ReduceStruct(BlockDescriptor array[],
-                            int size,
-                            Block b,
-                            int count)
+        public ReduceStruct(final BlockDescriptor array[],
+                            final int size,
+                            final Block b,
+                            final int count)
         {
             this.array = array;
             this.size = size;
@@ -5891,6 +7145,54 @@ public class Block implements GameObject
             new BlockDescriptorBlockType(BlockType.BTIronIngot),
             new BlockDescriptorBlockType(BlockType.BTEmpty)
         }, 2, NewShears(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneTorchOff),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneTorchOff),
+            new BlockDescriptorBlockType(BlockType.BTQuartz),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneTorchOff),
+            new BlockDescriptorBlockType(BlockType.BTStone),
+            new BlockDescriptorBlockType(BlockType.BTStone),
+            new BlockDescriptorBlockType(BlockType.BTStone)
+        }, 3, NewRedstoneComparator(false, 0, -1), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTString),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTString),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTStick),
+            new BlockDescriptorBlockType(BlockType.BTString)
+        }, 3, NewBow(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone)
+        }, 3, NewDropper(-1), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTBow),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone),
+            new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
+            new BlockDescriptorBlockType(BlockType.BTCobblestone)
+        }, 3, NewDispenser(-1), 1),
     };
     private static final int reduceCount = reduceArray.length;
 
@@ -5903,7 +7205,8 @@ public class Block implements GameObject
      *            the block dimensions
      * @return the reduction results. never returns <code>null</code>.
      * @see ReduceDescriptor */
-    public static ReduceDescriptor reduce(Block[] array, int arraySize)
+    public static ReduceDescriptor reduce(final Block[] array,
+                                          final int arraySize)
     {
         int minx = arraySize, maxx = 0, miny = arraySize, maxy = 0;
         for(int x = 0; x < arraySize; x++)
@@ -5976,7 +7279,7 @@ public class Block implements GameObject
         return new ReduceDescriptor();
     }
 
-    private static int chestGetSlotIndex(int row, int column)
+    private static int chestGetSlotIndex(final int row, final int column)
     {
         return row + CHEST_ROWS * column;
     }
@@ -5986,7 +7289,7 @@ public class Block implements GameObject
      * @param column
      *            the slot's column
      * @return the number of blocks in this chest slot */
-    public int chestGetBlockCount(int row, int column)
+    public int chestGetBlockCount(final int row, final int column)
     {
         assert this.type == BlockType.BTChest && this.data.BlockCounts != null
                 && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
@@ -6002,7 +7305,7 @@ public class Block implements GameObject
      * @param column
      *            the slot's column
      * @return the kind of block in this chest slot */
-    public Block chestGetBlockType(int row, int column)
+    public Block chestGetBlockType(final int row, final int column)
     {
         assert this.type == BlockType.BTChest && this.data.BlockCounts != null
                 && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
@@ -6030,7 +7333,10 @@ public class Block implements GameObject
      * @param column
      *            the slot's column
      * @return the number of blocks successfully added */
-    public int chestAddBlocks(Block b, int count, int row, int column)
+    public int chestAddBlocks(final Block b,
+                              final int count,
+                              final int row,
+                              final int column)
     {
         assert this.type == BlockType.BTChest && this.data.BlockCounts != null
                 && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
@@ -6078,7 +7384,10 @@ public class Block implements GameObject
      * @param column
      *            the slot's column
      * @return the number of blocks removed */
-    public int chestRemoveBlocks(Block b, int count, int row, int column)
+    public int chestRemoveBlocks(final Block b,
+                                 final int count,
+                                 final int row,
+                                 final int column)
     {
         assert this.type == BlockType.BTChest && this.data.BlockCounts != null
                 && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
@@ -6126,13 +7435,13 @@ public class Block implements GameObject
     /** @return the block resulting from smelting this block or <code>null</code> */
     public Block getSmeltResult()
     {
-        return this.getType().getSmeltResult().make(-1);
+        return getType().getSmeltResult().make(-1);
     }
 
     /** @return if this block is smeltable */
     public boolean isSmeltable()
     {
-        return this.getType().isSmeltable();
+        return getType().isSmeltable();
     }
 
     /** @return the type of block being smelted into */
@@ -6153,7 +7462,7 @@ public class Block implements GameObject
      * 
      * @param b
      *            block to add to this furnace */
-    public void furnaceAddFire(Block b)
+    public void furnaceAddFire(final Block b)
     {
         this.data.intdata += b.getBurnTime();
     }
@@ -6163,13 +7472,15 @@ public class Block implements GameObject
      * @param b
      *            the type of block to smelt
      * @return true if <code>b</code> can be added */
-    public boolean furnaceAddBlock(Block b)
+    public boolean furnaceAddBlock(final Block b)
     {
         if(b == null || b.getType() == BlockType.BTEmpty)
             return true;
         if(this.data.blockdata != null && !b.equals(this.data.blockdata))
             return false;
         if(!b.isSmeltable())
+            return false;
+        if(this.data.srccount >= BLOCK_STACK_SIZE)
             return false;
         this.data.blockdata = b;
         this.data.srccount++;
@@ -6215,15 +7526,20 @@ public class Block implements GameObject
         return this.type.isItem();
     }
 
-    private Vector solidAdjustPlayerPosition(Vector position_in,
-                                             float height,
-                                             float distLimit)
+    private static Vector solidAdjustPlayerPosition_position = Vector.allocate();
+
+    private Vector solidAdjustPlayerPosition(final Vector position_in,
+                                             final float height,
+                                             final float distLimit)
     {
-        Vector position = new Vector(position_in);
-        float playerMinY = position.y - (Player.PlayerHeight - 1.0f);
-        if(position.x > -distLimit && position.x < 1 + distLimit
-                && position.y > -distLimit && playerMinY < height + distLimit
-                && position.z > -distLimit && position.z < 1 + distLimit)
+        Vector position = Vector.set(solidAdjustPlayerPosition_position,
+                                     position_in);
+        float playerMinY = position.getY() - (Player.PlayerHeight - 1.0f);
+        if(position.getX() > -distLimit && position.getX() < 1 + distLimit
+                && position.getY() > -distLimit
+                && playerMinY < height + distLimit
+                && position.getZ() > -distLimit
+                && position.getZ() < 1 + distLimit)
             return null;
         return position;
     }
@@ -6236,7 +7552,8 @@ public class Block implements GameObject
      *            the closest that <code>position</code> can be to this block
      * @return the new position or null if <code>position</code> is inside this
      *         block */
-    public Vector adjustPlayerPosition(Vector position, float distLimit)
+    public Vector adjustPlayerPosition(final Vector position,
+                                       final float distLimit)
     {
         switch(this.type)
         {
@@ -6322,6 +7639,7 @@ public class Block implements GameObject
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
         case BTSnow:
+        case BTRedstoneComparator:
             return solidAdjustPlayerPosition(position, getHeight(), distLimit);
         case BTLever:
             return position;
@@ -6335,6 +7653,8 @@ public class Block implements GameObject
         case BTGunpowder:
             return position;
         case BTTNT:
+        case BTDispenser:
+        case BTDropper:
             return solidAdjustPlayerPosition(position, getHeight(), distLimit);
         case BTBlazeRod:
         case BTBlazePowder:
@@ -6348,6 +7668,10 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return position;
         }
         return null;
@@ -6465,10 +7789,20 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return true;
         }
         return false;
     }
+
+    private static Vector digBlock_t1 = Vector.allocate();
+    private static Vector digBlock_t2 = Vector.allocate();
 
     /** add entities for digging block
      * 
@@ -6482,11 +7816,11 @@ public class Block implements GameObject
      *            if this block should drop items
      * @param toolType
      *            the tool type */
-    public void digBlock(int x,
-                         int y,
-                         int z,
-                         boolean dropItems,
-                         BlockType.ToolType toolType)
+    public void digBlock(final int x,
+                         final int y,
+                         final int z,
+                         final boolean dropItems,
+                         final BlockType.ToolType toolType)
     {
         switch(this.type)
         {
@@ -6501,48 +7835,83 @@ public class Block implements GameObject
         case BTFurnace:
             if(dropItems)
             {
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    this.type.make(-1),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
                 if(this.data.blockdata == null)
                     return;
                 for(int i = 0; i < this.data.srccount; i++)
                 {
-                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        this.data.blockdata,
-                                                       World.vRand(0.1f)));
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
                 }
                 if(this.data.blockdata.getSmeltResult() == null)
                     return;
                 for(int i = 0; i < this.data.destcount; i++)
                 {
-                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        this.data.blockdata.getSmeltResult(),
-                                                       World.vRand(0.1f)));
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
                 }
             }
             return;
         case BTChest:
             if(dropItems)
             {
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    this.type.make(-1),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
                 for(int i = 0; i < CHEST_COLUMNS * CHEST_ROWS; i++)
                     for(int j = 0; j < this.data.BlockCounts[i]; j++)
-                        world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                        world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                      x + 0.5f,
                                                                       y + 0.5f,
                                                                       z + 0.5f),
                                                            this.data.BlockTypes[i],
-                                                           World.vRand(0.1f)));
+                                                           World.vRand(digBlock_t2,
+                                                                       0.1f)));
+            }
+            return;
+        case BTDispenser:
+        case BTDropper:
+            if(dropItems)
+            {
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   this.type.make(-1),
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
+                for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+                    for(int column = 0, index = getDispenserDropperSlotIndex(row,
+                                                                             column); column < DISPENSER_DROPPER_COLUMNS; column++, index = getDispenserDropperSlotIndex(row,
+                                                                                                                                                                         column))
+                        for(int j = 0; j < this.data.BlockCounts[index]; j++)
+                            world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                          x + 0.5f,
+                                                                          y + 0.5f,
+                                                                          z + 0.5f),
+                                                               this.data.BlockTypes[index],
+                                                               World.vRand(digBlock_t2,
+                                                                           0.1f)));
             }
             return;
         case BTCoal:
@@ -6596,36 +7965,48 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTString:
+        case BTBow:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    this.type.make(-1),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTSapling:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewSapling(treeGetTreeType()),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTPlank:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewPlank(treeGetTreeType()),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTWood:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewWood(treeGetTreeType(), 0),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTRedstoneOre:
         {
@@ -6633,45 +8014,55 @@ public class Block implements GameObject
             {
                 int count = Math.round(World.fRand(4 - 0.5f, 5 + 0.5f));
                 for(int i = 0; i < count; i++)
-                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        NewRedstoneDust(0, 0),
-                                                       World.vRand(0.1f)));
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
             }
             return;
         }
         case BTCoalOre:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewCoal(),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTDiamondOre:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewDiamond(),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTEmeraldOre:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewEmerald(),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTGrass:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewDirt(),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTLapisLazuliOre:
         {
@@ -6679,11 +8070,13 @@ public class Block implements GameObject
             {
                 int count = Math.round(World.fRand(4 - 0.5f, 8 + 0.5f));
                 for(int i = 0; i < count; i++)
-                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        NewLapisLazuli(),
-                                                       World.vRand(0.1f)));
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
             }
             return;
         }
@@ -6692,44 +8085,54 @@ public class Block implements GameObject
         {
             if(dropItems)
                 if(Math.abs(this.data.intdata) >= 8)
-                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        this.type.make(-1),
-                                                       World.vRand(0.1f)));
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
             return;
         }
         case BTRedstoneRepeaterOn:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    BlockType.BTRedstoneRepeaterOff.make(-1),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTRedstoneDustOn:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    BlockType.BTRedstoneDustOff.make(-1),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTRedstoneTorchOn:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    BlockType.BTRedstoneTorchOff.make(-1),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTStone:
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    NewCobblestone(),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         case BTLeaves:
         {
@@ -6737,19 +8140,23 @@ public class Block implements GameObject
             {
                 if(toolType == ToolType.Shears)
                 {
-                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        NewLeaves(treeGetTreeType()),
-                                                       World.vRand(0.1f)));
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
                 }
                 else if(World.fRand(0.0f, 1.0f) < 1.0f / 20)
                 {
-                    world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        NewSapling(treeGetTreeType()),
-                                                       World.vRand(0.1f)));
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
                 }
             }
             return;
@@ -6758,11 +8165,13 @@ public class Block implements GameObject
         case BTStickyPiston:
         {
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    this.type.make(-1),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             if(this.data.intdata == 0)
                 return;
             int hx = getOrientationDX(this.data.orientation) + x;
@@ -6784,14 +8193,16 @@ public class Block implements GameObject
             int by = y - getOrientationDY(this.data.orientation);
             int bz = z - getOrientationDZ(this.data.orientation);
             if(dropItems)
-                world.insertEntity(Entity.NewBlock(new Vector(x + 0.5f,
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    (this.type == BlockType.BTStickyPistonHead) ? NewStickyPiston(-1,
                                                                                                                  false)
                                                            : NewPiston(-1,
                                                                        false),
-                                                   World.vRand(0.1f)));
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             Block body = world.getBlockEval(bx, by, bz);
             if(body == null)
                 return;
@@ -6799,6 +8210,18 @@ public class Block implements GameObject
                     && body.getType() != BlockType.BTStickyPiston)
                 return;
             world.setBlock(bx, by, bz, new Block());
+            return;
+        }
+        case BTCobweb:
+        {
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewString(),
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
             return;
         }
         }
@@ -6812,7 +8235,7 @@ public class Block implements GameObject
     private static final int REDSTONE_POWER_STRONG_OFF = 16;
     private static final int REDSTONE_POWER_STRONG = 17;
 
-    private int getRedstoneIOValue(int dir)
+    private int getRedstoneIOValue(final int dir)
     {
         switch(this.type)
         {
@@ -6924,6 +8347,8 @@ public class Block implements GameObject
         case BTGunpowder:
             return REDSTONE_POWER_NONE;
         case BTTNT:
+        case BTDispenser:
+        case BTDropper:
             return REDSTONE_POWER_INPUT;
         case BTBlazeRod:
         case BTBlazePowder:
@@ -6936,16 +8361,32 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return REDSTONE_POWER_NONE;
+        case BTRedstoneComparator:
+        {
+            if(dir == this.data.orientation)
+            {
+                if(this.data.intdata == 0)
+                    return REDSTONE_POWER_WEAK_OFF;
+                return REDSTONE_POWER_WEAK_MIN + this.data.intdata - 1;
+            }
+            else if(getOrientationDY(dir) == 0)
+                return REDSTONE_POWER_INPUT;
+            return REDSTONE_POWER_NONE;
+        }
         }
         return REDSTONE_POWER_NONE;
     }
 
-    private static int getEvalRedstoneIOPowerH(int origValue,
-                                               int bx,
-                                               int by,
-                                               int bz,
-                                               int dir)
+    private static int getEvalRedstoneIOPowerH(final int origValue,
+                                               final int bx,
+                                               final int by,
+                                               final int bz,
+                                               final int dir)
     {
         Block b = world.getBlockEval(bx, by, bz);
         if(b == null)
@@ -6954,10 +8395,15 @@ public class Block implements GameObject
         if(v == REDSTONE_POWER_STRONG || origValue == REDSTONE_POWER_STRONG)
             return REDSTONE_POWER_STRONG;
         if(v >= REDSTONE_POWER_WEAK_MIN && v <= REDSTONE_POWER_WEAK_MAX)
-            return REDSTONE_POWER_WEAK_MIN;
+        {
+            if(origValue >= REDSTONE_POWER_WEAK_MIN
+                    && origValue <= REDSTONE_POWER_WEAK_MAX)
+                return Math.max(v, origValue);
+            return v;
+        }
         if(origValue >= REDSTONE_POWER_WEAK_MIN
                 && origValue <= REDSTONE_POWER_WEAK_MAX)
-            return REDSTONE_POWER_WEAK_MIN;
+            return origValue;
         if(v == REDSTONE_POWER_STRONG_OFF)
             return REDSTONE_POWER_STRONG_OFF;
         if(origValue == REDSTONE_POWER_STRONG_OFF)
@@ -6971,11 +8417,11 @@ public class Block implements GameObject
         return origValue;
     }
 
-    private static int getEvalRedstoneDustIOPowerH(int origValue,
-                                                   int bx,
-                                                   int by,
-                                                   int bz,
-                                                   int dir)
+    private static int getEvalRedstoneDustIOPowerH(final int origValue,
+                                                   final int bx,
+                                                   final int by,
+                                                   final int bz,
+                                                   final int dir)
     {
         Block b = world.getBlockEval(bx, by, bz);
         if(b == null)
@@ -7057,6 +8503,11 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return false;
         case BTBedrock:
         case BTChest:
@@ -7077,6 +8528,8 @@ public class Block implements GameObject
         case BTWood:
         case BTWorkbench:
         case BTObsidian:
+        case BTDispenser:
+        case BTDropper:
             return true;
         }
         return false;
@@ -7085,7 +8538,7 @@ public class Block implements GameObject
     /** @param orientation
      *            the orientation
      * @return the orientation's x component */
-    public static int getOrientationDX(int orientation)
+    public static int getOrientationDX(final int orientation)
     {
         switch(orientation)
         {
@@ -7104,7 +8557,7 @@ public class Block implements GameObject
     /** @param orientation
      *            the orientation
      * @return the orientation's y component */
-    public static int getOrientationDY(int orientation)
+    public static int getOrientationDY(final int orientation)
     {
         switch(orientation)
         {
@@ -7123,7 +8576,7 @@ public class Block implements GameObject
     /** @param orientation
      *            the orientation
      * @return the orientation's z component */
-    public static int getOrientationDZ(int orientation)
+    public static int getOrientationDZ(final int orientation)
     {
         switch(orientation)
         {
@@ -7142,7 +8595,7 @@ public class Block implements GameObject
     /** @param orientation
      *            the orientation to invert
      * @return the opposite orientation */
-    public static int getNegOrientation(int orientation)
+    public static int getNegOrientation(final int orientation)
     {
         switch(orientation)
         {
@@ -7161,6 +8614,11 @@ public class Block implements GameObject
         }
     }
 
+    private static Vector getRotatedOrientation_vAxis = Vector.allocate();
+    private static Vector getRotatedOrientation_vOrigionalOrientation = Vector.allocate();
+    private static Vector getRotatedOrientation_t1 = Vector.allocate();
+    private static Matrix getRotatedOrientation_t2 = new Matrix();
+
     /** @param axis
      *            the axis to rotate around
      * @param angle
@@ -7169,53 +8627,63 @@ public class Block implements GameObject
      * @param originalOrientation
      *            the orientation to rotate
      * @return the rotated orientation */
-    public static int getRotatedOrientation(int axis,
-                                            int angle,
-                                            int originalOrientation)
+    public static int getRotatedOrientation(final int axis,
+                                            final int angle,
+                                            final int originalOrientation)
     {
-        Vector vAxis = new Vector(getOrientationDX(axis),
+        Vector vAxis = Vector.set(getRotatedOrientation_vAxis,
+                                  getOrientationDX(axis),
                                   getOrientationDY(axis),
                                   getOrientationDZ(axis));
-        Vector vOriginalOrientation = new Vector(getOrientationDX(originalOrientation),
+        Vector vOriginalOrientation = Vector.set(getRotatedOrientation_vOrigionalOrientation,
+                                                 getOrientationDX(originalOrientation),
                                                  getOrientationDY(originalOrientation),
                                                  getOrientationDZ(originalOrientation));
-        return getOrientationFromVector(Matrix.rotate(vAxis,
-                                                      angle * Math.PI / 2)
-                                              .apply(vOriginalOrientation));
+        return getOrientationFromVector(Matrix.setToRotate(getRotatedOrientation_t2,
+                                                           vAxis,
+                                                           angle * Math.PI / 2)
+                                              .apply(getRotatedOrientation_t1,
+                                                     vOriginalOrientation));
     }
+
+    private static Vector getOrientationFromVector_t1 = Vector.allocate();
 
     /** @param dir
      *            the <code>Vector</code> to get an orientation from
      * @return the orientation that <code>dir</code> is closest to */
-    public static int getOrientationFromVector(Vector dir)
+    public static int getOrientationFromVector(final Vector dir)
     {
-        Vector absv = new Vector(Math.abs(dir.x),
-                                 Math.abs(dir.y),
-                                 Math.abs(dir.z));
-        if(absv.x >= absv.y)
+        Vector absv = Vector.set(getOrientationFromVector_t1,
+                                 Math.abs(dir.getX()),
+                                 Math.abs(dir.getY()),
+                                 Math.abs(dir.getZ()));
+        if(absv.getX() >= absv.getY())
         {
-            if(absv.x >= absv.z)
+            if(absv.getX() >= absv.getZ())
             {
-                if(dir.x <= 0)
+                if(dir.getX() <= 0)
                     return 0;
                 return 2;
             }
-            if(dir.z <= 0)
+            if(dir.getZ() <= 0)
                 return 1;
             return 3;
         }
-        if(absv.y >= absv.z)
+        if(absv.getY() >= absv.getZ())
         {
-            if(dir.y <= 0)
+            if(dir.getY() <= 0)
                 return 4;
             return 5;
         }
-        if(dir.z <= 0)
+        if(dir.getZ() <= 0)
             return 1;
         return 3;
     }
 
-    private static int getEvalRedstoneIOValue(int bx, int by, int bz, int dir)
+    private static int getEvalRedstoneIOValue(final int bx,
+                                              final int by,
+                                              final int bz,
+                                              final int dir)
     {
         Block b = world.getBlockEval(bx, by, bz);
         int retval = -1;
@@ -7243,10 +8711,10 @@ public class Block implements GameObject
         return retval;
     }
 
-    private static int getEvalRedstoneDustIOValue(int bx,
-                                                  int by,
-                                                  int bz,
-                                                  int dir)
+    private static int getEvalRedstoneDustIOValue(final int bx,
+                                                  final int by,
+                                                  final int bz,
+                                                  final int dir)
     {
         Block b = world.getBlockEval(bx, by, bz);
         int retval = -1;
@@ -7326,6 +8794,10 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return false;
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -7367,24 +8839,40 @@ public class Block implements GameObject
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         case BTSnow:
+        case BTRedstoneComparator:
+        case BTDispenser:
+        case BTDropper:
             return true;
         }
         return true;
     }
+
+    private static Vector climbableIsPlayerPushingIntoLadder_ladderOrientation = Vector.allocate();
+    private static Vector climbableIsPlayerPushingIntoLadder_t1 = Vector.allocate();
+    private static Vector climbableIsPlayerPushingIntoLadder_t2 = Vector.allocate();
 
     /** @param pos
      *            the player's relative position
      * @param dir
      *            the direction the player wants to move
      * @return true if the player is pushing into this climbable block */
-    public boolean climbableIsPlayerPushingIntoLadder(Vector pos, Vector dir)
+    public boolean climbableIsPlayerPushingIntoLadder(final Vector pos,
+                                                      final Vector dir)
     {
-        Vector ladderOrientation = new Vector(getOrientationDX(this.data.orientation),
+        Vector ladderOrientation = Vector.set(climbableIsPlayerPushingIntoLadder_ladderOrientation,
+                                              getOrientationDX(this.data.orientation),
                                               getOrientationDY(this.data.orientation),
                                               getOrientationDZ(this.data.orientation));
-        if(pos.sub(new Vector(0.5f)).dot(ladderOrientation) <= 0)
+        if(Vector.sub(climbableIsPlayerPushingIntoLadder_t1,
+                      pos,
+                      Vector.set(climbableIsPlayerPushingIntoLadder_t2,
+                                 0.5f,
+                                 0.5f,
+                                 0.5f)).dot(ladderOrientation) <= 0)
             return false;
-        if(getRayExitSide(pos, dir.normalize()) == this.data.orientation)
+        if(getRayExitSide(pos,
+                          Vector.normalize(climbableIsPlayerPushingIntoLadder_t1,
+                                           dir)) == this.data.orientation)
             return true;
         return false;
     }
@@ -7413,8 +8901,9 @@ public class Block implements GameObject
      * @param vieworientation
      *            the orientation for the direction the player is facing
      * @return new block or null */
-    public static Block
-        make(BlockType bt, int orientation, int vieworientation)
+    public static Block make(final BlockType bt,
+                             final int orientation,
+                             final int vieworientation)
     {
         return bt.make(orientation, vieworientation);
     }
@@ -7434,7 +8923,7 @@ public class Block implements GameObject
      *            <code>DataOutput</code> to write to
      * @throws IOException
      *             the exception thrown */
-    public void write(DataOutput o) throws IOException
+    public void write(final DataOutput o) throws IOException
     {
         this.type.write(o);
         o.writeByte(Math.max(0, Math.min(15, this.light)));
@@ -7474,6 +8963,9 @@ public class Block implements GameObject
         case BTBucket:
         case BTWorkbench:
         case BTObsidian:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -7567,6 +9059,7 @@ public class Block implements GameObject
         }
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
+        case BTRedstoneComparator:
         {
             o.writeByte(this.data.intdata);
             o.writeByte(this.data.step);
@@ -7606,11 +9099,27 @@ public class Block implements GameObject
         case BTTNT:
         case BTBlazeRod:
         case BTBlazePowder:
+        case BTQuartz:
             return;
+        case BTDispenser:
+        case BTDropper:
+        {
+            o.writeByte(this.data.orientation);
+            o.writeBoolean(this.data.intdata != 0);
+            for(int i = 0; i < DISPENSER_DROPPER_ROWS * DISPENSER_DROPPER_ROWS; i++)
+            {
+                o.writeInt(this.data.BlockCounts[i]);
+                if(this.data.BlockCounts[i] > 0)
+                {
+                    this.data.BlockTypes[i].write(o);
+                }
+            }
+            return;
+        }
         }
     }
 
-    private void internalRead(DataInput i) throws IOException
+    private void internalRead(final DataInput i) throws IOException
     {
         switch(this.type)
         {
@@ -7646,6 +9155,9 @@ public class Block implements GameObject
         case BTBucket:
         case BTWorkbench:
         case BTObsidian:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -7811,6 +9323,17 @@ public class Block implements GameObject
                 throw new IOException("Redstone Repeater orientation is out of range");
             return;
         }
+        case BTRedstoneComparator:
+        {
+            this.data.intdata = i.readUnsignedByte();
+            if(this.data.intdata < 0 || this.data.intdata >= 16)
+                throw new IOException("Redstone Comparator output power is out of range");
+            this.data.step = i.readBoolean() ? 1 : 0;
+            this.data.orientation = i.readUnsignedByte();
+            if(this.data.orientation < 0 || this.data.orientation > 3)
+                throw new IOException("Redstone Comparator orientation is out of range");
+            return;
+        }
         case BTRedstoneTorchOff:
         case BTRedstoneTorchOn:
         case BTTorch:
@@ -7855,12 +9378,38 @@ public class Block implements GameObject
         case BTTNT:
         case BTBlazeRod:
         case BTBlazePowder:
+        case BTQuartz:
             return;
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         case BTSnow:
         {
             this.data.intdata = i.readUnsignedByte();
+            return;
+        }
+        case BTDispenser:
+        case BTDropper:
+        {
+            this.data.BlockCounts = new int[DISPENSER_DROPPER_ROWS
+                    * DISPENSER_DROPPER_COLUMNS];
+            this.data.BlockTypes = new Block[DISPENSER_DROPPER_ROWS
+                    * DISPENSER_DROPPER_COLUMNS];
+            this.data.orientation = i.readUnsignedByte();
+            if(this.data.orientation < 0 || this.data.orientation > 5)
+                throw new IOException("dispenser or dropper orientation is out of range");
+            this.data.intdata = i.readBoolean() ? 1 : 0;
+            for(int index = 0; index < DISPENSER_DROPPER_ROWS
+                    * DISPENSER_DROPPER_ROWS; index++)
+            {
+                int value = i.readInt();
+                if(value < 0 || value > BLOCK_STACK_SIZE)
+                    throw new IOException("dispenser or dropper slot block count is out of range");
+                this.data.BlockCounts[index] = value;
+                if(value > 0)
+                    this.data.BlockTypes[index] = Block.read(i);
+                else
+                    this.data.BlockTypes[index] = null;
+            }
             return;
         }
         }
@@ -7873,7 +9422,7 @@ public class Block implements GameObject
      * @return the read <code>Block</code>
      * @throws IOException
      *             the exception thrown */
-    public static Block read(DataInput i) throws IOException
+    public static Block read(final DataInput i) throws IOException
     {
         Block retval = new Block(BlockType.read(i));
         retval.light = i.readUnsignedByte();
@@ -7947,7 +9496,7 @@ public class Block implements GameObject
     // case BDTCustom:
     // break;
     // case BDTLiquid:
-    // // TODO finish
+    // // TO DO finish
     // return false;
     // case BDTSolid:
     // {
@@ -8051,7 +9600,7 @@ public class Block implements GameObject
     // case BTWood:
     // case BTLeaves:
     // {
-    // // TODO finish
+    // // TO DO finish
     // Block nx = world.getBlock(bx - 1, by, bz);
     // Block px = world.getBlock(bx + 1, by, bz);
     // Block ny = world.getBlock(bx, by - 1, bz);
@@ -8170,7 +9719,7 @@ public class Block implements GameObject
     // case BTLava:
     // case BTWater:
     // {
-    // // TODO finish
+    // // TO DO finish
     // return false;
     // }
     // }
@@ -8210,7 +9759,7 @@ public class Block implements GameObject
     // case BDTCustom:
     // break;
     // case BDTLiquid:
-    // // TODO finish
+    // // TO DO finish
     // break;
     // case BDTSolid:
     // {
@@ -8296,7 +9845,7 @@ public class Block implements GameObject
     // case BTWood:
     // case BTLeaves:
     // {
-    // // TODO finish
+    // // TO DO finish
     // Block nx = world.getBlock(bx - 1, by, bz);
     // Block px = world.getBlock(bx + 1, by, bz);
     // Block ny = world.getBlock(bx, by - 1, bz);
@@ -8378,7 +9927,7 @@ public class Block implements GameObject
     // case BTLava:
     // case BTWater:
     // {
-    // // TODO finish
+    // // TO DO finish
     // hash = concatHash(hash, this.data.intdata);
     // hash = concatHash(hash, bx);
     // hash = concatHash(hash, by);
@@ -8475,7 +10024,7 @@ public class Block implements GameObject
     // return true;
     // case BTLava:
     // case BTWater:
-    // // TODO finish
+    // // TO DO finish
     // return false;
     // }
     // return false;
@@ -8491,13 +10040,14 @@ public class Block implements GameObject
     /** @param replacingBlock
      *            the replacing block
      * @return the replaceability of this block */
-    public BlockType.Replaceability getReplaceability(BlockType replacingBlock)
+    public BlockType.Replaceability
+        getReplaceability(final BlockType replacingBlock)
     {
         return this.type.getReplaceability(replacingBlock);
     }
 
     @Override
-    public boolean equals(Object rt_in)
+    public boolean equals(final Object rt_in)
     {
         if(rt_in == null)
             return this.type == BlockType.BTEmpty;
@@ -8549,6 +10099,10 @@ public class Block implements GameObject
         case BTTNT:
         case BTBucket:
         case BTWorkbench:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return true;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -8641,8 +10195,28 @@ public class Block implements GameObject
             return this.data.intdata == rt.data.intdata;
         case BTTorch:
             return this.data.orientation == rt.data.orientation;
+        case BTRedstoneComparator:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            return this.data.step == rt.data.step;
+        case BTDispenser:
+        case BTDropper:
+            if(this.data.orientation != rt.data.orientation)
+                return false;
+            if(this.data.intdata != rt.data.intdata)
+                return false;
+            for(int i = 0; i < DISPENSER_DROPPER_ROWS
+                    * DISPENSER_DROPPER_COLUMNS; i++)
+            {
+                if(this.data.BlockCounts[i] != rt.data.BlockCounts[i])
+                    return false;
+                if(this.data.BlockCounts[i] > 0
+                        && !this.data.BlockTypes[i].equals(rt.data.BlockTypes[i]))
+                    return false;
+            }
+            return true;
         }
-        throw new UnsupportedOperationException(); // TODO finish
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -8692,6 +10266,10 @@ public class Block implements GameObject
         case BTTNT:
         case BTBucket:
         case BTWorkbench:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return hash;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -8777,8 +10355,23 @@ public class Block implements GameObject
         case BTTorch:
             hash += 126364 * this.data.orientation;
             return hash;
+        case BTRedstoneComparator:
+            hash += 7321493 * this.data.orientation;
+            return hash + 2793489 * this.data.step;
+        case BTDispenser:
+        case BTDropper:
+            hash += 126364 * this.data.orientation;
+            hash += 162873468 * this.data.intdata;
+            for(int i = 0; i < DISPENSER_DROPPER_ROWS
+                    * DISPENSER_DROPPER_COLUMNS; i++)
+            {
+                hash += 1273648 * this.data.BlockCounts[i];
+                if(this.data.BlockCounts[i] > 0)
+                    hash += 3 * this.data.BlockTypes[i].hashCode();
+            }
+            return hash;
         }
-        throw new UnsupportedOperationException(); // TODO finish
+        throw new UnsupportedOperationException();
     }
 
     /** @return the length of time that this block will fuel a furnace */
@@ -8794,9 +10387,9 @@ public class Block implements GameObject
      * @param forwardorientation
      *            the orientation for the direction the player is faceing
      * @return new block or null */
-    public Block makePlacedBlock(int orientation,
-                                 int vieworientation,
-                                 int forwardorientation)
+    public Block makePlacedBlock(final int orientation,
+                                 final int vieworientation,
+                                 final int forwardorientation)
     {
         switch(this.type)
         {
@@ -8812,12 +10405,17 @@ public class Block implements GameObject
         case BTRedstoneRepeaterOn:
             return BlockType.BTRedstoneRepeaterOff.make(orientation,
                                                         forwardorientation);
+        case BTRedstoneComparator:
+            return BlockType.BTRedstoneComparator.make(orientation,
+                                                       forwardorientation);
         default:
             return this.type.make(orientation, vieworientation);
         }
     }
 
-    private boolean drawSolidDrawsAnything(int bx, int by, int bz)
+    private boolean drawSolidDrawsAnything(final int bx,
+                                           final int by,
+                                           final int bz)
     {
         Block nx = world.getBlock(bx - 1, by, bz);
         if(nx != null && !nx.isOpaque())
@@ -8840,7 +10438,9 @@ public class Block implements GameObject
         return false;
     }
 
-    private boolean drawFluidDrawsAnything(int bx, int by, int bz)
+    private boolean drawFluidDrawsAnything(final int bx,
+                                           final int by,
+                                           final int bz)
     {
         Block nx = world.getBlock(bx - 1, by, bz);
         Block px = world.getBlock(bx + 1, by, bz);
@@ -8850,22 +10450,18 @@ public class Block implements GameObject
         Block pz = world.getBlock(bx, by, bz + 1);
         int drawMask = 0;
         float height = getHeight();
-        if(nx != null && !nx.isOpaque() && nx.type != this.type
-                && nx.getHeight() >= height)
+        if(drawFluidDrawsFace(nx, height))
             drawMask |= DMaskNX;
-        if(px != null && !px.isOpaque() && px.type != this.type
-                && px.getHeight() >= height)
+        if(drawFluidDrawsFace(px, height))
             drawMask |= DMaskPX;
         if(ny != null && !ny.isOpaque()
                 && (ny.type != this.type || ny.getHeight() < 1.0f))
             drawMask |= DMaskNY;
         if(py != null && !py.isOpaque() && py.type != this.type)
             drawMask |= DMaskPY;
-        if(nz != null && !nz.isOpaque() && nz.type != this.type
-                && nz.getHeight() >= height)
+        if(drawFluidDrawsFace(nz, height))
             drawMask |= DMaskNZ;
-        if(pz != null && !pz.isOpaque() && pz.type != this.type
-                && pz.getHeight() >= height)
+        if(drawFluidDrawsFace(pz, height))
             drawMask |= DMaskPZ;
         if(height < 1.0f)
             drawMask |= DMaskPY;
@@ -8881,7 +10477,7 @@ public class Block implements GameObject
      * @param bz
      *            the block's z coordinate
      * @return if this block draws anything when draw is called */
-    public boolean drawsAnything(int bx, int by, int bz)
+    public boolean drawsAnything(final int bx, final int by, final int bz)
     {
         switch(this.type.drawType)
         {
@@ -8892,7 +10488,6 @@ public class Block implements GameObject
                 return drawSolidDrawsAnything(bx, by, bz);
             case BTRedstoneDustOff:
             case BTRedstoneDustOn:
-            case BTSapling:
             case BTDeleteBlock:
                 return true;
             case BTWood:
@@ -8916,6 +10511,9 @@ public class Block implements GameObject
                 return true;
             case BTGrass:
                 return drawSolidDrawsAnything(bx, by, bz);
+            case BTDispenser:
+            case BTDropper:
+                return drawSolidDrawsAnything(bx, by, bz);
             default:
                 return true;
             }
@@ -8932,6 +10530,7 @@ public class Block implements GameObject
         case BDTButton:
         case BDTSolidAllSides:
         case BDTTool:
+        case BDTSim3D:
             return true;
         }
         return true;
@@ -8959,9 +10558,9 @@ public class Block implements GameObject
          *            the new <code>makesBlock</code>
          * @param usesTool
          *            if the tool is used up */
-        public BlockDigDescriptor(float digTime,
-                                  boolean makesBlock,
-                                  boolean usesTool)
+        public BlockDigDescriptor(final float digTime,
+                                  final boolean makesBlock,
+                                  final boolean usesTool)
         {
             this.digTime = digTime;
             this.makesBlock = makesBlock;
@@ -8970,7 +10569,7 @@ public class Block implements GameObject
 
         /** @param digTime
          *            the new <code>digTime</code> */
-        public BlockDigDescriptor(float digTime)
+        public BlockDigDescriptor(final float digTime)
         {
             this(digTime, true, true);
         }
@@ -8979,7 +10578,7 @@ public class Block implements GameObject
          *            the new <code>digTime</code>
          * @param makesBlock
          *            the new <code>makesBlock</code> */
-        public BlockDigDescriptor(float digTime, boolean makesBlock)
+        public BlockDigDescriptor(final float digTime, final boolean makesBlock)
         {
             this(digTime, makesBlock, true);
         }
@@ -8991,8 +10590,9 @@ public class Block implements GameObject
      *            the tool level
      * @return the <code>BlockDigDescriptor</code> or <code>null</code> if this
      *         block can't be dug */
-    public BlockDigDescriptor getDigDescriptor(BlockType.ToolType toolType,
-                                               BlockType.ToolLevel toolLevel)
+    public BlockDigDescriptor
+        getDigDescriptor(final BlockType.ToolType toolType,
+                         final BlockType.ToolLevel toolLevel)
     {
         switch(this.type)
         {
@@ -9031,6 +10631,9 @@ public class Block implements GameObject
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTString:
+        case BTBow:
             return new BlockDigDescriptor(0.0f, true, true);
         case BTChest:
         case BTWorkbench:
@@ -9159,6 +10762,8 @@ public class Block implements GameObject
             }
             return new BlockDigDescriptor(0.9f, true, true);
         case BTFurnace:
+        case BTDispenser:
+        case BTDropper:
             if(toolType == ToolType.Pickaxe)
             {
                 switch(toolLevel)
@@ -9179,7 +10784,7 @@ public class Block implements GameObject
             }
             return new BlockDigDescriptor(17.5f, true, true);
         case BTGlass:
-            return new BlockDigDescriptor(0.3f, true, true); // TODO finish
+            return new BlockDigDescriptor(0.3f, true, true);
         case BTIronOre:
         case BTLapisLazuliOre:
             if(toolType == ToolType.Pickaxe)
@@ -9206,6 +10811,10 @@ public class Block implements GameObject
         case BTLava:
         case BTWater:
             return null;
+        case BTCobweb:
+            if(toolType == ToolType.Shears)
+                return new BlockDigDescriptor(0.4f);
+            return new BlockDigDescriptor(20f, false, true);
         case BTLeaves:
             if(toolType == ToolType.Shears)
             {
@@ -9265,6 +10874,7 @@ public class Block implements GameObject
             return new BlockDigDescriptor(0.0f, true, true);
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
+        case BTRedstoneComparator:
             return new BlockDigDescriptor(0.5f, true, true);
         case BTRedstoneTorchOff:
         case BTRedstoneTorchOn:
@@ -9453,5 +11063,295 @@ public class Block implements GameObject
     public boolean isReplaceable()
     {
         return this.type.isReplaceable();
+    }
+
+    public Block getItemInBucket()
+    {
+        if(this.type == BlockType.BTWater)
+            return NewStationaryWater();
+        if(this.type == BlockType.BTLava)
+            return NewStationaryLava();
+        return null;
+    }
+
+    private boolean
+        checkItemHitSolidBlock(final float size, final Vector relpos)
+    {
+        float min = -size, max = 1 + size;
+        if(relpos.getX() >= min && relpos.getX() <= max && relpos.getY() >= min
+                && relpos.getY() <= max && relpos.getZ() >= min
+                && relpos.getZ() <= max)
+            return true;
+        return false;
+    }
+
+    public boolean checkItemHit(final float size, final Vector relpos)
+    {
+        if(isSolid())
+        {
+            return checkItemHitSolidBlock(size, relpos);
+        }
+        return false;
+    }
+
+    public boolean pressurePlateIsItemPressing(final float size,
+                                               final Vector relpos)
+    {
+        float min = -size, max = 1 + size;
+        float ymax = 1 / 16f + size;
+        if(relpos.getX() >= min && relpos.getX() <= max && relpos.getY() >= min
+                && relpos.getY() <= ymax && relpos.getZ() >= min
+                && relpos.getZ() <= max)
+            return true;
+        return false;
+    }
+
+    public int dispenserDropperGetBlockCount(final int row, final int column)
+    {
+        assert this.type == BlockType.BTDispenser
+                || this.type == BlockType.BTDropper;
+        if(row < 0 || row >= DISPENSER_DROPPER_ROWS)
+            return 0;
+        if(column < 0 || column >= DISPENSER_DROPPER_COLUMNS)
+            return 0;
+        int index = getDispenserDropperSlotIndex(row, column);
+        return this.data.BlockCounts[index];
+    }
+
+    public Block dispenserDropperGetBlockType(final int row, final int column)
+    {
+        assert this.type == BlockType.BTDispenser
+                || this.type == BlockType.BTDropper;
+        if(row < 0 || row >= DISPENSER_DROPPER_ROWS)
+            return null;
+        if(column < 0 || column >= DISPENSER_DROPPER_COLUMNS)
+            return null;
+        int index = getDispenserDropperSlotIndex(row, column);
+        return this.data.BlockTypes[index];
+    }
+
+    public int getContainerLevel()
+    {
+        switch(this.type)
+        {
+        case BTChest:
+        {
+            float slotsTaken = 0;
+            for(int row = 0; row < CHEST_ROWS; row++)
+            {
+                for(int column = 0; column < CHEST_COLUMNS; column++)
+                {
+                    Block b = chestGetBlockType(row, column);
+                    if(b != null)
+                    {
+                        if(b.getToolType() != BlockType.ToolType.None
+                                && b.toolGetUseCount() > 0)
+                            slotsTaken += 1;
+                        else
+                            slotsTaken += (float)chestGetBlockCount(row, column)
+                                    / BLOCK_STACK_SIZE;
+                    }
+                }
+            }
+            float v = slotsTaken / (CHEST_ROWS * CHEST_COLUMNS);
+            if(v > 0)
+                return Math.min((int)Math.floor(Math.max(1, v * 16)), 15);
+            return 0;
+        }
+        case BTFurnace:
+        {
+            float v = (float)(this.data.destcount + this.data.srccount)
+                    / BLOCK_STACK_SIZE / 2;
+            if(v > 0)
+                return Math.min((int)Math.floor(Math.max(1, v * 16)), 15);
+            return 0;
+        }
+        case BTDispenser:
+        case BTDropper:
+        {
+            float slotsTaken = 0;
+            for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    Block b = dispenserDropperGetBlockType(row, column);
+                    if(b != null)
+                    {
+                        if(b.getToolType() != BlockType.ToolType.None
+                                && b.toolGetUseCount() > 0)
+                            slotsTaken += 1;
+                        else
+                            slotsTaken += (float)dispenserDropperGetBlockCount(row,
+                                                                               column)
+                                    / BLOCK_STACK_SIZE;
+                    }
+                }
+            }
+            float v = slotsTaken
+                    / (DISPENSER_DROPPER_ROWS * DISPENSER_DROPPER_COLUMNS);
+            if(v > 0)
+                return Math.min((int)Math.floor(Math.max(1, v * 16)), 15);
+            return 0;
+        }
+        case BTBedrock:
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTBucket:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTDeleteBlock:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTEmpty:
+        case BTGlass:
+        case BTGoldAxe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronAxe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLast:
+        case BTLava:
+        case BTLeaves:
+        case BTLever:
+        case BTMoon:
+        case BTObsidian:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTShears:
+        case BTSlime:
+        case BTSnow:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTSun:
+        case BTTNT:
+        case BTTorch:
+        case BTVines:
+        case BTWater:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
+            return -1;
+        }
+        return -1;
+    }
+
+    public void redstoneComparatorToggleSubtractMode()
+    {
+        this.data.step = this.data.step != 0 ? 0 : 1;
+    }
+
+    public int dispenserDropperAddBlocks(final Block b,
+                                         final int count,
+                                         final int row,
+                                         final int column)
+    {
+        assert (this.type == BlockType.BTDispenser || this.type == BlockType.BTDropper)
+                && this.data.BlockCounts != null
+                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
+                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return count;
+        if(row < 0 || row >= DISPENSER_DROPPER_ROWS || column < 0
+                || column >= DISPENSER_DROPPER_COLUMNS || count <= 0)
+            return 0;
+        int index = getDispenserDropperSlotIndex(row, column);
+        if(this.data.BlockCounts[index] >= BLOCK_STACK_SIZE)
+            return 0;
+        if(this.data.BlockCounts[index] <= 0)
+        {
+            this.data.BlockTypes[index] = b;
+            if(count > BLOCK_STACK_SIZE)
+            {
+                this.data.BlockCounts[index] = BLOCK_STACK_SIZE;
+                return BLOCK_STACK_SIZE;
+            }
+            this.data.BlockCounts[index] = count;
+            return count;
+        }
+        if(!this.data.BlockTypes[index].equals(b))
+            return 0;
+        if(this.data.BlockCounts[index] + count > BLOCK_STACK_SIZE)
+        {
+            int retval = BLOCK_STACK_SIZE - this.data.BlockCounts[index];
+            this.data.BlockCounts[index] = BLOCK_STACK_SIZE;
+            return retval;
+        }
+        this.data.BlockCounts[index] += count;
+        return count;
+    }
+
+    public int dispenserDropperRemoveBlocks(final Block b,
+                                            final int count,
+                                            final int row,
+                                            final int column)
+    {
+        assert (this.type == BlockType.BTDispenser || this.type == BlockType.BTDropper)
+                && this.data.BlockCounts != null
+                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
+                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return count;
+        if(row < 0 || row >= DISPENSER_DROPPER_ROWS || column < 0
+                || column >= DISPENSER_DROPPER_COLUMNS || count <= 0)
+            return 0;
+        int index = getDispenserDropperSlotIndex(row, column);
+        if(this.data.BlockCounts[index] <= 0)
+            return 0;
+        if(!this.data.BlockTypes[index].equals(b))
+            return 0;
+        if(this.data.BlockCounts[index] <= count)
+        {
+            int retval = this.data.BlockCounts[index];
+            this.data.BlockCounts[index] = 0;
+            this.data.BlockTypes[index] = null;
+            return retval;
+        }
+        this.data.BlockCounts[index] -= count;
+        return count;
     }
 }

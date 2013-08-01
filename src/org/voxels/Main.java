@@ -16,37 +16,48 @@
  */
 package org.voxels;
 
-import static org.lwjgl.opengl.GL11.*;
 import static org.voxels.PlayerList.players;
 import static org.voxels.World.world;
 
-import java.awt.GridLayout;
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
 
-import javax.swing.*;
-import javax.swing.filechooser.FileFilter;
-
-import org.lwjgl.LWJGLException;
-import org.lwjgl.Sys;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
-import org.lwjgl.openal.AL;
-import org.lwjgl.opengl.Display;
-import org.lwjgl.opengl.DisplayMode;
-import org.newdawn.slick.openal.Audio;
-import org.newdawn.slick.openal.AudioLoader;
 import org.voxels.generate.Rand;
+import org.voxels.platform.*;
 
 /** @author jacob */
 public final class Main
 {
-    /** the screen x resolution */
-    public static int ScreenXRes = 640;
-    /** the screen y resolution */
-    public static int ScreenYRes = 480;
-    /** the aspect ratio */
-    public static float aspectRatio = (float)ScreenXRes / ScreenYRes;
+    /**
+     * 
+     */
+    public static Platform platform = new LWJGLPlatform();
+    /**
+     * 
+     */
+    public static OpenGL opengl = platform.getOpenGL();
+    /***/
+    public static Mouse mouse = platform.getMouse();
+    /***/
+    public static Keyboard keyboard = platform.getKeyboard();
+
+    /** @return the screen x resolution */
+    public static int ScreenXRes()
+    {
+        return platform.getScreenWidth();
+    }
+
+    /** @return the screen y resolution */
+    public static int ScreenYRes()
+    {
+        return platform.getScreenHeight();
+    }
+
+    /** @return the aspect ratio */
+    public static float aspectRatio()
+    {
+        return (float)ScreenXRes() / ScreenYRes();
+    }
+
     /** the program's version */
     public static final String Version = "0.2.2";
     /** true if this program is running as a server */
@@ -61,9 +72,9 @@ public final class Main
     public static class MouseEvent
     {
         /** the mouse x coordinate */
-        public final int mouseX;
+        public final float mouseX;
         /** the mouse y coordinate */
-        public final int mouseY;
+        public final float mouseY;
         /** the button this event is about */
         public final int button;
         /** the amount that the mouse wheel was moved */
@@ -71,30 +82,22 @@ public final class Main
         /** true if the button is pressed */
         public final boolean isDown;
         /** left mouse button */
-        public static final int LEFT = 0;
+        public static final int LEFT = Mouse.BUTTON_LEFT;
         /** right mouse button */
-        public static final int RIGHT = 1;
+        public static final int RIGHT = Mouse.BUTTON_RIGHT;
         /** middle mouse button */
-        public static final int MIDDLE = 2;
+        public static final int MIDDLE = Mouse.BUTTON_MIDDLE;
 
         /**
 		 * 
 		 */
         public MouseEvent()
         {
-            this.mouseX = Mouse.getEventX();
-            this.mouseY = Display.getHeight() - Mouse.getEventY() - 1;
-            int button = Mouse.getEventButton();
-            this.isDown = Mouse.getEventButtonState();
-            boolean eventWasLeftButtonDown = false;
-            if(button == LEFT && Main.isKeyDown(Main.KEY_ALT)
-                    && (!lastEventWasLeftButtonDown || this.isDown))
-                button = RIGHT;
-            else if(button == LEFT && this.isDown)
-                eventWasLeftButtonDown = true;
-            lastEventWasLeftButtonDown = eventWasLeftButtonDown;
-            this.button = button;
-            this.dWheel = Mouse.getEventDWheel();
+            this.mouseX = mouse.getEventX();
+            this.mouseY = mouse.getEventY();
+            this.button = mouse.getEventButtonIndex();
+            this.isDown = mouse.isEventButtonDown();
+            this.dWheel = mouse.getEventDWheel();
         }
     }
 
@@ -104,7 +107,7 @@ public final class Main
      * 
      * @param str
      *            the string to add */
-    public static void addToFrameText(String str)
+    public static void addToFrameText(final String str)
     {
         frameText += str;
     }
@@ -114,9 +117,9 @@ public final class Main
     private static void renderFrame()
     {
         players.draw();
-        glClear(GL_DEPTH_BUFFER_BIT);
+        opengl.glClear(opengl.GL_DEPTH_BUFFER_BIT());
         final float dist = 480f / Text.sizeH("A") / 2.0f;
-        Text.draw(Matrix.translate(-dist * aspectRatio, dist - 1.0f, -dist),
+        Text.draw(Matrix.translate(-dist * aspectRatio(), dist - 1.0f, -dist),
                   Color.RGB(1.0f, 1.0f, 1.0f),
                   frameText);
         frameText = "";
@@ -143,48 +146,44 @@ public final class Main
         }
     }
 
-    private static void setFullscreen(boolean isFullscreen)
+    private static void setFullscreen(final boolean isFullscreen)
     {
-        try
+        if(platform.isFullscreen() && !isFullscreen || !platform.isFullscreen()
+                && isFullscreen)
         {
-            if(Display.isFullscreen() && !isFullscreen
-                    || !Display.isFullscreen() && isFullscreen)
-            {
-                Display.setFullscreen(isFullscreen);
-            }
+            platform.setFullscreen(isFullscreen);
         }
-        catch(LWJGLException e)
-        {
-            e.printStackTrace();
-            System.exit(1);
-        }
-        glEnable(GL_DEPTH_TEST);
+        opengl.glEnable(opengl.GL_DEPTH_TEST());
         final double minGLdist = 1e-2;
-        glEnable(GL_TEXTURE_2D);
-        glEnable(GL_ALPHA_TEST);
-        glEnable(GL_CULL_FACE); // TODO fix
-        glEnable(GL_BLEND);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
-        glAlphaFunc(GL_LESS, 0.85f);
-        glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-        glViewport(0, 0, ScreenXRes, ScreenYRes);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glFrustum(-minGLdist * aspectRatio,
-                  minGLdist * aspectRatio,
-                  -minGLdist,
-                  minGLdist,
-                  minGLdist,
-                  150f);
+        opengl.glEnable(opengl.GL_TEXTURE_2D());
+        opengl.glEnable(opengl.GL_ALPHA_TEST());
+        opengl.glEnable(opengl.GL_CULL_FACE());
+        opengl.glEnable(opengl.GL_BLEND());
+        opengl.glCullFace(opengl.GL_BACK());
+        opengl.glFrontFace(opengl.GL_CCW());
+        opengl.glAlphaFunc(opengl.GL_LESS(), 0.85f);
+        opengl.glBlendFunc(opengl.GL_ONE_MINUS_SRC_ALPHA(),
+                           opengl.GL_SRC_ALPHA());
+        opengl.glTexEnvi(opengl.GL_TEXTURE_ENV(),
+                         opengl.GL_TEXTURE_ENV_MODE(),
+                         opengl.GL_MODULATE());
+        opengl.glHint(opengl.GL_PERSPECTIVE_CORRECTION_HINT(),
+                      opengl.GL_NICEST());
+        opengl.glViewport(0, 0, ScreenXRes(), ScreenYRes());
+        opengl.glMatrixMode(opengl.GL_PROJECTION());
+        opengl.glLoadIdentity();
+        opengl.glFrustum(-minGLdist * aspectRatio(),
+                         minGLdist * aspectRatio(),
+                         -minGLdist,
+                         minGLdist,
+                         minGLdist,
+                         150f);
     }
 
     /** @return the current time in seconds */
     public static double Timer()
     {
-        return (double)Sys.getTime() / Sys.getTimerResolution();
+        return platform.Timer();
     }
 
     private static double frameDuration = 0.05;
@@ -306,21 +305,21 @@ public final class Main
     /** the right shift key */
     public static final int KEY_RSHIFT = Keyboard.KEY_RSHIFT;
     /** the left control key */
-    public static final int KEY_LCTRL = Keyboard.KEY_LCONTROL;
+    public static final int KEY_LCTRL = Keyboard.KEY_LCTRL;
     /** the right control key */
-    public static final int KEY_RCTRL = Keyboard.KEY_RCONTROL;
+    public static final int KEY_RCTRL = Keyboard.KEY_RCTRL;
     /** the left alt key */
-    public static final int KEY_LALT = Keyboard.KEY_LMENU;
+    public static final int KEY_LALT = Keyboard.KEY_LALT;
     /** the right alt key */
-    public static final int KEY_RALT = Keyboard.KEY_RMENU;
+    public static final int KEY_RALT = Keyboard.KEY_RALT;
     /** the return (enter) key */
     public static final int KEY_RETURN = Keyboard.KEY_RETURN;
     /** the left or right shift key key */
-    public static final int KEY_SHIFT = -10000;
+    public static final int KEY_SHIFT = Keyboard.KEY_SHIFT;
     /** the left or right Control key */
-    public static final int KEY_CTRL = -10001;
+    public static final int KEY_CTRL = Keyboard.KEY_CTRL;
     /** the left or right Alt key */
-    public static final int KEY_ALT = -10002;
+    public static final int KEY_ALT = Keyboard.KEY_ALT;
     /** the special value that means that no key corresponds to this character */
     public static final int KEY_NONE = Keyboard.KEY_NONE;
     /** the Escape key */
@@ -330,29 +329,16 @@ public final class Main
     /** the Delete key */
     public static final int KEY_DELETE = Keyboard.KEY_DELETE;
     /** the special value that means that no character was translated */
-    public static final char CHAR_NONE = (char)Keyboard.CHAR_NONE;
+    public static final char CHAR_NONE = Keyboard.CHAR_NONE;
 
     /** @param key
      *            the key to check for
      * @return true if the key is pressed */
-    public static boolean isKeyDown(int key)
+    public static boolean isKeyDown(final int key)
     {
-        if(key == KEY_SHIFT)
-        {
-            return Keyboard.isKeyDown(Keyboard.KEY_LSHIFT)
-                    || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
-        }
-        if(key == KEY_ALT)
-        {
-            return Keyboard.isKeyDown(Keyboard.KEY_LMENU)
-                    || Keyboard.isKeyDown(Keyboard.KEY_RMENU);
-        }
-        if(key == KEY_CTRL)
-        {
-            return Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)
-                    || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL);
-        }
-        return Keyboard.isKeyDown(key);
+        if(keyboard == null)
+            return false;
+        return keyboard.isKeyDown(key);
     }
 
     /** @author jacob */
@@ -376,17 +362,21 @@ public final class Main
 		 */
         public KeyboardEvent()
         {
-            this.key = Keyboard.getEventKey();
-            this.character = Keyboard.getEventCharacter();
-            this.isDown = Keyboard.getEventKeyState();
-            this.isRepeat = Keyboard.isRepeatEvent();
+            if(keyboard != null)
+            {
+                this.key = keyboard.getEventKey();
+                this.character = keyboard.getEventCharacter();
+                this.isDown = keyboard.getEventKeyDown();
+                this.isRepeat = keyboard.isRepeatEvent();
+            }
+            else
+            {
+                this.key = KEY_NONE;
+                this.character = CHAR_NONE;
+                this.isDown = false;
+                this.isRepeat = false;
+            }
         }
-    }
-
-    private static int getModeDist(DisplayMode mode)
-    {
-        return Math.abs(mode.getWidth() - 640)
-                + Math.abs(mode.getHeight() - 480);
     }
 
     private static Rand.Settings makeLandGeneratorSettings()
@@ -465,53 +455,59 @@ public final class Main
 
     /** @param menu
      *            the menu to run */
-    public static void runMenu(MenuScreen menu)
+    public static void runMenu(final MenuScreen menu)
     {
-        Mouse.setGrabbed(false);
+        platform.setMouseVisible(true);
         boolean done = false;
         while(!done)
         {
             setFullscreen(isFullscreen);
             menu.draw();
-            Display.update();
+            platform.update();
             {
-                while(Mouse.next())
+                while(mouse.nextEvent())
                 {
                     MouseEvent event = new MouseEvent();
                     if(event.isDown)
-                        menu.onClick((float)event.mouseX / ScreenXRes * 2f - 1f,
-                                     1f - (float)event.mouseY / ScreenYRes * 2f);
+                        menu.onClick(event.mouseX / ScreenXRes() * 2f - 1f, 1f
+                                - event.mouseY / ScreenYRes() * 2f);
                 }
-                while(Keyboard.next())
+                if(keyboard != null)
                 {
-                    KeyboardEvent event = new KeyboardEvent();
-                    if(event.isDown && event.key == KEY_F4
-                            && isKeyDown(KEY_ALT))
+                    while(keyboard.nextEvent())
                     {
-                        done = true;
-                        continue;
-                    }
-                    if(event.isDown && event.key == KEY_F11)
-                    {
-                        isFullscreen = !isFullscreen;
-                        continue;
+                        KeyboardEvent event = new KeyboardEvent();
+                        if(event.isDown && event.key == KEY_F4
+                                && isKeyDown(KEY_ALT))
+                        {
+                            done = true;
+                            continue;
+                        }
+                        if(event.isDown && event.key == KEY_F11)
+                        {
+                            isFullscreen = !isFullscreen;
+                            continue;
+                        }
                     }
                 }
-                int mouseX = Mouse.getX();
-                int mouseY = Display.getHeight() - Mouse.getY() - 1;
-                menu.onMouseOver((float)mouseX / ScreenXRes * 2f - 1f, 1f
-                        - (float)mouseY / ScreenYRes * 2f);
+                float mouseX = mouse.getX();
+                float mouseY = mouse.getY();
+                menu.onMouseOver(mouseX / ScreenXRes() * 2f - 1f, 1f - mouseY
+                        / ScreenYRes() * 2f);
             }
-            Display.sync(60);
+            platform.waitForNextFrame();
             curTime = Timer();
             frameDuration = curTime - lastFrameStartTime;
             internalSaveAll();
             lastFrameStartTime = curTime;
             if(menu.isDone())
                 done = true;
-            if(Display.isCloseRequested())
+            if(platform.isCloseRequested())
                 done = true;
         }
+        while(true)
+            if(!mouse.nextEvent())
+                break;
     }
 
     /** @param title
@@ -523,7 +519,7 @@ public final class Main
         runMenu(new MenuScreen(Color.V(0.75f))
         {
             @Override
-            protected void drawBackground(Matrix tform)
+            protected void drawBackground(final Matrix tform)
             {
                 super.drawBackground(tform);
                 String str = title;
@@ -543,37 +539,39 @@ public final class Main
             {
                 add(new TextMenuItem(message,
                                      Color.RGB(0f, 0f, 0f),
-                                     this.getBackgroundColor(),
+                                     getBackgroundColor(),
                                      Color.RGB(0f, 0f, 0f),
                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
                     {
                     }
                 });
                 add(new SpacerMenuItem(Color.V(0.0f), this));
                 MenuItem okButton = new TextMenuItem("OK",
                                                      Color.RGB(0f, 0f, 0f),
-                                                     this.getBackgroundColor(),
+                                                     getBackgroundColor(),
                                                      Color.RGB(0f, 0f, 0f),
                                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                         select();
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
                     {
                         this.container.close();
                     }
@@ -584,18 +582,28 @@ public final class Main
         });
     }
 
-    private static void runScreenResolutionMenu()
+    /** @param title
+     *            the title
+     * @param message
+     *            the message
+     * @param defaultValue
+     *            the initial selection
+     * @return if yes is clicked */
+    public static boolean query(final String title,
+                                final String message,
+                                final boolean defaultValue)
     {
+        final boolean[] retval = new boolean[]
+        {
+            defaultValue
+        };
         runMenu(new MenuScreen(Color.V(0.75f))
         {
-            public DisplayMode[] modes;
-            private int selectedMode;
-
             @Override
-            protected void drawBackground(Matrix tform)
+            protected void drawBackground(final Matrix tform)
             {
                 super.drawBackground(tform);
-                String str = "Change Screen Resolution";
+                String str = title;
                 float xScale = 2f / 40f;
                 Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
                                 .concat(Matrix.translate(-xScale
@@ -609,122 +617,233 @@ public final class Main
                           str);
             }
 
-            public void setSelectedMode(int selectedMode)
             {
-                this.selectedMode = selectedMode;
-                try
-                {
-                    Display.setDisplayMode(this.modes[this.selectedMode]);
-                    ScreenXRes = this.modes[this.selectedMode].getWidth();
-                    ScreenYRes = this.modes[this.selectedMode].getHeight();
-                    aspectRatio = (float)ScreenXRes / ScreenYRes;
-                }
-                catch(LWJGLException e)
-                {
-                    StringWriter w = new StringWriter();
-                    PrintWriter pw = new PrintWriter(w, true);
-                    e.printStackTrace(pw);
-                    alert("Can't change display mode", w.toString());
-                }
-            }
-
-            public int getSelectedMode()
-            {
-                return this.selectedMode;
-            }
-
-            {
-                try
-                {
-                    this.modes = Display.getAvailableDisplayModes();
-                }
-                catch(LWJGLException e)
-                {
-                    e.printStackTrace();
-                    System.exit(1);
-                }
-                this.selectedMode = -1;
-                DisplayMode[] newModes = new DisplayMode[0];
-                for(int i = 0; i < this.modes.length; i++)
-                {
-                    boolean found = false;
-                    for(int j = 0; j < newModes.length; j++)
-                    {
-                        if(newModes[j].getWidth() == this.modes[i].getWidth()
-                                && newModes[j].getHeight() == this.modes[i].getHeight())
-                        {
-                            found = true;
-                            int oldDist = Math.abs(newModes[j].getBitsPerPixel() - 32)
-                                    + Math.abs(newModes[j].getFrequency() - 60);
-                            int newDist = Math.abs(this.modes[i].getBitsPerPixel() - 32)
-                                    + Math.abs(this.modes[i].getFrequency() - 60);
-                            if(newDist <= oldDist)
-                                newModes[j] = this.modes[i];
-                        }
-                    }
-                    if(!found)
-                    {
-                        DisplayMode[] temp = new DisplayMode[newModes.length + 1];
-                        for(int j = 0; j < newModes.length; j++)
-                            temp[j] = newModes[j];
-                        temp[newModes.length] = this.modes[i];
-                        newModes = temp;
-                    }
-                }
-                this.modes = newModes;
-                for(int i = 0; i < this.modes.length; i++)
-                {
-                    if(this.modes[i].getWidth() == Display.getDisplayMode()
-                                                          .getWidth()
-                            && this.modes[i].getHeight() == Display.getDisplayMode()
-                                                                   .getHeight())
-                        this.selectedMode = i;
-                    final int index = i;
-                    add(new OptionMenuItem(Integer.toString(this.modes[i].getWidth())
-                                                   + "x"
-                                                   + Integer.toString(this.modes[i].getHeight()),
-                                           Color.RGB(0f, 0f, 0f),
-                                           this.getBackgroundColor(),
-                                           Color.RGB(0f, 0f, 0f),
-                                           Color.RGB(0.0f, 0.0f, 1.0f),
-                                           this)
-                    {
-                        @Override
-                        public void pick()
-                        {
-                            setSelectedMode(index);
-                        }
-
-                        @Override
-                        public boolean isPicked()
-                        {
-                            return index == getSelectedMode();
-                        }
-                    });
-                }
-                add(new SpacerMenuItem(Color.V(0), this));
-                add(new TextMenuItem("OK",
+                add(new TextMenuItem(message,
                                      Color.RGB(0f, 0f, 0f),
-                                     this.getBackgroundColor(),
+                                     getBackgroundColor(),
                                      Color.RGB(0f, 0f, 0f),
                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
+                    {
+                    }
+
+                    @Override
+                    public void onClick(final float mouseX, final float mouseY)
+                    {
+                    }
+                });
+                add(new SpacerMenuItem(Color.V(0.0f), this));
+                MenuItem yesButton = new TextMenuItem("Yes",
+                                                      Color.RGB(0f, 0f, 0f),
+                                                      getBackgroundColor(),
+                                                      Color.RGB(0f, 0f, 0f),
+                                                      Color.RGB(0.0f,
+                                                                0.0f,
+                                                                1.0f), this)
+                {
+                    @Override
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                         select();
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
+                    {
+                        this.container.close();
+                        retval[0] = true;
+                    }
+                };
+                add(yesButton);
+                MenuItem noButton = new TextMenuItem("No",
+                                                     Color.RGB(0f, 0f, 0f),
+                                                     getBackgroundColor(),
+                                                     Color.RGB(0f, 0f, 0f),
+                                                     Color.RGB(0.0f, 0.0f, 1.0f),
+                                                     this)
+                {
+                    @Override
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
+                    {
+                        select();
+                    }
+
+                    @Override
+                    public void onClick(final float mouseX, final float mouseY)
+                    {
+                        this.container.close();
+                        retval[0] = false;
+                    }
+                };
+                add(noButton);
+                if(defaultValue)
+                    yesButton.select();
+                else
+                    noButton.select();
+            }
+        });
+        return retval[0];
+    }
+
+    private static class FileLoadSaveMenuScreen extends MenuScreen
+    {
+        private static final int FileSlotCount = 10;
+        public int curFile = -1;
+        public final boolean isSave;
+
+        private static File fileFromIndex(final int index)
+        {
+            if(index < 0)
+                return null;
+            return new File(Main.platform.getUserSettingsDir(), "VoxelsGame"
+                    + Integer.toString(index) + ".vw");
+        }
+
+        public static boolean slotTaken(final int index)
+        {
+            File f = fileFromIndex(index);
+            if(f == null)
+                return false;
+            if(!f.exists())
+                return false;
+            return true;
+        }
+
+        private class FileMenuItem extends TextMenuItem
+        {
+            private final int fileIndex;
+
+            public FileMenuItem(final int fileIndex, final MenuScreen container)
+            {
+                super("# "
+                              + Integer.toString(fileIndex)
+                              + " "
+                              + (slotTaken(fileIndex) ? " -- Game Saved"
+                                      : " --   Empty   "),
+                      Color.RGB(0f, 0f, 0f),
+                      container.getBackgroundColor(),
+                      Color.RGB(0f, 0f, 0f),
+                      Color.RGB(0.0f, 0.0f, 1.0f),
+                      container);
+                this.fileIndex = fileIndex;
+            }
+
+            @Override
+            public void onClick(final float mouseX, final float mouseY)
+            {
+                if(FileLoadSaveMenuScreen.this.isSave
+                        && slotTaken(this.fileIndex))
+                {
+                    if(query("Replace", "Replace the saved game?", false))
                     {
                         this.container.close();
                     }
-                });
+                }
+                else
+                    this.container.close();
+                FileLoadSaveMenuScreen.this.curFile = this.fileIndex;
             }
-        });
+
+            @Override
+            public void onMouseOver(final float mouseX, final float mouseY)
+            {
+                select();
+            }
+        }
+
+        private void addFile(final int index)
+        {
+            add(new FileMenuItem(index, this));
+        }
+
+        private FileLoadSaveMenuScreen(final boolean isSave)
+        {
+            super(Color.V(0.75f));
+            this.isSave = isSave;
+            if(isSave)
+            {
+                for(int i = 0; i < FileSlotCount; i++)
+                    addFile(i);
+            }
+            else
+            {
+                for(int i = 0; i < FileSlotCount; i++)
+                {
+                    if(slotTaken(i))
+                        addFile(i);
+                }
+            }
+            add(new SpacerMenuItem(Color.V(0.0f), this));
+            add(new TextMenuItem("Cancel",
+                                 Color.RGB(0f, 0f, 0f),
+                                 getBackgroundColor(),
+                                 Color.RGB(0f, 0f, 0f),
+                                 Color.RGB(0.0f, 0.0f, 1.0f),
+                                 this)
+            {
+                @Override
+                public void onMouseOver(final float mouseX, final float mouseY)
+                {
+                    select();
+                }
+
+                @Override
+                public void onClick(final float mouseX, final float mouseY)
+                {
+                    this.container.close();
+                    FileLoadSaveMenuScreen.this.curFile = -1;
+                }
+            });
+        }
+
+        public static FileLoadSaveMenuScreen SaveMenuScreen()
+        {
+            return new FileLoadSaveMenuScreen(true);
+        }
+
+        public static FileLoadSaveMenuScreen LoadMenuScreen()
+        {
+            return new FileLoadSaveMenuScreen(false);
+        }
+
+        public File getSelectedFile()
+        {
+            return fileFromIndex(this.curFile);
+        }
     }
+
+    private static File runFileSave()
+    {
+        FileLoadSaveMenuScreen dlg = FileLoadSaveMenuScreen.SaveMenuScreen();
+        runMenu(dlg);
+        return dlg.getSelectedFile();
+    }
+
+    private static File runFileLoad()
+    {
+        FileLoadSaveMenuScreen dlg = FileLoadSaveMenuScreen.LoadMenuScreen();
+        runMenu(dlg);
+        return dlg.getSelectedFile();
+    }
+
+    private static void runScreenResolutionMenu()
+    {
+        MenuScreen menu = platform.getChangeScreenResolutionMenu();
+        if(menu == null)
+            return;
+        runMenu(menu);
+    }
+
+    /**
+     * 
+     */
+    public static boolean isVSyncEnabled = true;
 
     @SuppressWarnings("synthetic-access")
     private static void runOptionsMenu()
@@ -732,7 +851,7 @@ public final class Main
         runMenu(new MenuScreen(Color.V(0.75f))
         {
             @Override
-            protected void drawBackground(Matrix tform)
+            protected void drawBackground(final Matrix tform)
             {
                 super.drawBackground(tform);
                 String str = "Options";
@@ -752,13 +871,13 @@ public final class Main
             {
                 add(new CheckMenuItem("Debug Mode",
                                       Color.RGB(0f, 0f, 0f),
-                                      this.getBackgroundColor(),
+                                      getBackgroundColor(),
                                       Color.RGB(0f, 0f, 0f),
                                       Color.RGB(0.0f, 0.0f, 1.0f),
                                       this)
                 {
                     @Override
-                    public void setChecked(boolean checked)
+                    public void setChecked(final boolean checked)
                     {
                         Main.DEBUG = checked;
                     }
@@ -771,13 +890,13 @@ public final class Main
                 });
                 add(new CheckMenuItem("Use Vertex Arrays\nand a Texture Atlas",
                                       Color.RGB(0f, 0f, 0f),
-                                      this.getBackgroundColor(),
+                                      getBackgroundColor(),
                                       Color.RGB(0f, 0f, 0f),
                                       Color.RGB(0.0f, 0.0f, 1.0f),
                                       this)
                 {
                     @Override
-                    public void setChecked(boolean checked)
+                    public void setChecked(final boolean checked)
                     {
                         RenderingStream.USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = checked;
                     }
@@ -790,13 +909,13 @@ public final class Main
                 });
                 add(new CheckMenuItem("Creative Mode",
                                       Color.RGB(0f, 0f, 0f),
-                                      this.getBackgroundColor(),
+                                      getBackgroundColor(),
                                       Color.RGB(0f, 0f, 0f),
                                       Color.RGB(0.0f, 0.0f, 1.0f),
                                       this)
                 {
                     @Override
-                    public void setChecked(boolean checked)
+                    public void setChecked(final boolean checked)
                     {
                         Main.isCreativeMode = checked;
                     }
@@ -811,19 +930,21 @@ public final class Main
                 {
                     add(new TextMenuItem("Change Time To Morning",
                                          Color.RGB(0.0f, 0.0f, 0.0f),
-                                         this.getBackgroundColor(),
+                                         getBackgroundColor(),
                                          Color.RGB(0.0f, 0.0f, 0.0f),
                                          Color.RGB(0.0f, 0.0f, 1.0f),
                                          this)
                     {
                         @Override
-                        public void onMouseOver(float mouseX, float mouseY)
+                        public void onMouseOver(final float mouseX,
+                                                final float mouseY)
                         {
                             select();
                         }
 
                         @Override
-                        public void onClick(float mouseX, float mouseY)
+                        public void onClick(final float mouseX,
+                                            final float mouseY)
                         {
                             world.setTimeOfDay(0.3f);
                         }
@@ -832,13 +953,13 @@ public final class Main
                 add(new SpacerMenuItem(Color.V(0), this));
                 add(new CheckMenuItem("Fancy Graphics",
                                       Color.RGB(0f, 0f, 0f),
-                                      this.getBackgroundColor(),
+                                      getBackgroundColor(),
                                       Color.RGB(0f, 0f, 0f),
                                       Color.RGB(0.0f, 0.0f, 1.0f),
                                       this)
                 {
                     @Override
-                    public void setChecked(boolean checked)
+                    public void setChecked(final boolean checked)
                     {
                         Main.FancyGraphics = checked;
                     }
@@ -852,7 +973,7 @@ public final class Main
                 add(new SpacerMenuItem(Color.V(0), this));
                 add(new OptionMenuItem("Render Distance : Far",
                                        Color.RGB(0f, 0f, 0f),
-                                       this.getBackgroundColor(),
+                                       getBackgroundColor(),
                                        Color.RGB(0f, 0f, 0f),
                                        Color.RGB(0.0f, 0.0f, 1.0f),
                                        this)
@@ -871,7 +992,7 @@ public final class Main
                 });
                 add(new OptionMenuItem("Render Distance : Medium",
                                        Color.RGB(0f, 0f, 0f),
-                                       this.getBackgroundColor(),
+                                       getBackgroundColor(),
                                        Color.RGB(0f, 0f, 0f),
                                        Color.RGB(0.0f, 0.0f, 1.0f),
                                        this)
@@ -890,7 +1011,7 @@ public final class Main
                 });
                 add(new OptionMenuItem("Render Distance : Default",
                                        Color.RGB(0f, 0f, 0f),
-                                       this.getBackgroundColor(),
+                                       getBackgroundColor(),
                                        Color.RGB(0f, 0f, 0f),
                                        Color.RGB(0.0f, 0.0f, 1.0f),
                                        this)
@@ -909,7 +1030,7 @@ public final class Main
                 });
                 add(new OptionMenuItem("Render Distance : Fast",
                                        Color.RGB(0f, 0f, 0f),
-                                       this.getBackgroundColor(),
+                                       getBackgroundColor(),
                                        Color.RGB(0f, 0f, 0f),
                                        Color.RGB(0.0f, 0.0f, 1.0f),
                                        this)
@@ -927,34 +1048,39 @@ public final class Main
                     }
                 });
                 add(new SpacerMenuItem(Color.V(0), this));
-                add(new TextMenuItem("Change Screen Resolution...",
-                                     Color.RGB(0.0f, 0.0f, 0.0f),
-                                     this.getBackgroundColor(),
-                                     Color.RGB(0.0f, 0.0f, 0.0f),
-                                     Color.RGB(0.0f, 0.0f, 1.0f),
-                                     this)
+                if(platform.hasChangeScreenResolutionMenu())
                 {
-                    @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    add(new TextMenuItem("Change Screen Resolution...",
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         getBackgroundColor(),
+                                         Color.RGB(0.0f, 0.0f, 0.0f),
+                                         Color.RGB(0.0f, 0.0f, 1.0f),
+                                         this)
                     {
-                        select();
-                    }
+                        @Override
+                        public void onMouseOver(final float mouseX,
+                                                final float mouseY)
+                        {
+                            select();
+                        }
 
-                    @Override
-                    public void onClick(float mouseX, float mouseY)
-                    {
-                        runScreenResolutionMenu();
-                    }
-                });
+                        @Override
+                        public void onClick(final float mouseX,
+                                            final float mouseY)
+                        {
+                            runScreenResolutionMenu();
+                        }
+                    });
+                }
                 add(new CheckMenuItem("Full Screen",
                                       Color.RGB(0f, 0f, 0f),
-                                      this.getBackgroundColor(),
+                                      getBackgroundColor(),
                                       Color.RGB(0f, 0f, 0f),
                                       Color.RGB(0.0f, 0.0f, 1.0f),
                                       this)
                 {
                     @Override
-                    public void setChecked(boolean checked)
+                    public void setChecked(final boolean checked)
                     {
                         Main.isFullscreen = checked;
                     }
@@ -965,22 +1091,43 @@ public final class Main
                         return Main.isFullscreen;
                     }
                 });
+                add(new CheckMenuItem("Use VSync",
+                                      Color.RGB(0f, 0f, 0f),
+                                      getBackgroundColor(),
+                                      Color.RGB(0f, 0f, 0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public void setChecked(final boolean checked)
+                    {
+                        Main.isVSyncEnabled = checked;
+                        platform.setVSyncEnabled(Main.isVSyncEnabled);
+                    }
+
+                    @Override
+                    public boolean isChecked()
+                    {
+                        return Main.isVSyncEnabled;
+                    }
+                });
                 add(new SpacerMenuItem(Color.V(0), this));
                 add(new TextMenuItem("Return To Main Menu",
                                      Color.RGB(0.0f, 0.0f, 0.0f),
-                                     this.getBackgroundColor(),
+                                     getBackgroundColor(),
                                      Color.RGB(0.0f, 0.0f, 0.0f),
                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                         select();
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
                     {
                         this.container.close();
                     }
@@ -995,7 +1142,7 @@ public final class Main
         runMenu(new MenuScreen(Color.RGB(0.75f, 0.75f, 0.75f))
         {
             @Override
-            protected void drawBackground(Matrix tform)
+            protected void drawBackground(final Matrix tform)
             {
                 super.drawBackground(tform);
                 String str = "Main Menu";
@@ -1015,19 +1162,20 @@ public final class Main
             {
                 add(new TextMenuItem("New Game",
                                      Color.RGB(0f, 0f, 0f),
-                                     this.getBackgroundColor(),
+                                     getBackgroundColor(),
                                      Color.RGB(0f, 0f, 0f),
                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                         select();
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
                     {
                         if(didLoad)
                         {
@@ -1040,19 +1188,20 @@ public final class Main
                 });
                 add(new TextMenuItem("Load Game",
                                      Color.RGB(0f, 0f, 0f),
-                                     this.getBackgroundColor(),
+                                     getBackgroundColor(),
                                      Color.RGB(0f, 0f, 0f),
                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                         select();
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
                     {
                         if(didLoad)
                         {
@@ -1069,19 +1218,21 @@ public final class Main
                 {
                     add(new TextMenuItem("Save Game",
                                          Color.RGB(0.0f, 0.0f, 0.0f),
-                                         this.getBackgroundColor(),
+                                         getBackgroundColor(),
                                          Color.RGB(0.0f, 0.0f, 0.0f),
                                          Color.RGB(0.0f, 0.0f, 1.0f),
                                          this)
                     {
                         @Override
-                        public void onMouseOver(float mouseX, float mouseY)
+                        public void onMouseOver(final float mouseX,
+                                                final float mouseY)
                         {
                             select();
                         }
 
                         @Override
-                        public void onClick(float mouseX, float mouseY)
+                        public void onClick(final float mouseX,
+                                            final float mouseY)
                         {
                             saveAll();
                         }
@@ -1089,19 +1240,21 @@ public final class Main
                     add(new SpacerMenuItem(Color.V(0), this));
                     add(new TextMenuItem("Return To Game",
                                          Color.RGB(0.0f, 0.0f, 0.0f),
-                                         this.getBackgroundColor(),
+                                         getBackgroundColor(),
                                          Color.RGB(0.0f, 0.0f, 0.0f),
                                          Color.RGB(0.0f, 0.0f, 1.0f),
                                          this)
                     {
                         @Override
-                        public void onMouseOver(float mouseX, float mouseY)
+                        public void onMouseOver(final float mouseX,
+                                                final float mouseY)
                         {
                             select();
                         }
 
                         @Override
-                        public void onClick(float mouseX, float mouseY)
+                        public void onClick(final float mouseX,
+                                            final float mouseY)
                         {
                             this.container.close();
                         }
@@ -1110,45 +1263,46 @@ public final class Main
                 add(new SpacerMenuItem(Color.V(0), this));
                 add(new TextMenuItem("Quit Game",
                                      Color.RGB(0.0f, 0.0f, 0.0f),
-                                     this.getBackgroundColor(),
+                                     getBackgroundColor(),
                                      Color.RGB(0.0f, 0.0f, 0.0f),
                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                         select();
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
                     {
                         if(Main.didLoad)
                         {
                             saveAll();
                             internalSaveAll();
                         }
-                        AL.destroy();
-                        Display.destroy();
+                        platform.close();
                         System.exit(0);
                     }
                 });
                 add(new TextMenuItem("Options",
                                      Color.RGB(0.0f, 0.0f, 0.0f),
-                                     this.getBackgroundColor(),
+                                     getBackgroundColor(),
                                      Color.RGB(0.0f, 0.0f, 0.0f),
                                      Color.RGB(0.0f, 0.0f, 1.0f),
                                      this)
                 {
                     @Override
-                    public void onMouseOver(float mouseX, float mouseY)
+                    public void onMouseOver(final float mouseX,
+                                            final float mouseY)
                     {
                         select();
                     }
 
                     @Override
-                    public void onClick(float mouseX, float mouseY)
+                    public void onClick(final float mouseX, final float mouseY)
                     {
                         runOptionsMenu();
                     }
@@ -1157,246 +1311,173 @@ public final class Main
         });
     }
 
+    public static boolean needPause = false;
+
     /** @param args
      *            command line arguments */
-    public static void main(String[] args)
+    public static void main(final String[] args)
     {
         for(int i = 0; i < args.length; i++)
         {
             if(args[i].equals("--debug"))
                 DEBUG = true;
         }
-        init();
-        try
-        {
-            DisplayMode[] modes = Display.getAvailableDisplayModes();
-            int closestindex = -1;
-            for(int i = 0; i < modes.length; i++)
-            {
-                if(closestindex == -1)
-                    closestindex = 0;
-                else if(getModeDist(modes[closestindex]) > getModeDist(modes[i]))
-                    closestindex = i;
-            }
-            Display.setDisplayMode(modes[closestindex]);
-            ScreenXRes = modes[closestindex].getWidth();
-            ScreenYRes = modes[closestindex].getHeight();
-            aspectRatio = (float)ScreenXRes / ScreenYRes;
-            Display.setTitle("Voxels " + Version);
-            Display.create();
-            Mouse.create();
-            Keyboard.create();
-            Keyboard.enableRepeatEvents(true);
-            if(!AL.isCreated())
-                AL.create();
-        }
-        catch(LWJGLException e)
-        {
-            e.printStackTrace();
-            System.exit(1);
-        }
+        platform.init();
         isFullscreen = false;
         boolean done = false;
         lastFrameStartTime = Timer();
         curTime = Timer();
+        init();
+        curTime = Timer();
         runMainMenu();
         if(!didLoad)
         {
-            AL.destroy();
-            Display.destroy();
+            platform.close();
             System.exit(0);
         }
         while(!done)
         {
+            if(needPause)
+            {
+                needPause = false;
+                runMainMenu();
+            }
             setFullscreen(isFullscreen);
             renderFrame();
-            Display.update();
+            platform.update();
             world.generateChunks();
             {
-                while(Mouse.next())
+                while(mouse.nextEvent())
                 {
                     players.handleMouseUpDown(new MouseEvent());
                 }
-                while(Keyboard.next())
+                if(keyboard != null)
                 {
-                    KeyboardEvent event = new KeyboardEvent();
-                    if(event.isDown && event.key == KEY_F4
-                            && isKeyDown(KEY_ALT))
+                    while(keyboard.nextEvent())
                     {
-                        done = true;
-                        continue;
+                        KeyboardEvent event = new KeyboardEvent();
+                        if(event.isDown && event.key == KEY_F4
+                                && isKeyDown(KEY_ALT))
+                        {
+                            done = true;
+                            continue;
+                        }
+                        if(event.isDown && event.key == KEY_F11)
+                        {
+                            isFullscreen = !isFullscreen;
+                            continue;
+                        }
+                        if(event.isDown && event.key == KEY_P)
+                        {
+                            runMainMenu();
+                            needPause = false;
+                            continue;
+                        }
+                        players.handleKeyboardEvent(event);
                     }
-                    if(event.isDown && event.key == KEY_F11)
-                    {
-                        isFullscreen = !isFullscreen;
-                        continue;
-                    }
-                    if(event.isDown && event.key == KEY_P)
-                    {
-                        runMainMenu();
-                        continue;
-                    }
-                    players.handleKeyboardEvent(event);
                 }
-                switch(players.handleMouseMove(Mouse.getX(),
-                                               Display.getHeight()
-                                                       - Mouse.getY() - 1,
-                                               Mouse.isButtonDown(0)))
+                if(platform.isTouchScreen())
+                    players.handleMouseMove(mouse.getX(),
+                                            mouse.getY(),
+                                            mouse.isButtonDown(Mouse.BUTTON_LEFT));
+                else
                 {
-                case Grabbed:
-                    if(!Mouse.isGrabbed())
+                    switch(players.handleMouseMove(mouse.getX(),
+                                                   mouse.getY(),
+                                                   mouse.isButtonDown(Mouse.BUTTON_LEFT)))
                     {
-                        int x = Mouse.getX(), y = Mouse.getY();
-                        Mouse.setGrabbed(true);
-                        Mouse.setCursorPosition(x, y);
+                    case Grabbed:
+                        if(platform.isMouseVisible())
+                        {
+                            float x = mouse.getX(), y = mouse.getY();
+                            platform.setMouseVisible(false);
+                            mouse.setPosition(x, y);
+                        }
+                        break;
+                    case GrabbedAndCentered:
+                        if(platform.isMouseVisible())
+                            platform.setMouseVisible(false);
+                        mouse.setPosition(ScreenXRes() / 2, ScreenYRes() / 2);
+                        break;
+                    default:
+                        if(!platform.isMouseVisible())
+                        {
+                            float x = mouse.getX(), y = mouse.getY();
+                            platform.setMouseVisible(true);
+                            mouse.setPosition(x, y);
+                        }
+                        break;
                     }
-                    break;
-                case GrabbedAndCentered:
-                    if(!Mouse.isGrabbed())
-                        Mouse.setGrabbed(true);
-                    Mouse.setCursorPosition(ScreenXRes / 2, Display.getHeight()
-                            - ScreenYRes / 2 - 1);
-                    break;
-                default:
-                    if(Mouse.isGrabbed())
-                    {
-                        int x = Mouse.getX(), y = Mouse.getY();
-                        Mouse.setGrabbed(false);
-                        Mouse.setCursorPosition(x, y);
-                    }
-                    break;
                 }
                 players.move();
             }
             world.move();
-            Display.sync(60);
+            platform.waitForNextFrame();
             curTime = Timer();
             frameDuration = curTime - lastFrameStartTime;
             internalSaveAll();
             lastFrameStartTime = curTime;
-            if(Display.isCloseRequested())
+            if(platform.isCloseRequested())
                 done = true;
         }
         saveAll(); // signal to save
         internalSaveAll(); // run save
-        AL.destroy();
-        Display.destroy();
+        platform.close();
         System.exit(0);
     }
 
     static boolean isLoading = false;
-
-    private static JFileChooser makeFileChooser()
-    {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new FileFilter()
-        {
-            @Override
-            public String getDescription()
-            {
-                return "Voxels World";
-            }
-
-            @Override
-            public boolean accept(File f)
-            {
-                if(f.exists())
-                {
-                    if(f.isDirectory())
-                        return true;
-                    if(!f.isFile() || !f.canRead())
-                        return false;
-                    if(!isLoading && !f.canWrite())
-                        return false;
-                }
-                if(f.getName().toLowerCase().endsWith(".vw"))
-                    return true;
-                return false;
-            }
-        });
-        fileChooser.removeChoosableFileFilter(fileChooser.getAcceptAllFileFilter());
-        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        return fileChooser;
-    }
-
     private static File saveFile = null;
-    private static JFileChooser fileChooser = makeFileChooser();
-    private static JProgressBar progressBar = new JProgressBar(0, 10000);
-    static JLabel progressLabel = new JLabel("");
-
-    private static JDialog genProgressDialog()
-    {
-        progressLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        JDialog progressDialog = new JDialog((JWindow)null, "Voxels " + Version);
-        progressDialog.setLayout(new GridLayout(2, 1));
-        progressDialog.add(progressLabel);
-        progressDialog.add(progressBar);
-        progressDialog.setSize(300, 75);
-        return progressDialog;
-    }
-
-    static JDialog progressDialog = genProgressDialog();
     static String progressLabelText = "";
+    static float progressLoc = 0;
+    private static MenuScreen progressMenu = new MenuScreen(Color.V(0.75f))
+    {
+        @Override
+        protected void drawBackground(final Matrix tform)
+        {
+            super.drawBackground(tform);
+            String str = progressLabelText;
+            float xScale = 2f / 40f;
+            Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
+                            .concat(Matrix.translate(-xScale / 2f
+                                                             * Text.sizeW(str)
+                                                             / Text.sizeW("A"),
+                                                     0.7f,
+                                                     0))
+                            .concat(tform),
+                      Color.RGB(0, 0, 0),
+                      str);
+        }
 
-    private static void showProgressDialog(String labelText)
+        {
+            add(new ProgressMenuItem(Color.V(0.0f), this)
+            {
+                @Override
+                protected float getPos()
+                {
+                    return progressLoc;
+                }
+            });
+        }
+    };
+
+    private static void showProgressDialog(final String labelText)
     {
         topOfProgressStack = null;
         progressLabelText = labelText;
-        SwingUtilities.invokeLater(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                progressLabel.setText(progressLabelText);
-                progressDialog.setVisible(true);
-            }
-        });
     }
 
     private static void hideProgressDialog()
     {
         topOfProgressStack = null;
-        SwingUtilities.invokeLater(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                progressDialog.setVisible(false);
-            }
-        });
+        progressLoc = 0f;
     }
 
-    private static class SetProgressRunnable implements Runnable
+    private static void internalSetProgress(final float progress)
     {
-        private float progress;
-        private JProgressBar progressBar;
-
-        public SetProgressRunnable(float progress, JProgressBar progressBar)
-        {
-            this.progress = progress;
-            this.progressBar = progressBar;
-        }
-
-        @Override
-        public void run()
-        {
-            this.progressBar.setValue(Math.round(10000 * this.progress));
-        }
-    }
-
-    private static void internalSetProgress(float progress)
-    {
-        try
-        {
-            SwingUtilities.invokeAndWait(new SetProgressRunnable(progress,
-                                                                 progressBar));
-        }
-        catch(InterruptedException e)
-        {
-        }
-        catch(InvocationTargetException e)
-        {
-        }
+        progressLoc = Math.max(0, Math.min(1, progress));
+        progressMenu.draw();
+        platform.update();
     }
 
     private static class ProgressStackNode
@@ -1425,7 +1506,7 @@ public final class Main
         return 1.0f;
     }
 
-    static void pushProgress(float offset, float scale)
+    static void pushProgress(final float offset, final float scale)
     {
         ProgressStackNode n = new ProgressStackNode();
         n.next = topOfProgressStack;
@@ -1436,9 +1517,9 @@ public final class Main
 
     private static double lastSetProgressTime = -1;
 
-    static void setProgress(float progress)
+    static void setProgress(final float progress)
     {
-        final double updatePeriod = 0.1;
+        final double updatePeriod = 0.05f;
         final double curTime = Timer();
         if(curTime - lastSetProgressTime < updatePeriod)
             return;
@@ -1456,26 +1537,11 @@ public final class Main
 
     private static boolean getSaveFile()
     {
-        if(Display.isFullscreen())
-        {
-            try
-            {
-                Display.setFullscreen(false);
-            }
-            catch(LWJGLException e)
-            {
-                e.printStackTrace();
-            }
-        }
-        if(Mouse.isGrabbed())
-            Mouse.setGrabbed(false);
         isLoading = false;
-        if(JFileChooser.APPROVE_OPTION == fileChooser.showSaveDialog(null))
+        File newSaveFile = runFileSave();
+        if(newSaveFile != null)
         {
-            saveFile = fileChooser.getSelectedFile();
-            if(!saveFile.getName().toLowerCase().endsWith(".vw"))
-                saveFile = new File(saveFile.getParentFile(),
-                                    saveFile.getName() + ".vw");
+            saveFile = newSaveFile;
             return true;
         }
         return false;
@@ -1517,10 +1583,7 @@ public final class Main
         {
             hideProgressDialog();
             needHide = false;
-            JOptionPane.showMessageDialog(null,
-                                          "Can't save : " + e.getMessage(),
-                                          "Voxels",
-                                          JOptionPane.WARNING_MESSAGE);
+            alert("Voxels", "Can't save : " + e.getMessage());
         }
         finally
         {
@@ -1544,9 +1607,10 @@ public final class Main
     {
         saveFile = null;
         isLoading = true;
-        if(JFileChooser.APPROVE_OPTION == fileChooser.showOpenDialog(null))
+        File newSaveFile = runFileLoad();
+        if(newSaveFile != null)
         {
-            saveFile = fileChooser.getSelectedFile();
+            saveFile = newSaveFile;
             return true;
         }
         return false;
@@ -1589,19 +1653,13 @@ public final class Main
             {
                 hideProgressDialog();
                 needHide = false;
-                JOptionPane.showMessageDialog(null,
-                                              "Can't load : unexpected EOF",
-                                              "Voxels",
-                                              JOptionPane.ERROR_MESSAGE);
+                alert("Voxels", "Can't load : unexpected EOF");
             }
             catch(IOException e)
             {
                 hideProgressDialog();
                 needHide = false;
-                JOptionPane.showMessageDialog(null,
-                                              "Can't load : " + e.getMessage(),
-                                              "Voxels",
-                                              JOptionPane.ERROR_MESSAGE);
+                alert("Voxels", "Can't load : " + e.getMessage());
             }
             finally
             {
@@ -1627,61 +1685,44 @@ public final class Main
     {
     }
 
-    /** @param filename
-     *            the file to open
-     * @return the created <code>InputStream</code>
-     * @throws FileNotFoundException
-     *             if the file couldn't be opened */
-    public static InputStream
-        getInputStream(String filename) throws FileNotFoundException
-    {
-        InputStream in = Main.class.getResourceAsStream(File.separator + "res"
-                + File.separator + filename);
-        if(in == null)
-        {
-            in = new FileInputStream("res" + File.separator + filename);
-        }
-        return in;
-    }
-
     /** load a audio file
      * 
      * @param filename
      *            the file to load
      * @return the loaded <code>Audio</code> or <code>null</code> */
     @SuppressWarnings("resource")
-    public static Audio loadAudio(String filename)
+    public static Audio loadAudio(final String filename)
     {
         InputStream in = null;
         Audio retval = null;
         try
         {
-            in = getInputStream(filename);
-            if(in == null)
-                return null;
-            retval = AudioLoader.getAudio("OGG", in);
+            in = platform.getFileInputStream(filename);
+            retval = platform.loadAudio(in);
         }
         catch(IOException e)
         {
         }
         finally
         {
-            try
-            {
-                if(in != null)
+            if(in != null)
+                try
+                {
                     in.close();
-            }
-            catch(IOException e)
-            {
-            }
+                }
+                catch(IOException e)
+                {
+                    e.printStackTrace();
+                    System.exit(1);
+                }
         }
         return retval;
     }
 
-    static void play(Audio a)
+    static void play(final Audio a)
     {
         if(a != null)
-            a.playAsSoundEffect(1.0f, 1.0f, false);
+            a.play(1.0f, false);
     }
 
     static Audio clickAudio = loadAudio("click.ogg");

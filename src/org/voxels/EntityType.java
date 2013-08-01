@@ -33,6 +33,10 @@ public enum EntityType
     FallingBlock,
     /** primed TNT */
     PrimedTNT,
+    /** places a block if the old block is replaceable */
+    PlaceBlockIfReplaceable,
+    /** removes a block if the old block is equal to the contained block */
+    RemoveBlockIfEqual,
     /** used to get <code>EntityType.count</code> */
     Last;
     /** the number of valid entity types */
@@ -45,7 +49,7 @@ public enum EntityType
      * @return the read <code>EntityType</code>
      * @throws IOException
      *             the exception thrown */
-    public static EntityType read(DataInput i) throws IOException
+    public static EntityType read(final DataInput i) throws IOException
     {
         int value = i.readUnsignedByte();
         if(value < 0 || value >= count)
@@ -59,8 +63,8 @@ public enum EntityType
      *            <code>OutputStream</code> to write to
      * @throws IOException
      *             the exception thrown */
-    public void write(DataOutput o) throws IOException
+    public void write(final DataOutput o) throws IOException
     {
-        o.writeByte(this.ordinal());
+        o.writeByte(ordinal());
     }
 }

@@ -30,7 +30,7 @@ public enum BlockType
             new TextureAtlas.TextureHandle[] {})
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return null;
         }
@@ -78,7 +78,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStone();
         }
@@ -121,7 +121,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewCobblestone();
         }
@@ -164,7 +164,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGrass();
         }
@@ -206,7 +206,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewDirt();
         }
@@ -242,7 +242,7 @@ public enum BlockType
         }
     },
     /** sapling block */
-    BTSapling(5, false, BlockDrawType.BDTCustom,
+    BTSapling(5, false, BlockDrawType.BDTSim3D,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("sapling.png"))
@@ -255,7 +255,7 @@ public enum BlockType
         }
 
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewSapling(TreeType.Oak);
         }
@@ -291,7 +291,7 @@ public enum BlockType
         }
 
         @Override
-        protected void addToCreativeModeBlockList(List<Block> list)
+        protected void addToCreativeModeBlockList(final List<Block> list)
         {
             for(int i = 0; i < Tree.TreeType.values().length; i++)
                 list.add(Block.NewSapling(Tree.TreeType.values()[i]));
@@ -304,7 +304,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewBedrock();
         }
@@ -348,7 +348,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewWater(-8);
         }
@@ -403,7 +403,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewLava(-8);
         }
@@ -457,7 +457,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewSand();
         }
@@ -499,7 +499,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGravel();
         }
@@ -544,7 +544,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             int o;
             if(orientation < 0 || orientation >= 6)
@@ -589,7 +589,7 @@ public enum BlockType
         }
 
         @Override
-        protected void addToCreativeModeBlockList(List<Block> list)
+        protected void addToCreativeModeBlockList(final List<Block> list)
         {
             for(int i = 0; i < Tree.TreeType.values().length; i++)
                 list.add(Block.NewWood(Tree.TreeType.values()[i], 0));
@@ -603,7 +603,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewLeaves(TreeType.Oak);
         }
@@ -639,7 +639,7 @@ public enum BlockType
         }
 
         @Override
-        protected void addToCreativeModeBlockList(List<Block> list)
+        protected void addToCreativeModeBlockList(final List<Block> list)
         {
             for(int i = 0; i < Tree.TreeType.values().length; i++)
                 list.add(Block.NewLeaves(Tree.TreeType.values()[i]));
@@ -658,7 +658,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGlass();
         }
@@ -700,7 +700,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewChest();
         }
@@ -743,7 +743,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewWorkbench();
         }
@@ -787,7 +787,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewFurnace();
         }
@@ -832,7 +832,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewPlank(Tree.TreeType.Oak);
         }
@@ -868,7 +868,7 @@ public enum BlockType
         }
 
         @Override
-        protected void addToCreativeModeBlockList(List<Block> list)
+        protected void addToCreativeModeBlockList(final List<Block> list)
         {
             for(int i = 0; i < Tree.TreeType.values().length; i++)
                 list.add(Block.NewPlank(Tree.TreeType.values()[i]));
@@ -881,7 +881,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStick();
         }
@@ -924,7 +924,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewWoodPick();
         }
@@ -979,7 +979,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStonePick();
         }
@@ -1034,7 +1034,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewWoodShovel();
         }
@@ -1089,7 +1089,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStoneShovel();
         }
@@ -1150,17 +1150,17 @@ public enum BlockType
                 TextureAtlas.addImage(new Image("redstoneoff7.png")),
                 TextureAtlas.addImage(new Image("redstoneoff8.png")),
                 TextureAtlas.addImage(new Image("redstoneoff9.png")),
-                TextureAtlas.addImage(new Image("redstoneoffA.png")),
-                TextureAtlas.addImage(new Image("redstoneoffB.png")),
-                TextureAtlas.addImage(new Image("redstoneoffC.png")),
-                TextureAtlas.addImage(new Image("redstoneoffD.png")),
-                TextureAtlas.addImage(new Image("redstoneoffE.png")),
-                TextureAtlas.addImage(new Image("redstoneoffF.png")),
+                TextureAtlas.addImage(new Image("redstoneoffa.png")),
+                TextureAtlas.addImage(new Image("redstoneoffb.png")),
+                TextureAtlas.addImage(new Image("redstoneoffc.png")),
+                TextureAtlas.addImage(new Image("redstoneoffd.png")),
+                TextureAtlas.addImage(new Image("redstoneoffe.png")),
+                TextureAtlas.addImage(new Image("redstoneofff.png")),
                 TextureAtlas.addImage(new Image("redstoneoff.png"))
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneDust(0, 0);
         }
@@ -1209,17 +1209,17 @@ public enum BlockType
                 TextureAtlas.addImage(new Image("redstoneon7.png")),
                 TextureAtlas.addImage(new Image("redstoneon8.png")),
                 TextureAtlas.addImage(new Image("redstoneon9.png")),
-                TextureAtlas.addImage(new Image("redstoneonA.png")),
-                TextureAtlas.addImage(new Image("redstoneonB.png")),
-                TextureAtlas.addImage(new Image("redstoneonC.png")),
-                TextureAtlas.addImage(new Image("redstoneonD.png")),
-                TextureAtlas.addImage(new Image("redstoneonE.png")),
-                TextureAtlas.addImage(new Image("redstoneonF.png")),
+                TextureAtlas.addImage(new Image("redstoneona.png")),
+                TextureAtlas.addImage(new Image("redstoneonb.png")),
+                TextureAtlas.addImage(new Image("redstoneonc.png")),
+                TextureAtlas.addImage(new Image("redstoneond.png")),
+                TextureAtlas.addImage(new Image("redstoneone.png")),
+                TextureAtlas.addImage(new Image("redstoneonf.png")),
                 TextureAtlas.addImage(new Image("redstoneon.png"))
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneDust(0, 0);
         }
@@ -1262,7 +1262,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneOre();
         }
@@ -1305,7 +1305,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneBlock();
         }
@@ -1348,7 +1348,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneTorch(false, orientation);
         }
@@ -1391,7 +1391,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneTorch(false, orientation);
         }
@@ -1434,7 +1434,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStoneButton(0, orientation);
         }
@@ -1483,7 +1483,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewWoodButton(0, orientation);
         }
@@ -1531,7 +1531,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewCoal();
         }
@@ -1574,7 +1574,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewCoalOre();
         }
@@ -1617,7 +1617,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewIronIngot();
         }
@@ -1660,7 +1660,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewIronOre();
         }
@@ -1703,7 +1703,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewLapisLazuli();
         }
@@ -1746,7 +1746,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewLapisLazuliOre();
         }
@@ -1789,7 +1789,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGoldIngot();
         }
@@ -1832,7 +1832,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGoldOre();
         }
@@ -1875,7 +1875,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewDiamond();
         }
@@ -1918,7 +1918,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewDiamondOre();
         }
@@ -1961,7 +1961,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewEmerald();
         }
@@ -2004,7 +2004,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewEmeraldOre();
         }
@@ -2046,7 +2046,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewTorch(orientation);
         }
@@ -2088,7 +2088,8 @@ public enum BlockType
                 TextureAtlas.addImage(new Image("ironpick.png"))
             })
     {
-        public Block make(int orientation)
+        @Override
+        public Block make(final int orientation)
         {
             return Block.NewIronPick();
         }
@@ -2143,7 +2144,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewIronShovel();
         }
@@ -2198,7 +2199,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGoldPick();
         }
@@ -2253,7 +2254,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGoldShovel();
         }
@@ -2308,7 +2309,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewDiamondPick();
         }
@@ -2363,7 +2364,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewDiamondShovel();
         }
@@ -2418,7 +2419,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewLadder(orientation);
         }
@@ -2468,7 +2469,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneRepeater(false, 0, 1, orientation);
         }
@@ -2504,7 +2505,7 @@ public enum BlockType
         }
 
         @Override
-        public Block make(int orientation, int vieworientation)
+        public Block make(final int orientation, final int vieworientation)
         {
             if(Block.getOrientationDX(orientation) != 0
                     || Block.getOrientationDZ(orientation) != 0)
@@ -2521,7 +2522,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewRedstoneRepeater(false, 0, 1, orientation);
         }
@@ -2557,7 +2558,7 @@ public enum BlockType
         }
 
         @Override
-        public Block make(int orientation, int vieworientation)
+        public Block make(final int orientation, final int vieworientation)
         {
             if(Block.getOrientationDX(orientation) != 0
                     || Block.getOrientationDZ(orientation) != 0)
@@ -2574,7 +2575,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewLever(false, orientation);
         }
@@ -2617,7 +2618,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewObsidian();
         }
@@ -2661,7 +2662,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewPiston(Block.getNegOrientation(orientation), false);
         }
@@ -2697,7 +2698,7 @@ public enum BlockType
         }
 
         @Override
-        public Block make(int orientation, int vieworientation)
+        public Block make(final int orientation, final int vieworientation)
         {
             return make(vieworientation);
         }
@@ -2717,7 +2718,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStickyPiston(Block.getNegOrientation(orientation),
                                          false);
@@ -2754,7 +2755,7 @@ public enum BlockType
         }
 
         @Override
-        public Block make(int orientation, int vieworientation)
+        public Block make(final int orientation, final int vieworientation)
         {
             return make(vieworientation);
         }
@@ -2774,7 +2775,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewPistonHead(orientation);
         }
@@ -2821,7 +2822,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStickyPistonHead(orientation);
         }
@@ -2863,7 +2864,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewSlime();
         }
@@ -2906,7 +2907,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGunpowder();
         }
@@ -2948,7 +2949,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewTNT();
         }
@@ -2991,7 +2992,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewBlazeRod();
         }
@@ -3034,7 +3035,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewBlazePowder();
         }
@@ -3077,7 +3078,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStonePressurePlate();
         }
@@ -3120,7 +3121,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewWoodPressurePlate();
         }
@@ -3163,7 +3164,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewSnow(1);
         }
@@ -3212,7 +3213,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewVines(orientation);
         }
@@ -3267,7 +3268,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewWoodAxe();
         }
@@ -3322,7 +3323,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewStoneAxe();
         }
@@ -3377,7 +3378,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewIronAxe();
         }
@@ -3432,7 +3433,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewGoldAxe();
         }
@@ -3487,7 +3488,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewDiamondAxe();
         }
@@ -3541,7 +3542,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewBucket();
         }
@@ -3583,7 +3584,7 @@ public enum BlockType
     })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return Block.NewShears();
         }
@@ -3636,11 +3637,349 @@ public enum BlockType
             return 238;
         }
     },
-    /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(75, false, BlockDrawType.BDTNone, null)
+    /** redstone comparator */
+    BTRedstoneComparator(75, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("redstonecomparatoroff.png")),
+                TextureAtlas.addImage(new Image("redstonecomparatoron.png"))
+            })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
+        {
+            return Block.NewRedstoneComparator(false, 0, orientation);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return -1;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            if(Block.getOrientationDX(orientation) != 0
+                    || Block.getOrientationDZ(orientation) != 0)
+                return make(orientation);
+            return make(vieworientation);
+        }
+    },
+    /** quartz */
+    BTQuartz(76, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("quartz.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewQuartz();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** dispenser */
+    BTDispenser(77, true, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("dispenser.png")),
+                TextureAtlas.addImage(new Image("dropperdispenserframe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            if(orientation == -1)
+                return Block.NewDispenser(-1);
+            return Block.NewDispenser(Block.getNegOrientation(orientation));
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            return make(vieworientation);
+        }
+
+        @Override
+        public boolean use3DOrientation()
+        {
+            return true;
+        }
+    },
+    /** dropper */
+    BTDropper(78, true, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("dropper.png")),
+                TextureAtlas.addImage(new Image("dropperdispenserframe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            if(orientation == -1)
+                return Block.NewDropper(-1);
+            return Block.NewDropper(Block.getNegOrientation(orientation));
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            return make(vieworientation);
+        }
+
+        @Override
+        public boolean use3DOrientation()
+        {
+            return true;
+        }
+    },
+    /** cobweb block */
+    BTCobweb(79, false, BlockDrawType.BDTSim3D,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("web.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewCobweb();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** string */
+    BTString(80, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("string.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewString();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** bow */
+    BTBow(81, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("bow.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewBow();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** last block value, used to get <code>BlockType.Count</code> */
+    BTLast(82, false, BlockDrawType.BDTNone, null)
+    {
+        @Override
+        public Block make(final int orientation)
         {
             return null;
         }
@@ -3683,7 +4022,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return null;
         }
@@ -3726,7 +4065,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return null;
         }
@@ -3776,7 +4115,7 @@ public enum BlockType
             })
     {
         @Override
-        public Block make(int orientation)
+        public Block make(final int orientation)
         {
             return null;
         }
@@ -3839,7 +4178,7 @@ public enum BlockType
      * @param vieworientation
      *            the orientation for the direction the player is facing
      * @return new block or null */
-    public Block make(int orientation, int vieworientation)
+    public Block make(final int orientation, final int vieworientation)
     {
         return make(orientation);
     }
@@ -3867,14 +4206,14 @@ public enum BlockType
          *            the initial <code>maxCount</code>
          * @param b
          *            the initial <code>b</code> */
-        public AddedBlockDescriptor(int maxCount, Block b)
+        public AddedBlockDescriptor(final int maxCount, final Block b)
         {
             this.maxCount = maxCount;
             this.b = b;
         }
     }
 
-    protected List<AddedBlockDescriptor> getCaveChestBlocks(int y)
+    protected List<AddedBlockDescriptor> getCaveChestBlocks(final int y)
     {
         int count = getChestGenCount(y);
         ArrayList<AddedBlockDescriptor> retval = new ArrayList<BlockType.AddedBlockDescriptor>();
@@ -3888,22 +4227,22 @@ public enum BlockType
     /** @param y
      *            the y coordinate
      * @return the resulting list of blocks */
-    public static List<AddedBlockDescriptor> getAllCaveChestBlocks(int y)
+    public static List<AddedBlockDescriptor> getAllCaveChestBlocks(final int y)
     {
-        List<AddedBlockDescriptor> v = caveChestBlocksMap.get(new Integer(y));
+        List<AddedBlockDescriptor> v = caveChestBlocksMap.get(Integer.valueOf(y));
         if(v != null)
             return v;
         List<AddedBlockDescriptor> retval = new LinkedList<BlockType.AddedBlockDescriptor>();
         for(int i = 0; i < BlockType.Count; i++)
             retval.addAll(toBlockType(i).getCaveChestBlocks(y));
         retval = Collections.unmodifiableList(retval);
-        caveChestBlocksMap.put(new Integer(y), retval);
+        caveChestBlocksMap.put(Integer.valueOf(y), retval);
         return retval;
     }
 
     private static ArrayList<Block> creativeModeBlockList = null;
 
-    protected void addToCreativeModeBlockList(List<Block> list)
+    protected void addToCreativeModeBlockList(final List<Block> list)
     {
         if(isInCreativeInventory())
             list.add(make(-1));
@@ -3929,16 +4268,16 @@ public enum BlockType
     /** @param index
      *            the index
      * @return the block at <code>index</code> in the creative mode inventory */
-    public static Block getCreativeModeInventoryBlock(int index)
+    public static Block getCreativeModeInventoryBlock(final int index)
     {
         makeCreativeModeInventory();
         return creativeModeBlockList.get(index);
     }
 
-    private BlockType(int newvalue,
-                      boolean newIsOpaque,
-                      BlockDrawType newDrawType,
-                      TextureAtlas.TextureHandle[] t)
+    private BlockType(final int newvalue,
+                      final boolean newIsOpaque,
+                      final BlockDrawType newDrawType,
+                      final TextureAtlas.TextureHandle[] t)
     {
         this.value = newvalue;
         this.isOpaque = newIsOpaque;
@@ -3964,7 +4303,7 @@ public enum BlockType
     /** @param value
      *            value of block to return
      * @return <code>BlockType</code> of block specified by <code>value</code> */
-    public static BlockType toBlockType(int value)
+    public static BlockType toBlockType(final int value)
     {
         if(value < 0 || value >= Count)
             return null;
@@ -3999,7 +4338,7 @@ public enum BlockType
      * @param y
      *            the height of the new chest
      * @return the maximum number of blocks to put in generated cave chests */
-    public int getChestGenCount(int y)
+    public int getChestGenCount(final int y)
     {
         switch(this)
         {
@@ -4108,6 +4447,7 @@ public enum BlockType
         case BTTNT:
             return 0;
         case BTBlazeRod:
+        case BTQuartz:
             if(y < 50 - World.Depth)
                 return 2;
             return 0;
@@ -4123,6 +4463,12 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return 0;
         }
         return 0;
@@ -4234,7 +4580,15 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTString:
+        case BTBow:
             return true;
+        case BTRedstoneComparator:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+            return false;
         }
         return false;
     }
@@ -4349,7 +4703,15 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return false;
+        case BTDispenser:
+        case BTDropper:
+            return true;
         }
         return false;
     }
@@ -4464,7 +4826,15 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return false;
+        case BTDispenser:
+        case BTDropper:
+            return true;
         }
         return false;
     }
@@ -4526,6 +4896,10 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return true;
         case BTPlank:
         case BTLeaves:
@@ -4561,6 +4935,9 @@ public enum BlockType
         case BTBlazeRod:
         case BTBlazePowder:
         case BTSnow:
+        case BTRedstoneComparator:
+        case BTDispenser:
+        case BTDropper:
             return false;
         }
         return false;
@@ -4638,15 +5015,22 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
-            return true;
+        case BTRedstoneComparator:
+        case BTQuartz:
         case BTGrass:
-        case BTLeaves:
         case BTCoalOre:
-        case BTBedrock:
         case BTDiamondOre:
         case BTEmeraldOre:
         case BTLapisLazuliOre:
         case BTRedstoneOre:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
+            return true;
+        case BTLeaves:
+        case BTBedrock:
         case BTRedstoneRepeaterOn:
         case BTPistonHead:
         case BTStickyPistonHead:
@@ -4663,7 +5047,7 @@ public enum BlockType
      *            <code>OutputStream</code> to write to
      * @throws IOException
      *             the exception thrown */
-    public void write(DataOutput o) throws IOException
+    public void write(final DataOutput o) throws IOException
     {
         if(this.value < 0 || this.value >= Count)
             throw new IOException("tried to write special BlockType");
@@ -4677,7 +5061,7 @@ public enum BlockType
      * @return the read <code>BlockType</code>
      * @throws IOException
      *             the exception thrown */
-    public static BlockType read(DataInput i) throws IOException
+    public static BlockType read(final DataInput i) throws IOException
     {
         int value = i.readUnsignedShort();
         if(value < 0 || value >= Count)
@@ -4728,9 +5112,7 @@ public enum BlockType
         case BTStonePick:
         case BTStoneShovel:
         case BTTorch:
-            return true;
         case BTWater:
-            return false;
         case BTWoodButton:
         case BTWoodPick:
         case BTWoodShovel:
@@ -4738,9 +5120,7 @@ public enum BlockType
         case BTLever:
         case BTSlime:
         case BTLeaves:
-            return true;
         case BTLava:
-            return false;
         case BTGlass:
             return true;
         case BTBedrock:
@@ -4764,9 +5144,7 @@ public enum BlockType
         case BTWorkbench:
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
-            return true;
         case BTObsidian:
-            return false;
         case BTPiston:
         case BTStickyPiston:
         case BTPistonHead:
@@ -4786,6 +5164,13 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return true;
         }
         return false;
@@ -4811,7 +5196,7 @@ public enum BlockType
     /** @param replacingBlock
      *            the replacing block
      * @return the replaceability of this block */
-    public Replaceability getReplaceability(BlockType replacingBlock)
+    public Replaceability getReplaceability(final BlockType replacingBlock)
     {
         switch(this)
         {
@@ -4886,6 +5271,7 @@ public enum BlockType
         case BTWorkbench:
         case BTRedstoneRepeaterOff:
         case BTRedstoneRepeaterOn:
+        case BTRedstoneComparator:
             return Replaceability.CanNotGrow;
         case BTObsidian:
             return Replaceability.CanNotGrow;
@@ -4911,7 +5297,14 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTQuartz:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
             return Replaceability.Replace;
+        case BTDispenser:
+        case BTDropper:
+            return Replaceability.CanNotGrow;
         }
         return Replaceability.CanNotGrow;
     }
@@ -5007,6 +5400,8 @@ public enum BlockType
         case BTStoneShovel:
         case BTWoodPick:
         case BTWoodShovel:
+        case BTString:
+        case BTBow:
             return 0;
         case BTChest:
             return 12.5f;
@@ -5105,7 +5500,14 @@ public enum BlockType
         case BTDiamondAxe:
         case BTShears:
         case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
             return 0f;
+        case BTDispenser:
+        case BTDropper:
+            return 17.5f;
+        case BTCobweb:
+            return 20;
         }
         return 1e10f;
     }

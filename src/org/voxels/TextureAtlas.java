@@ -16,56 +16,49 @@
  */
 package org.voxels;
 
-import java.nio.FloatBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 
 /** @author jacob */
-public class TextureAtlas
-{
-	private static class AtlasPart
-	{
+public class TextureAtlas {
+	private static class AtlasPart {
 		public final byte[] data;
 		public int x, y;
 		public final int w, h;
 
-		public AtlasPart(byte[] data, int w, int h)
-		{
+		public AtlasPart(byte[] data, int w, int h) {
 			this.data = data;
 			this.w = w;
 			this.h = h;
 		}
 
-		public boolean intersectsWith(AtlasPart ap)
-		{
-			if(ap.x >= this.x + this.w || ap.x + ap.w <= this.x)
+		public boolean intersectsWith(AtlasPart ap) {
+			if (ap.x >= this.x + this.w || ap.x + ap.w <= this.x)
 				return false;
-			if(ap.y >= this.y + this.h || ap.y + ap.h <= this.y)
+			if (ap.y >= this.y + this.h || ap.y + ap.h <= this.y)
 				return false;
 			return true;
 		}
 	}
 
 	/** @author jacob */
-	public interface TextureHandle
-	{
+	public interface TextureHandle {
 		/** @return this texture's image */
 		public Image getImage();
 	}
 
-	private static class TextureHandleImp implements TextureHandle
-	{
+	private static class TextureHandleImp implements TextureHandle {
 		public final AtlasPart ap;
 		public final Image image;
 
-		public TextureHandleImp(AtlasPart ap, Image image)
-		{
+		public TextureHandleImp(AtlasPart ap, Image image) {
 			this.ap = ap;
 			this.image = image;
 		}
 
 		@Override
-		public Image getImage()
-		{
+		public Image getImage() {
 			return this.image;
 		}
 	}
@@ -75,52 +68,45 @@ public class TextureAtlas
 	private static Image finalImage = null;
 	private static boolean isValidPlacement = false;
 
-	private static boolean isImageValid()
-	{
-		if(finalImage == null)
+	private static boolean isImageValid() {
+		if (finalImage == null)
 			return false;
 		return true;
 	}
 
 	private static Object syncObject = new Object();
 
-	private static boolean generateImagePlacementHelper()
-	{
-		Comparator<AtlasPart> comparator = new Comparator<TextureAtlas.AtlasPart>()
-		{
+	private static boolean generateImagePlacementHelper() {
+		Comparator<AtlasPart> comparator = new Comparator<TextureAtlas.AtlasPart>() {
 			@Override
-			public int compare(AtlasPart o1, AtlasPart o2)
-			{
+			public int compare(AtlasPart o1, AtlasPart o2) {
 				int size1 = o1.w * o1.h;
 				int size2 = o2.w * o2.h;
-				if(size1 < size2) // if size1 is smaller then place later
+				if (size1 < size2) // if size1 is smaller then place later
 					return 1;
-				if(size1 > size2) // if size1 is larger then place earlier
+				if (size1 > size2) // if size1 is larger then place earlier
 					return -1;
 				return 0;
 			}
 		};
-		PriorityQueue<AtlasPart> partQueue = new PriorityQueue<AtlasPart>(parts.size(),
-		                                                                  comparator);
+		PriorityQueue<AtlasPart> partQueue = new PriorityQueue<AtlasPart>(
+				parts.size(), comparator);
 		partQueue.addAll(parts);
-		ArrayList<AtlasPart> placedParts = new ArrayList<TextureAtlas.AtlasPart>(parts.size());
+		ArrayList<AtlasPart> placedParts = new ArrayList<TextureAtlas.AtlasPart>(
+				parts.size());
 		int x = 0;
-		for(AtlasPart ap = partQueue.poll(); ap != null; ap = partQueue.poll())
-		{
-			if(x + ap.w > finalImageWidth)
+		for (AtlasPart ap = partQueue.poll(); ap != null; ap = partQueue.poll()) {
+			if (x + ap.w > finalImageWidth)
 				x = 0;
 			int y = 0;
 			ap.x = x;
-			for(AtlasPart i : placedParts)
-			{
+			for (AtlasPart i : placedParts) {
 				ap.y = i.y;
-				if(i.intersectsWith(ap))
-				{
+				if (i.intersectsWith(ap)) {
 					int curY = i.y + i.h;
-					if(curY > y)
-					{
+					if (curY > y) {
 						y = curY;
-						if(y + ap.h > finalImageHeight)
+						if (y + ap.h > finalImageHeight)
 							return false;
 					}
 				}
@@ -132,63 +118,55 @@ public class TextureAtlas
 		return true;
 	}
 
-	private static void generateImagePlacement()
-	{
-		if(isValidPlacement)
+	private static void generateImagePlacement() {
+		if (isValidPlacement)
 			return;
 		finalImageWidth = 32;
 		finalImageHeight = 32;
-		while(!generateImagePlacementHelper())
-		{
-			if(finalImageWidth > finalImageHeight)
+		while (!generateImagePlacementHelper()) {
+			if (finalImageWidth > finalImageHeight)
 				finalImageHeight *= 2;
 			finalImageWidth *= 2;
 		}
 		isValidPlacement = true;
 	}
 
-	private static void generateImage()
-	{
-		if(isImageValid())
+	private static void generateImage() {
+		if (isImageValid())
 			return;
 		generateImagePlacement();
 		finalImage = new Image(finalImageWidth, finalImageHeight);
 		Color color = new Color(0, 0, 0);
-		for(AtlasPart ap : parts)
-		{
-			for(int index = 0, y = 0; y < ap.h; y++)
-			{
-				for(int x = 0; x < ap.w; x++)
-				{
+		for (AtlasPart ap : parts) {
+			for (int index = 0, y = 0; y < ap.h; y++) {
+				for (int x = 0; x < ap.w; x++) {
 					color.r = ap.data[index++];
 					color.g = ap.data[index++];
 					color.b = ap.data[index++];
 					color.a = ap.data[index++];
 					finalImage.setPixel(x + ap.x, finalImageHeight - (y + ap.y)
-					        - 1, color);
+							- 1, color);
 				}
 			}
 		}
 	}
 
-	/** add an image to the global texture atlas
+	/**
+	 * add an image to the global texture atlas
 	 * 
 	 * @param image
 	 *            the image to add
-	 * @return the texture handle or null */
-	public static TextureHandle addImage(Image image)
-	{
-		if(image == null || !image.isValid())
+	 * @return the texture handle or null
+	 */
+	public static TextureHandle addImage(Image image) {
+		if (image == null || !image.isValid())
 			return null;
 		Image img = Image.unmodifiable(image);
-		synchronized(syncObject)
-		{
+		synchronized (syncObject) {
 			int w = img.getWidth(), h = img.getHeight();
 			AtlasPart ap = new AtlasPart(new byte[4 * w * h], w, h);
-			for(int y = 0, index = 0; y < h; y++)
-			{
-				for(int x = 0; x < w; x++)
-				{
+			for (int y = 0, index = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
 					Color color = img.getPixel(x, h - y - 1);
 					ap.data[index++] = color.r;
 					ap.data[index++] = color.g;
@@ -203,49 +181,41 @@ public class TextureAtlas
 		}
 	}
 
-	/** for each polygon in a list of polygons transform the texture coordinates
+	/**
+	 * for each polygon in a list of polygons transform the texture coordinates
 	 * to correspond to that polygon's texture image
 	 * 
 	 * @param polygonList
 	 *            the list of polygons to transform
-	 * @param textureCoords
+	 * @param textureArray
 	 *            the list of output texture coordinates
-	 * @return the atlas image */
-	public static Image
-	    transformTextureCoords(List<RenderingStream.Polygon> polygonList,
-	                           FloatBuffer textureCoords)
-	{
-		synchronized(syncObject)
-		{
+	 * @return the atlas image
+	 */
+	public static Image transformTextureCoords(float[] srcTextureArray,
+			TextureHandle[] texHandleArray, int count, float[] textureArray) {
+		synchronized (syncObject) {
 			generateImage();
 			final float widthFactor = 1.0f / finalImageWidth;
 			final float heightFactor = 1.0f / finalImageHeight;
-			for(RenderingStream.Polygon p : polygonList)
-			{
-				if(p.texture == null
-				        || !(p.texture instanceof TextureHandleImp))
+			for (int ti = 0, thi = 0; thi < count; thi++) {
+				if (texHandleArray[thi] == null
+						|| !(texHandleArray[thi] instanceof TextureHandleImp))
 					throw new IllegalArgumentException("invalid texture handle");
-				TextureHandleImp h = (TextureHandleImp)p.texture;
+				TextureHandleImp h = (TextureHandleImp) texHandleArray[thi];
 				AtlasPart ap = h.ap;
-				for(int vertex = 0; vertex < RenderingStream.Polygon.VERT_COUNT; vertex++)
-				{
-					float u = p.values[vertex
-					        * RenderingStream.Polygon.VERT_SIZE
-					        + RenderingStream.Polygon.VERT_U];
-					float v = p.values[vertex
-					        * RenderingStream.Polygon.VERT_SIZE
-					        + RenderingStream.Polygon.VERT_V];
+				for (int vertex = 0; vertex < 3; vertex++) {
+					float u = srcTextureArray[ti];
+					float v = srcTextureArray[ti + 1];
 					u = (u * ap.w + ap.x) * widthFactor;
 					v = (v * ap.h + ap.y) * heightFactor;
-					textureCoords.put(u);
-					textureCoords.put(v);
+					textureArray[ti++] = u;
+					textureArray[ti++] = v;
 				}
 			}
 			return finalImage;
 		}
 	}
 
-	private TextureAtlas()
-	{
+	private TextureAtlas() {
 	}
 }

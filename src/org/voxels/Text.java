@@ -16,7 +16,6 @@
  */
 package org.voxels;
 
-import static org.lwjgl.opengl.GL11.*;
 import static org.voxels.Color.*;
 import static org.voxels.Vector.glVertex;
 
@@ -29,7 +28,9 @@ public final class Text
     private static TextureAtlas.TextureHandle fontTexture = TextureAtlas.addImage(font);
     private static final int fontW = 8, fontH = 8;
 
-    private static boolean getCharPixel(int x_in, int y_in, int ch)
+    private static boolean getCharPixel(final int x_in,
+                                        final int y_in,
+                                        final int ch)
     {
         int x = x_in, y = y_in;
         if(x < 0 || x >= fontW || y < 0 || y >= fontH)
@@ -181,14 +182,14 @@ public final class Text
     {
         Map<Integer, Integer> retval = new HashMap<Integer, Integer>();
         for(int i = 0; i < 0x80; i++)
-            retval.put(new Integer(topPageTranslations[i]),
-                       new Integer(i + 0x80));
+            retval.put(Integer.valueOf(topPageTranslations[i]),
+                       Integer.valueOf(i + 0x80));
         return Collections.unmodifiableMap(retval);
     }
 
     private static final Map<Integer, Integer> topPageTranslationsMap = makeTPTMap();
 
-    private static int translateToCodePage437(char ch)
+    private static int translateToCodePage437(final char ch)
     {
         int character = ch;
         if(character == '\0')
@@ -285,13 +286,15 @@ public final class Text
             return 0xEE;
         default:
         {
-            Integer result = topPageTranslationsMap.get(new Integer(character));
+            Integer result = topPageTranslationsMap.get(Integer.valueOf(character));
             if(result != null)
                 return result.intValue();
             return '?';
         }
         }
     }
+
+    private static Vector draw_t1 = Vector.allocate();
 
     /** draw text
      * 
@@ -301,13 +304,15 @@ public final class Text
      *            the text color
      * @param str
      *            the text to draw */
-    public static void draw(Matrix tform, Color clr, String str)
+    public static void draw(final Matrix tform,
+                            final Color clr,
+                            final String str)
     {
         if(str.length() < 1)
             return;
         font.selectTexture();
         glColor(clr);
-        glBegin(GL_QUADS);
+        Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
         final float du = 1.0f / 16.0f, dv = 1.0f / 16.0f;
         float x = 0.0f, y = 0.0f;
         for(int i = 0; i < str.length(); i++)
@@ -322,17 +327,21 @@ public final class Text
             float u, v;
             u = ch % 16 / 16.0f;
             v = 1.0f - (ch / 16 + 1) / 16.0f;
-            glTexCoord2f(u, v);
-            glVertex(tform.apply(new Vector(0 + x, 0 + y, 0)));
-            glTexCoord2f(u + du, v);
-            glVertex(tform.apply(new Vector(1 + x, 0 + y, 0)));
-            glTexCoord2f(u + du, v + dv);
-            glVertex(tform.apply(new Vector(1 + x, 1 + y, 0)));
-            glTexCoord2f(u, v + dv);
-            glVertex(tform.apply(new Vector(0 + x, 1 + y, 0)));
+            Main.opengl.glTexCoord2f(u, v);
+            glVertex(tform.apply(draw_t1, 0 + x, 0 + y, 0));
+            Main.opengl.glTexCoord2f(u + du, v);
+            glVertex(tform.apply(draw_t1, 1 + x, 0 + y, 0));
+            Main.opengl.glTexCoord2f(u + du, v + dv);
+            glVertex(tform.apply(draw_t1, 1 + x, 1 + y, 0));
+            Main.opengl.glTexCoord2f(u + du, v + dv);
+            glVertex(tform.apply(draw_t1, 1 + x, 1 + y, 0));
+            Main.opengl.glTexCoord2f(u, v + dv);
+            glVertex(tform.apply(draw_t1, 0 + x, 1 + y, 0));
+            Main.opengl.glTexCoord2f(u, v);
+            glVertex(tform.apply(draw_t1, 0 + x, 0 + y, 0));
             x += 1.0f;
         }
-        glEnd();
+        Main.opengl.glEnd();
     }
 
     /** draw text in white
@@ -341,7 +350,7 @@ public final class Text
      *            the text to camera transformation
      * @param str
      *            the text to draw */
-    public static void draw(Matrix tform, String str)
+    public static void draw(final Matrix tform, final String str)
     {
         draw(tform, RGB(0xFF, 0xFF, 0xFF), str);
     }
@@ -357,10 +366,10 @@ public final class Text
      * @param str
      *            the text to draw
      * @return <code>rs</code> */
-    public static RenderingStream draw(RenderingStream rs,
-                                       Matrix tform,
-                                       Color clr,
-                                       String str)
+    public static RenderingStream draw(final RenderingStream rs,
+                                       final Matrix tform,
+                                       final Color clr,
+                                       final String str)
     {
         if(str.length() < 1)
             return rs;
@@ -378,27 +387,24 @@ public final class Text
             float u, v;
             u = ch % 16 / 16.0f;
             v = 1.0f - (ch / 16 + 1) / 16.0f;
-            RenderingStream.Polygon p = new RenderingStream.Polygon(fontTexture);
-            p.addVertex(tform.apply(new Vector(0 + x, 0 + y, 0)), u, v, clr);
-            p.addVertex(tform.apply(new Vector(1 + x, 0 + y, 0)),
-                        u + du,
-                        v,
-                        clr);
-            p.addVertex(tform.apply(new Vector(1 + x, 1 + y, 0)), u + du, v
-                    + dv, clr);
-            rs.add(p);
-            p = new RenderingStream.Polygon(fontTexture);
-            p.addVertex(tform.apply(new Vector(1 + x, 1 + y, 0)), u + du, v
-                    + dv, clr);
-            p.addVertex(tform.apply(new Vector(0 + x, 1 + y, 0)),
-                        u,
-                        v + dv,
-                        clr);
-            p.addVertex(tform.apply(new Vector(0 + x, 0 + y, 0)), u, v, clr);
-            rs.add(p);
+            rs.beginTriangle(fontTexture);
+            rs.vertex(tform.apply(draw_t1, 0 + x, 0 + y, 0), u, v, clr);
+            rs.vertex(tform.apply(draw_t1, 1 + x, 0 + y, 0), u + du, v, clr);
+            rs.vertex(tform.apply(draw_t1, 1 + x, 1 + y, 0),
+                      u + du,
+                      v + dv,
+                      clr);
+            rs.endTriangle();
+            rs.beginTriangle(fontTexture);
+            rs.vertex(tform.apply(draw_t1, 1 + x, 1 + y, 0),
+                      u + du,
+                      v + dv,
+                      clr);
+            rs.vertex(tform.apply(draw_t1, 0 + x, 1 + y, 0), u, v + dv, clr);
+            rs.vertex(tform.apply(draw_t1, 0 + x, 0 + y, 0), u, v, clr);
+            rs.endTriangle();
             x += 1.0f;
         }
-        glEnd();
         return rs;
     }
 
@@ -411,9 +417,9 @@ public final class Text
      * @param str
      *            the text to draw
      * @return <code>rs</code> */
-    public static RenderingStream draw(RenderingStream rs,
-                                       Matrix tform,
-                                       String str)
+    public static RenderingStream draw(final RenderingStream rs,
+                                       final Matrix tform,
+                                       final String str)
     {
         return draw(rs, tform, RGB(0xFF, 0xFF, 0xFF), str);
     }
@@ -430,7 +436,11 @@ public final class Text
      *            the color to draw in
      * @param str
      *            the text to draw */
-    public static void draw(Image img, int x, int y, Color clr, String str)
+    public static void draw(final Image img,
+                            final int x,
+                            final int y,
+                            final Color clr,
+                            final String str)
     {
         int xi = x, yi = y;
         if(str.length() < 1)
@@ -452,13 +462,12 @@ public final class Text
                         img.setPixel(cx + xi, cy + yi, clr);
             xi += fontW;
         }
-        glEnd();
     }
 
     /** @param str
      *            text to get the size of
      * @return the width in pixels of the text */
-    public static int sizeW(String str)
+    public static int sizeW(final String str)
     {
         int maxx = 0;
         int curx = 0;
@@ -479,7 +488,7 @@ public final class Text
     /** @param str
      *            text to get the size of
      * @return the height in pixels of the text */
-    public static int sizeH(String str)
+    public static int sizeH(final String str)
     {
         int maxy = 0;
         int cury = 0;

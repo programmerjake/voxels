@@ -16,7 +16,6 @@
  */
 package org.voxels;
 
-import org.lwjgl.opengl.GL11;
 
 /** @author jacob */
 public final class Color
@@ -208,10 +207,10 @@ public final class Color
      *            color */
     public static void glColor(Color c)
     {
-        GL11.glColor4f(GetRValue(c) / 255.0f,
-                       GetGValue(c) / 255.0f,
-                       GetBValue(c) / 255.0f,
-                       1.0f);
+        Main.opengl.glColor4f(GetRValue(c) / 255.0f,
+                              GetGValue(c) / 255.0f,
+                              GetBValue(c) / 255.0f,
+                              1.0f);
     }
 
     /** call glClearColor <BR/>
@@ -221,9 +220,9 @@ public final class Color
      *            color */
     public static void glClearColor(Color c)
     {
-        GL11.glClearColor(GetRValue(c) / 255.0f,
-                          GetGValue(c) / 255.0f,
-                          GetBValue(c) / 255.0f,
-                          0.0f);
+        Main.opengl.glClearColor(GetRValue(c) / 255.0f,
+                                 GetGValue(c) / 255.0f,
+                                 GetBValue(c) / 255.0f,
+                                 0.0f);
     }
 }

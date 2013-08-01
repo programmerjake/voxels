@@ -16,16 +16,11 @@
  */
 package org.voxels;
 
-import static org.lwjgl.opengl.GL11.*;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-import org.lwjgl.opengl.Display;
-
-import de.matthiasmann.twl.utils.PNGDecoder;
-import de.matthiasmann.twl.utils.PNGDecoder.Format;
+import org.voxels.PNGDecoder.Format;
 
 /** @author jacob */
 public class Image
@@ -38,7 +33,7 @@ public class Image
     protected int texture;
     protected boolean validTexture;
 
-    private void SwapRows(int y1, int y2)
+    private void SwapRows(final int y1, final int y2)
     {
         int i1 = y1 * this.w * BytesPerPixel;
         int i2 = y2 * this.w * BytesPerPixel;
@@ -52,7 +47,7 @@ public class Image
         }
     }
 
-    private void setRowOrder(boolean new_topToBottom)
+    private void setRowOrder(final boolean new_topToBottom)
     {
         if(!this.topToBottom && !new_topToBottom)
             return;
@@ -67,7 +62,7 @@ public class Image
         }
     }
 
-    private void setAlphaInvert(boolean isInverted)
+    private void setAlphaInvert(final boolean isInverted)
     {
         boolean doinvert = false;
         if(isInverted && !this.alphaInvert)
@@ -101,14 +96,14 @@ public class Image
      * @param filename
      *            the name of the image to load */
     @SuppressWarnings("resource")
-    public Image(String filename)
+    public Image(final String filename)
     {
         this.texture = 0;
         this.validTexture = false;
         InputStream in = null;
         try
         {
-            in = Main.getInputStream(filename);
+            in = Main.platform.getFileInputStream(filename);
             PNGDecoder decoder = new PNGDecoder(in);
             this.w = decoder.getWidth();
             this.h = decoder.getHeight();
@@ -153,6 +148,8 @@ public class Image
             catch(IOException e)
             {
             }
+            if(this.data == null)
+                throw new RuntimeException("can't load image : " + filename);
         }
     }
 
@@ -162,7 +159,7 @@ public class Image
      *            the width of the new image
      * @param height
      *            the height of the new image */
-    public Image(int width, int height)
+    public Image(final int width, final int height)
     {
         if(Integer.bitCount(width) != 1 || Integer.bitCount(height) != 1) // must
                                                                           // be
@@ -196,7 +193,7 @@ public class Image
      * 
      * @param color
      *            the color */
-    public Image(Color color)
+    public Image(final Color color)
     {
         this.texture = 0;
         this.validTexture = false;
@@ -214,7 +211,7 @@ public class Image
      * 
      * @param rt
      *            the image to copy */
-    public Image(Image rt)
+    public Image(final Image rt)
     {
         this.texture = 0;
         this.validTexture = false;
@@ -245,7 +242,7 @@ public class Image
     /** select the default (blank) texture */
     public static void unselectTexture()
     {
-        glBindTexture(GL_TEXTURE_2D, 0);
+        Main.opengl.glBindTexture(Main.opengl.GL_TEXTURE_2D(), 0);
         CurrentTexture = 0;
     }
 
@@ -264,9 +261,9 @@ public class Image
                 if(CurrentTexture == this.texture)
                 {
                     CurrentTexture = 0;
-                    glBindTexture(GL_TEXTURE_2D, 0);
+                    Main.opengl.glBindTexture(Main.opengl.GL_TEXTURE_2D(), 0);
                 }
-                glDeleteTextures(this.texture);
+                Main.opengl.glDeleteTextures(this.texture);
             }
             this.texture = 0;
             this.validTexture = true;
@@ -275,27 +272,35 @@ public class Image
         setRowOrder(false);
         setAlphaInvert(false);
         if(this.texture == 0)
-            this.texture = glGenTextures();
+            this.texture = Main.opengl.glGenTextures();
         if(CurrentTexture != this.texture)
-            glBindTexture(GL_TEXTURE_2D, this.texture);
+            Main.opengl.glBindTexture(Main.opengl.GL_TEXTURE_2D(), this.texture);
         CurrentTexture = this.texture;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        ByteBuffer buf = org.lwjgl.BufferUtils.createByteBuffer(this.data.length);
+        Main.opengl.glTexParameteri(Main.opengl.GL_TEXTURE_2D(),
+                                    Main.opengl.GL_TEXTURE_WRAP_S(),
+                                    Main.opengl.GL_REPEAT());
+        Main.opengl.glTexParameteri(Main.opengl.GL_TEXTURE_2D(),
+                                    Main.opengl.GL_TEXTURE_WRAP_T(),
+                                    Main.opengl.GL_REPEAT());
+        Main.opengl.glTexParameteri(Main.opengl.GL_TEXTURE_2D(),
+                                    Main.opengl.GL_TEXTURE_MAG_FILTER(),
+                                    Main.opengl.GL_NEAREST());
+        Main.opengl.glTexParameteri(Main.opengl.GL_TEXTURE_2D(),
+                                    Main.opengl.GL_TEXTURE_MIN_FILTER(),
+                                    Main.opengl.GL_NEAREST());
+        Main.opengl.glPixelStorei(Main.opengl.GL_UNPACK_ALIGNMENT(), 1);
+        ByteBuffer buf = Main.platform.createByteBuffer(this.data.length);
         buf.put(this.data);
         buf.flip();
-        glTexImage2D(GL_TEXTURE_2D,
-                     0,
-                     GL_RGBA,
-                     this.w,
-                     this.h,
-                     0,
-                     GL_RGBA,
-                     GL_UNSIGNED_BYTE,
-                     buf);
+        Main.opengl.glTexImage2D(Main.opengl.GL_TEXTURE_2D(),
+                                 0,
+                                 Main.opengl.GL_RGBA(),
+                                 this.w,
+                                 this.h,
+                                 0,
+                                 Main.opengl.GL_RGBA(),
+                                 Main.opengl.GL_UNSIGNED_BYTE(),
+                                 buf);
         this.validTexture = true;
     }
 
@@ -306,7 +311,7 @@ public class Image
             genTexture();
         if(this.texture != CurrentTexture)
         {
-            glBindTexture(GL_TEXTURE_2D, this.texture);
+            Main.opengl.glBindTexture(Main.opengl.GL_TEXTURE_2D(), this.texture);
             CurrentTexture = this.texture;
         }
     }
@@ -328,10 +333,10 @@ public class Image
         if(this.data == null)
             return;
         assert this.w == this.IconSize && this.h == this.IconSize : "Wrong Sized Icon";
-        ByteBuffer buf = org.lwjgl.BufferUtils.createByteBuffer(this.data.length);
+        ByteBuffer buf = Main.platform.createByteBuffer(this.data.length);
         buf.put(this.data);
         buf.flip();
-        Display.setIcon(new ByteBuffer[]
+        Main.platform.setIcon(new ByteBuffer[]
         {
             buf
         });
@@ -345,7 +350,7 @@ public class Image
      *            y coordinate from top
      * @return the color of the pixel or transparent white if (<code>x</code>,
      *         <code>y</code>) is outside of the image */
-    public Color getPixel(int x, int y)
+    public Color getPixel(final int x, final int y)
     {
         if(this.data == null || x < 0 || x >= this.w || y < 0 || y >= this.h)
             return Color.RGBA(0xFF, 0xFF, 0xFF, 0xFF);
@@ -369,7 +374,7 @@ public class Image
      *            y coordinate from top
      * @param c
      *            the new color of the pixel */
-    public void setPixel(int x, int y, Color c)
+    public void setPixel(final int x, final int y, final Color c)
     {
         if(this.data == null || x < 0 || x >= this.w || y < 0 || y >= this.h)
             return;
@@ -396,9 +401,9 @@ public class Image
         if(CurrentTexture == this.texture)
         {
             CurrentTexture = 0;
-            glBindTexture(GL_TEXTURE_2D, 0);
+            Main.opengl.glBindTexture(Main.opengl.GL_TEXTURE_2D(), 0);
         }
-        glDeleteTextures(this.texture);
+        Main.opengl.glDeleteTextures(this.texture);
         this.validTexture = false;
         this.texture = 0;
     }
@@ -417,13 +422,13 @@ public class Image
 
     private static class ConstantImage extends Image
     {
-        public ConstantImage(Image rt)
+        public ConstantImage(final Image rt)
         {
             super(rt);
         }
 
         @Override
-        public void setPixel(int x, int y, Color c)
+        public void setPixel(final int x, final int y, final Color c)
         {
         }
 
@@ -432,7 +437,7 @@ public class Image
         {
             if(isSelected())
                 unselectTexture();
-            glDeleteTextures(this.texture);
+            Main.opengl.glDeleteTextures(this.texture);
             this.validTexture = false;
             this.texture = 0;
         }
@@ -455,7 +460,7 @@ public class Image
      * @param img
      *            the image to copy
      * @return the unmodifiable copy of <code>img</code> */
-    public static Image unmodifiable(Image img)
+    public static Image unmodifiable(final Image img)
     {
         if(img != null && img.isModifiable())
             return new ConstantImage(img);

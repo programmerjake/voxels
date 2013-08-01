@@ -18,8 +18,6 @@ package org.voxels;
 
 import java.nio.FloatBuffer;
 
-import org.lwjgl.opengl.GL11;
-
 /** 4x4 matrix for 3D transformation with last row always equal to [0 0 0 1]
  * 
  * @author jacob */
@@ -32,20 +30,10 @@ public class Matrix
      * @param x
      *            the column to get from (0 to 3)
      * @param y
-     *            the row to get from (0 to 3)
-     * @return the value at the position (<code>x</code>, <code>y</code>)
-     * @throws ArrayIndexOutOfBoundsException
-     *             if <code>x</code> or <code>y</code> is out of range */
-    public float get(int x, int y) throws ArrayIndexOutOfBoundsException
+     *            the row to get from (0 to 2)
+     * @return the value at the position (<code>x</code>, <code>y</code>) */
+    public float get(final int x, final int y)
     {
-        if(x < 0 || x >= 4 || y < 0 || y >= 4)
-            throw new ArrayIndexOutOfBoundsException();
-        if(y >= 3)
-        {
-            if(x == y)
-                return 1.0f;
-            return 0.0f;
-        }
         return this.elements[x + y * 4];
     }
 
@@ -54,19 +42,44 @@ public class Matrix
      * @param x
      *            the column to set (0 to 3)
      * @param y
-     *            the row to set (0 to 3)
+     *            the row to set (0 to 2)
      * @param value
      *            the new value for the position (<code>x</code>, <code>y</code>
-     *            )
-     * @throws ArrayIndexOutOfBoundsException
-     *             if <code>x</code> or <code>y</code> is out of range */
-    public void
-        set(int x, int y, float value) throws ArrayIndexOutOfBoundsException
+     *            ) */
+    public void set(final int x, final int y, final float value)
     {
-        if(x < 0 || x >= 4 || y < 0 || y >= 4)
-            throw new ArrayIndexOutOfBoundsException();
-        if(y < 3)
-            this.elements[x + y * 4] = value;
+        this.elements[x + y * 4] = value;
+    }
+
+    public static Matrix set(final Matrix dest,
+                             final float x00,
+                             final float x10,
+                             final float x20,
+                             final float x30,
+                             final float x01,
+                             final float x11,
+                             final float x21,
+                             final float x31,
+                             final float x02,
+                             final float x12,
+                             final float x22,
+                             final float x32)
+    {
+        if(dest instanceof ImmutableMatrix)
+            ((ImmutableMatrix)dest).unsupportedOp();
+        dest.elements[0 + 0 * 4] = x00;
+        dest.elements[1 + 0 * 4] = x10;
+        dest.elements[2 + 0 * 4] = x20;
+        dest.elements[3 + 0 * 4] = x30;
+        dest.elements[0 + 1 * 4] = x01;
+        dest.elements[1 + 1 * 4] = x11;
+        dest.elements[2 + 1 * 4] = x21;
+        dest.elements[3 + 1 * 4] = x31;
+        dest.elements[0 + 2 * 4] = x02;
+        dest.elements[1 + 2 * 4] = x12;
+        dest.elements[2 + 2 * 4] = x22;
+        dest.elements[3 + 2 * 4] = x32;
+        return dest;
     }
 
     /** creates the identity matrix<BR/>
@@ -154,47 +167,62 @@ public class Matrix
      *            value at (2, 2)
      * @param x32
      *            value at (3, 2) */
-    public Matrix(float x00,
-                  float x10,
-                  float x20,
-                  float x30,
-                  float x01,
-                  float x11,
-                  float x21,
-                  float x31,
-                  float x02,
-                  float x12,
-                  float x22,
-                  float x32)
+    public Matrix(final float x00,
+                  final float x10,
+                  final float x20,
+                  final float x30,
+                  final float x01,
+                  final float x11,
+                  final float x21,
+                  final float x31,
+                  final float x02,
+                  final float x12,
+                  final float x22,
+                  final float x32)
     {
-        set(0, 0, x00);
-        set(1, 0, x10);
-        set(2, 0, x20);
-        set(3, 0, x30);
-        set(0, 1, x01);
-        set(1, 1, x11);
-        set(2, 1, x21);
-        set(3, 1, x31);
-        set(0, 2, x02);
-        set(1, 2, x12);
-        set(2, 2, x22);
-        set(3, 2, x32);
+        this.elements[0 + 0 * 4] = x00;
+        this.elements[1 + 0 * 4] = x10;
+        this.elements[2 + 0 * 4] = x20;
+        this.elements[3 + 0 * 4] = x30;
+        this.elements[0 + 1 * 4] = x01;
+        this.elements[1 + 1 * 4] = x11;
+        this.elements[2 + 1 * 4] = x21;
+        this.elements[3 + 1 * 4] = x31;
+        this.elements[0 + 2 * 4] = x02;
+        this.elements[1 + 2 * 4] = x12;
+        this.elements[2 + 2 * 4] = x22;
+        this.elements[3 + 2 * 4] = x32;
     }
 
     /** @param rt
      *            the matrix to copy */
-    public Matrix(Matrix rt)
+    public Matrix(final Matrix rt)
     {
         for(int i = 0; i < this.elements.length; i++)
             this.elements[i] = rt.elements[i];
     }
 
+    public static Matrix set(final Matrix dest, final Matrix src)
+    {
+        if(dest instanceof ImmutableMatrix)
+            ((ImmutableMatrix)dest).unsupportedOp();
+        for(int i = 0; i < dest.elements.length; i++)
+            dest.elements[i] = src.elements[i];
+        return dest;
+    }
+
     /** creates the identity matrix
      * 
      * @return the new identity matrix */
+    @Deprecated
     public static Matrix identity()
     {
         return new Matrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+    }
+
+    public static Matrix setToIdentity(final Matrix dest)
+    {
+        return set(dest, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
     }
 
     /** creates a rotation matrix
@@ -204,38 +232,60 @@ public class Matrix
      * @param angle
      *            angle to rotate in radians
      * @return the new rotation matrix
-     * @see #rotatex(double angle)
-     * @see #rotatey(double angle)
-     * @see #rotatez(double angle) */
-    public static Matrix rotate(Vector axis, double angle)
+     * @see #rotateX(double angle)
+     * @see #rotateY(double angle)
+     * @see #rotateZ(double angle) */
+    @Deprecated
+    public static Matrix rotate(final Vector axis, final double angle)
+    {
+        return setToRotate(new Matrix(), axis, angle);
+    }
+
+    /** creates a rotation matrix
+     * 
+     * @param dest
+     *            the destination matrix
+     * @param axis
+     *            axis to rotate around
+     * @param angle
+     *            angle to rotate in radians
+     * @return the new rotation matrix
+     * @see #rotateX(double angle)
+     * @see #rotateY(double angle)
+     * @see #rotateZ(double angle) */
+    public static Matrix setToRotate(final Matrix dest,
+                                     final Vector axis,
+                                     final double angle)
     {
         float r = axis.abs();
         if(r == 0.0f)
-            return identity();
-        Vector axisv = axis.div(r);
+            return setToIdentity(dest);
+        Vector axisv = Vector.div(Vector.allocate(), axis, r);
         float c, s, v;
         c = (float)Math.cos(angle);
         s = (float)Math.sin(angle);
         v = 1.0f - c; // Versine
         float xx, xy, xz, yy, yz, zz;
-        xx = axisv.x * axisv.x;
-        xy = axisv.x * axisv.y;
-        xz = axisv.x * axisv.z;
-        yy = axisv.y * axisv.y;
-        yz = axisv.y * axisv.z;
-        zz = axisv.z * axisv.z;
-        Matrix retval = new Matrix(xx + (1 - xx) * c,
-                                   xy * v - axisv.z * s,
-                                   xz * v + axisv.y * s,
-                                   0,
-                                   xy * v + axisv.z * s,
-                                   yy + (1 - yy) * c,
-                                   yz * v - axisv.x * s,
-                                   0,
-                                   xz * v - axisv.y * s,
-                                   yz * v + axisv.x * s,
-                                   zz + (1 - zz) * c,
-                                   0);
+        xx = axisv.getX() * axisv.getX();
+        xy = axisv.getX() * axisv.getY();
+        xz = axisv.getX() * axisv.getZ();
+        yy = axisv.getY() * axisv.getY();
+        yz = axisv.getY() * axisv.getZ();
+        zz = axisv.getZ() * axisv.getZ();
+        Matrix retval = set(dest,
+                            xx + (1 - xx) * c,
+                            xy * v - axisv.getZ() * s,
+                            xz * v + axisv.getY() * s,
+                            0,
+                            xy * v + axisv.getZ() * s,
+                            yy + (1 - yy) * c,
+                            yz * v - axisv.getX() * s,
+                            0,
+                            xz * v - axisv.getY() * s,
+                            yz * v + axisv.getX() * s,
+                            zz + (1 - zz) * c,
+                            0);
+        axisv.free();
         return retval;
     }
 
@@ -246,11 +296,17 @@ public class Matrix
      *            angle to rotate around the x axis in radians
      * @return the new rotation matrix
      * @see #rotate(Vector axis, double angle)
-     * @see #rotatey(double angle)
-     * @see #rotatez(double angle) */
-    public static Matrix rotatex(double angle)
+     * @see #rotateY(double angle)
+     * @see #rotateZ(double angle) */
+    @Deprecated
+    public static Matrix rotateX(final double angle)
     {
-        return rotate(new Vector(1, 0, 0), angle);
+        return rotate(Vector.X, angle);
+    }
+
+    public static Matrix setToRotateX(final Matrix dest, final double angle)
+    {
+        return setToRotate(dest, Vector.X, angle);
     }
 
     /** creates a rotation matrix<br/>
@@ -260,11 +316,17 @@ public class Matrix
      *            angle to rotate around the y axis in radians
      * @return the new rotation matrix
      * @see #rotate(Vector axis, double angle)
-     * @see #rotatex(double angle)
-     * @see #rotatez(double angle) */
-    public static Matrix rotatey(double angle)
+     * @see #rotateX(double angle)
+     * @see #rotateZ(double angle) */
+    @Deprecated
+    public static Matrix rotateY(final double angle)
     {
-        return rotate(new Vector(0, 1, 0), angle);
+        return rotate(Vector.Y, angle);
+    }
+
+    public static Matrix setToRotateY(final Matrix dest, final double angle)
+    {
+        return setToRotate(dest, Vector.Y, angle);
     }
 
     /** creates a rotation matrix<br/>
@@ -274,11 +336,17 @@ public class Matrix
      *            angle to rotate around the z axis in radians
      * @return the new rotation matrix
      * @see #rotate(Vector axis, double angle)
-     * @see #rotatex(double angle)
-     * @see #rotatey(double angle) */
-    public static Matrix rotatez(double angle)
+     * @see #rotateX(double angle)
+     * @see #rotateY(double angle) */
+    @Deprecated
+    public static Matrix rotateZ(final double angle)
     {
-        return rotate(new Vector(0, 0, 1), angle);
+        return rotate(Vector.Z, angle);
+    }
+
+    public static Matrix setToRotateZ(final Matrix dest, final double angle)
+    {
+        return setToRotate(dest, Vector.Z, angle);
     }
 
     /** creates a translation matrix
@@ -286,20 +354,39 @@ public class Matrix
      * @param position
      *            the position to translate (0, 0, 0) to
      * @return the new translation matrix */
-    public static Matrix translate(Vector position)
+    @Deprecated
+    public static Matrix translate(final Vector position)
     {
         return new Matrix(1,
                           0,
                           0,
-                          position.x,
+                          position.getX(),
                           0,
                           1,
                           0,
-                          position.y,
+                          position.getY(),
                           0,
                           0,
                           1,
-                          position.z);
+                          position.getZ());
+    }
+
+    public static Matrix
+        setToTranslate(final Matrix dest, final Vector position)
+    {
+        return set(dest,
+                   1,
+                   0,
+                   0,
+                   position.getX(),
+                   0,
+                   1,
+                   0,
+                   position.getY(),
+                   0,
+                   0,
+                   1,
+                   position.getZ());
     }
 
     /** creates a translation matrix
@@ -311,9 +398,18 @@ public class Matrix
      * @param z
      *            the z coordinate to translate (0, 0, 0) to
      * @return the new translation matrix */
-    public static Matrix translate(float x, float y, float z)
+    @Deprecated
+    public static Matrix translate(final float x, final float y, final float z)
     {
-        return translate(new Vector(x, y, z));
+        return new Matrix(1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z);
+    }
+
+    public static Matrix setToTranslate(final Matrix dest,
+                                        final float x,
+                                        final float y,
+                                        final float z)
+    {
+        return set(dest, 1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z);
     }
 
     /** creates a scaling matrix
@@ -325,9 +421,18 @@ public class Matrix
      * @param z
      *            the amount to scale the z coordinate by
      * @return the new scaling matrix */
-    public static Matrix scale(float x, float y, float z)
+    @Deprecated
+    public static Matrix scale(final float x, final float y, final float z)
     {
         return new Matrix(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0);
+    }
+
+    public static Matrix setToScale(final Matrix dest,
+                                    final float x,
+                                    final float y,
+                                    final float z)
+    {
+        return set(dest, x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0);
     }
 
     /** creates a scaling matrix
@@ -337,9 +442,15 @@ public class Matrix
      *            <code>s.y</code> is the amount to scale the y coordinate by.<br/>
      *            <code>s.z</code> is the amount to scale the z coordinate by.
      * @return the new scaling matrix */
-    public static Matrix scale(Vector s)
+    @Deprecated
+    public static Matrix scale(final Vector s)
     {
-        return scale(s.x, s.y, s.z);
+        return scale(s.getX(), s.getY(), s.getZ());
+    }
+
+    public static Matrix setToScale(final Matrix dest, final Vector s)
+    {
+        return setToScale(dest, s.getX(), s.getY(), s.getZ());
     }
 
     /** creates a scaling matrix
@@ -347,49 +458,271 @@ public class Matrix
      * @param s
      *            the amount to scale by
      * @return the new scaling matrix */
-    public static Matrix scale(float s)
+    @Deprecated
+    public static Matrix scale(final float s)
     {
         return scale(s, s, s);
+    }
+
+    public static Matrix setToScale(final Matrix dest, final float s)
+    {
+        return setToScale(dest, s, s, s);
     }
 
     /** @return the determinant of this matrix */
     public float determinant()
     {
-        return get(0, 0) * (get(1, 1) * get(2, 2) - get(1, 2) * get(2, 1))
-                + get(1, 0) * (get(0, 2) * get(2, 1) - get(0, 1) * get(2, 2))
-                + get(2, 0) * (get(0, 1) * get(1, 2) - get(0, 2) * get(1, 1));
+        return this.elements[0 + 0 * 4]
+                * (this.elements[1 + 1 * 4] * this.elements[2 + 2 * 4] - this.elements[1 + 2 * 4]
+                        * this.elements[2 + 1 * 4])
+                + this.elements[1 + 0 * 4]
+                * (this.elements[0 + 2 * 4] * this.elements[2 + 1 * 4] - this.elements[0 + 1 * 4]
+                        * this.elements[2 + 2 * 4])
+                + this.elements[2 + 0 * 4]
+                * (this.elements[0 + 1 * 4] * this.elements[1 + 2 * 4] - this.elements[0 + 2 * 4]
+                        * this.elements[1 + 1 * 4]);
     }
 
     /** @return the inverse of this matrix or the identity matrix if this matrix
      *         is singular (has a determinant of 0). */
+    @Deprecated
     public Matrix invert()
     {
-        float det = this.determinant();
+        float det = determinant();
         if(det == 0.0f)
             return identity();
         float factor = 1.0f / det;
-        return new Matrix((get(1, 1) * get(2, 2) - get(1, 2) * get(2, 1))
-                * factor, (get(1, 2) * get(2, 0) - get(1, 0) * get(2, 2))
-                * factor, (get(1, 0) * get(2, 1) - get(1, 1) * get(2, 0))
-                * factor, (-get(1, 0) * get(2, 1) * get(3, 2) + get(1, 1)
-                * get(2, 0) * get(3, 2) + get(1, 0) * get(2, 2) * get(3, 1)
-                - get(1, 2) * get(2, 0) * get(3, 1) - get(1, 1) * get(2, 2)
-                * get(3, 0) + get(1, 2) * get(2, 1) * get(3, 0))
-                * factor, (get(0, 2) * get(2, 1) - get(0, 1) * get(2, 2))
-                * factor, (get(0, 0) * get(2, 2) - get(0, 2) * get(2, 0))
-                * factor, (get(0, 1) * get(2, 0) - get(0, 0) * get(2, 1))
-                * factor, (get(0, 0) * get(2, 1) * get(3, 2) - get(0, 1)
-                * get(2, 0) * get(3, 2) - get(0, 0) * get(2, 2) * get(3, 1)
-                + get(0, 2) * get(2, 0) * get(3, 1) + get(0, 1) * get(2, 2)
-                * get(3, 0) - get(0, 2) * get(2, 1) * get(3, 0))
-                * factor, (get(0, 1) * get(1, 2) - get(0, 2) * get(1, 1))
-                * factor, (get(0, 2) * get(1, 0) - get(0, 0) * get(1, 2))
-                * factor, (get(0, 0) * get(1, 1) - get(0, 1) * get(1, 0))
-                * factor, (-get(0, 0) * get(1, 1) * get(3, 2) + get(0, 1)
-                * get(1, 0) * get(3, 2) + get(0, 0) * get(1, 2) * get(3, 1)
-                - get(0, 2) * get(1, 0) * get(3, 1) - get(0, 1) * get(1, 2)
-                * get(3, 0) + get(0, 2) * get(1, 1) * get(3, 0))
-                * factor);
+        return new Matrix((this.elements[1 + 1 * 4] * this.elements[2 + 2 * 4] - this.elements[1 + 2 * 4]
+                                  * this.elements[2 + 1 * 4])
+                                  * factor,
+                          (this.elements[1 + 2 * 4] * this.elements[2 + 0 * 4] - this.elements[1 + 0 * 4]
+                                  * this.elements[2 + 2 * 4])
+                                  * factor,
+                          (this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4] - this.elements[1 + 1 * 4]
+                                  * this.elements[2 + 0 * 4])
+                                  * factor,
+                          (-this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4]
+                                  * this.elements[3 + 2 * 4]
+                                  + this.elements[1 + 1 * 4]
+                                  * this.elements[2 + 0 * 4]
+                                  * this.elements[3 + 2 * 4]
+                                  + this.elements[1 + 0 * 4]
+                                  * this.elements[2 + 2 * 4]
+                                  * this.elements[3 + 1 * 4]
+                                  - this.elements[1 + 2 * 4]
+                                  * this.elements[2 + 0 * 4]
+                                  * this.elements[3 + 1 * 4]
+                                  - this.elements[1 + 1 * 4]
+                                  * this.elements[2 + 2 * 4]
+                                  * this.elements[3 + 0 * 4] + this.elements[1 + 2 * 4]
+                                  * this.elements[2 + 1 * 4]
+                                  * this.elements[3 + 0 * 4])
+                                  * factor,
+                          (this.elements[0 + 2 * 4] * this.elements[2 + 1 * 4] - this.elements[0 + 1 * 4]
+                                  * this.elements[2 + 2 * 4])
+                                  * factor,
+                          (this.elements[0 + 0 * 4] * this.elements[2 + 2 * 4] - this.elements[0 + 2 * 4]
+                                  * this.elements[2 + 0 * 4])
+                                  * factor,
+                          (this.elements[0 + 1 * 4] * this.elements[2 + 0 * 4] - this.elements[0 + 0 * 4]
+                                  * this.elements[2 + 1 * 4])
+                                  * factor,
+                          (this.elements[0 + 0 * 4] * this.elements[2 + 1 * 4]
+                                  * this.elements[3 + 2 * 4]
+                                  - this.elements[0 + 1 * 4]
+                                  * this.elements[2 + 0 * 4]
+                                  * this.elements[3 + 2 * 4]
+                                  - this.elements[0 + 0 * 4]
+                                  * this.elements[2 + 2 * 4]
+                                  * this.elements[3 + 1 * 4]
+                                  + this.elements[0 + 2 * 4]
+                                  * this.elements[2 + 0 * 4]
+                                  * this.elements[3 + 1 * 4]
+                                  + this.elements[0 + 1 * 4]
+                                  * this.elements[2 + 2 * 4]
+                                  * this.elements[3 + 0 * 4] - this.elements[0 + 2 * 4]
+                                  * this.elements[2 + 1 * 4]
+                                  * this.elements[3 + 0 * 4])
+                                  * factor,
+                          (this.elements[0 + 1 * 4] * this.elements[1 + 2 * 4] - this.elements[0 + 2 * 4]
+                                  * this.elements[1 + 1 * 4])
+                                  * factor,
+                          (this.elements[0 + 2 * 4] * this.elements[1 + 0 * 4] - this.elements[0 + 0 * 4]
+                                  * this.elements[1 + 2 * 4])
+                                  * factor,
+                          (this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4] - this.elements[0 + 1 * 4]
+                                  * this.elements[1 + 0 * 4])
+                                  * factor,
+                          (-this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4]
+                                  * this.elements[3 + 2 * 4]
+                                  + this.elements[0 + 1 * 4]
+                                  * this.elements[1 + 0 * 4]
+                                  * this.elements[3 + 2 * 4]
+                                  + this.elements[0 + 0 * 4]
+                                  * this.elements[1 + 2 * 4]
+                                  * this.elements[3 + 1 * 4]
+                                  - this.elements[0 + 2 * 4]
+                                  * this.elements[1 + 0 * 4]
+                                  * this.elements[3 + 1 * 4]
+                                  - this.elements[0 + 1 * 4]
+                                  * this.elements[1 + 2 * 4]
+                                  * this.elements[3 + 0 * 4] + this.elements[0 + 2 * 4]
+                                  * this.elements[1 + 1 * 4]
+                                  * this.elements[3 + 0 * 4])
+                                  * factor);
+    }
+
+    public Matrix invertAndSet()
+    {
+        float det = determinant();
+        if(det == 0.0f)
+            return setToIdentity(this);
+        float factor = 1.0f / det;
+        return set(this,
+                   (this.elements[1 + 1 * 4] * this.elements[2 + 2 * 4] - this.elements[1 + 2 * 4]
+                           * this.elements[2 + 1 * 4])
+                           * factor,
+                   (this.elements[1 + 2 * 4] * this.elements[2 + 0 * 4] - this.elements[1 + 0 * 4]
+                           * this.elements[2 + 2 * 4])
+                           * factor,
+                   (this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4] - this.elements[1 + 1 * 4]
+                           * this.elements[2 + 0 * 4])
+                           * factor,
+                   (-this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4]
+                           * this.elements[3 + 2 * 4]
+                           + this.elements[1 + 1 * 4]
+                           * this.elements[2 + 0 * 4]
+                           * this.elements[3 + 2 * 4]
+                           + this.elements[1 + 0 * 4]
+                           * this.elements[2 + 2 * 4]
+                           * this.elements[3 + 1 * 4]
+                           - this.elements[1 + 2 * 4]
+                           * this.elements[2 + 0 * 4]
+                           * this.elements[3 + 1 * 4]
+                           - this.elements[1 + 1 * 4]
+                           * this.elements[2 + 2 * 4]
+                           * this.elements[3 + 0 * 4] + this.elements[1 + 2 * 4]
+                           * this.elements[2 + 1 * 4]
+                           * this.elements[3 + 0 * 4])
+                           * factor,
+                   (this.elements[0 + 2 * 4] * this.elements[2 + 1 * 4] - this.elements[0 + 1 * 4]
+                           * this.elements[2 + 2 * 4])
+                           * factor,
+                   (this.elements[0 + 0 * 4] * this.elements[2 + 2 * 4] - this.elements[0 + 2 * 4]
+                           * this.elements[2 + 0 * 4])
+                           * factor,
+                   (this.elements[0 + 1 * 4] * this.elements[2 + 0 * 4] - this.elements[0 + 0 * 4]
+                           * this.elements[2 + 1 * 4])
+                           * factor,
+                   (this.elements[0 + 0 * 4] * this.elements[2 + 1 * 4]
+                           * this.elements[3 + 2 * 4]
+                           - this.elements[0 + 1 * 4]
+                           * this.elements[2 + 0 * 4]
+                           * this.elements[3 + 2 * 4]
+                           - this.elements[0 + 0 * 4]
+                           * this.elements[2 + 2 * 4]
+                           * this.elements[3 + 1 * 4]
+                           + this.elements[0 + 2 * 4]
+                           * this.elements[2 + 0 * 4]
+                           * this.elements[3 + 1 * 4]
+                           + this.elements[0 + 1 * 4]
+                           * this.elements[2 + 2 * 4]
+                           * this.elements[3 + 0 * 4] - this.elements[0 + 2 * 4]
+                           * this.elements[2 + 1 * 4]
+                           * this.elements[3 + 0 * 4])
+                           * factor,
+                   (this.elements[0 + 1 * 4] * this.elements[1 + 2 * 4] - this.elements[0 + 2 * 4]
+                           * this.elements[1 + 1 * 4])
+                           * factor,
+                   (this.elements[0 + 2 * 4] * this.elements[1 + 0 * 4] - this.elements[0 + 0 * 4]
+                           * this.elements[1 + 2 * 4])
+                           * factor,
+                   (this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4] - this.elements[0 + 1 * 4]
+                           * this.elements[1 + 0 * 4])
+                           * factor,
+                   (-this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4]
+                           * this.elements[3 + 2 * 4]
+                           + this.elements[0 + 1 * 4]
+                           * this.elements[1 + 0 * 4]
+                           * this.elements[3 + 2 * 4]
+                           + this.elements[0 + 0 * 4]
+                           * this.elements[1 + 2 * 4]
+                           * this.elements[3 + 1 * 4]
+                           - this.elements[0 + 2 * 4]
+                           * this.elements[1 + 0 * 4]
+                           * this.elements[3 + 1 * 4]
+                           - this.elements[0 + 1 * 4]
+                           * this.elements[1 + 2 * 4]
+                           * this.elements[3 + 0 * 4] + this.elements[0 + 2 * 4]
+                           * this.elements[1 + 1 * 4]
+                           * this.elements[3 + 0 * 4])
+                           * factor);
+    }
+
+    public static Matrix setToInverse(final Matrix dest, final Matrix src)
+    {
+        float det = src.determinant();
+        if(det == 0.0f)
+            return setToIdentity(dest);
+        float factor = 1.0f / det;
+        return set(dest,
+                   (src.elements[1 + 1 * 4] * src.elements[2 + 2 * 4] - src.elements[1 + 2 * 4]
+                           * src.elements[2 + 1 * 4])
+                           * factor,
+                   (src.elements[1 + 2 * 4] * src.elements[2 + 0 * 4] - src.elements[1 + 0 * 4]
+                           * src.elements[2 + 2 * 4])
+                           * factor,
+                   (src.elements[1 + 0 * 4] * src.elements[2 + 1 * 4] - src.elements[1 + 1 * 4]
+                           * src.elements[2 + 0 * 4])
+                           * factor,
+                   (-src.elements[1 + 0 * 4] * src.elements[2 + 1 * 4]
+                           * src.elements[3 + 2 * 4] + src.elements[1 + 1 * 4]
+                           * src.elements[2 + 0 * 4] * src.elements[3 + 2 * 4]
+                           + src.elements[1 + 0 * 4] * src.elements[2 + 2 * 4]
+                           * src.elements[3 + 1 * 4] - src.elements[1 + 2 * 4]
+                           * src.elements[2 + 0 * 4] * src.elements[3 + 1 * 4]
+                           - src.elements[1 + 1 * 4] * src.elements[2 + 2 * 4]
+                           * src.elements[3 + 0 * 4] + src.elements[1 + 2 * 4]
+                           * src.elements[2 + 1 * 4] * src.elements[3 + 0 * 4])
+                           * factor,
+                   (src.elements[0 + 2 * 4] * src.elements[2 + 1 * 4] - src.elements[0 + 1 * 4]
+                           * src.elements[2 + 2 * 4])
+                           * factor,
+                   (src.elements[0 + 0 * 4] * src.elements[2 + 2 * 4] - src.elements[0 + 2 * 4]
+                           * src.elements[2 + 0 * 4])
+                           * factor,
+                   (src.elements[0 + 1 * 4] * src.elements[2 + 0 * 4] - src.elements[0 + 0 * 4]
+                           * src.elements[2 + 1 * 4])
+                           * factor,
+                   (src.elements[0 + 0 * 4] * src.elements[2 + 1 * 4]
+                           * src.elements[3 + 2 * 4] - src.elements[0 + 1 * 4]
+                           * src.elements[2 + 0 * 4] * src.elements[3 + 2 * 4]
+                           - src.elements[0 + 0 * 4] * src.elements[2 + 2 * 4]
+                           * src.elements[3 + 1 * 4] + src.elements[0 + 2 * 4]
+                           * src.elements[2 + 0 * 4] * src.elements[3 + 1 * 4]
+                           + src.elements[0 + 1 * 4] * src.elements[2 + 2 * 4]
+                           * src.elements[3 + 0 * 4] - src.elements[0 + 2 * 4]
+                           * src.elements[2 + 1 * 4] * src.elements[3 + 0 * 4])
+                           * factor,
+                   (src.elements[0 + 1 * 4] * src.elements[1 + 2 * 4] - src.elements[0 + 2 * 4]
+                           * src.elements[1 + 1 * 4])
+                           * factor,
+                   (src.elements[0 + 2 * 4] * src.elements[1 + 0 * 4] - src.elements[0 + 0 * 4]
+                           * src.elements[1 + 2 * 4])
+                           * factor,
+                   (src.elements[0 + 0 * 4] * src.elements[1 + 1 * 4] - src.elements[0 + 1 * 4]
+                           * src.elements[1 + 0 * 4])
+                           * factor,
+                   (-src.elements[0 + 0 * 4] * src.elements[1 + 1 * 4]
+                           * src.elements[3 + 2 * 4] + src.elements[0 + 1 * 4]
+                           * src.elements[1 + 0 * 4] * src.elements[3 + 2 * 4]
+                           + src.elements[0 + 0 * 4] * src.elements[1 + 2 * 4]
+                           * src.elements[3 + 1 * 4] - src.elements[0 + 2 * 4]
+                           * src.elements[1 + 0 * 4] * src.elements[3 + 1 * 4]
+                           - src.elements[0 + 1 * 4] * src.elements[1 + 2 * 4]
+                           * src.elements[3 + 0 * 4] + src.elements[0 + 2 * 4]
+                           * src.elements[1 + 1 * 4] * src.elements[3 + 0 * 4])
+                           * factor);
     }
 
     /** apply this transformation to the point <code>v</code>
@@ -397,12 +730,45 @@ public class Matrix
      * @param v
      *            the point to transform
      * @return the transformed point */
-    public Vector apply(Vector v)
+    @Deprecated
+    public Vector apply(final Vector v)
     {
-        return new Vector(v.x * get(0, 0) + v.y * get(1, 0) + v.z * get(2, 0)
-                + get(3, 0), v.x * get(0, 1) + v.y * get(1, 1) + v.z
-                * get(2, 1) + get(3, 1), v.x * get(0, 2) + v.y * get(1, 2)
-                + v.z * get(2, 2) + get(3, 2));
+        return new Vector(v.getX() * this.elements[0 + 0 * 4] + v.getY()
+                * this.elements[1 + 0 * 4] + v.getZ()
+                * this.elements[2 + 0 * 4] + this.elements[3 + 0 * 4], v.getX()
+                * this.elements[0 + 1 * 4] + v.getY()
+                * this.elements[1 + 1 * 4] + v.getZ()
+                * this.elements[2 + 1 * 4] + this.elements[3 + 1 * 4], v.getX()
+                * this.elements[0 + 2 * 4] + v.getY()
+                * this.elements[1 + 2 * 4] + v.getZ()
+                * this.elements[2 + 2 * 4] + this.elements[3 + 2 * 4]);
+    }
+
+    public Vector apply(final Vector dest, final Vector v)
+    {
+        return Vector.set(dest, v.getX() * this.elements[0 + 0 * 4] + v.getY()
+                * this.elements[1 + 0 * 4] + v.getZ()
+                * this.elements[2 + 0 * 4] + this.elements[3 + 0 * 4], v.getX()
+                * this.elements[0 + 1 * 4] + v.getY()
+                * this.elements[1 + 1 * 4] + v.getZ()
+                * this.elements[2 + 1 * 4] + this.elements[3 + 1 * 4], v.getX()
+                * this.elements[0 + 2 * 4] + v.getY()
+                * this.elements[1 + 2 * 4] + v.getZ()
+                * this.elements[2 + 2 * 4] + this.elements[3 + 2 * 4]);
+    }
+
+    public Vector apply(final Vector dest,
+                        final float x,
+                        final float y,
+                        final float z)
+    {
+        return Vector.set(dest, x * this.elements[0 + 0 * 4] + y
+                * this.elements[1 + 0 * 4] + z * this.elements[2 + 0 * 4]
+                + this.elements[3 + 0 * 4], x * this.elements[0 + 1 * 4] + y
+                * this.elements[1 + 1 * 4] + z * this.elements[2 + 1 * 4]
+                + this.elements[3 + 1 * 4], x * this.elements[0 + 2 * 4] + y
+                * this.elements[1 + 2 * 4] + z * this.elements[2 + 2 * 4]
+                + this.elements[3 + 2 * 4]);
     }
 
     /** apply this transformation to the normal vector <code>v</code>
@@ -410,11 +776,23 @@ public class Matrix
      * @param v
      *            the normal vector to transform
      * @return the transformed normal vector */
-    public Vector applyToNormal(Vector v)
+    @Deprecated
+    public Vector applyToNormal(final Vector v)
     {
-        Vector p1 = this.apply(new Vector(0));
-        Vector p2 = this.apply(v);
-        return p2.sub(p1).normalize();
+        return this.apply(v)
+                   .subAndSet(this.elements[3 + 0 * 4],
+                              this.elements[3 + 1 * 4],
+                              this.elements[3 + 2 * 4])
+                   .normalizeAndSet();
+    }
+
+    public Vector applyToNormal(final Vector dest, final Vector v)
+    {
+        return this.apply(dest, v)
+                   .subAndSet(this.elements[3 + 0 * 4],
+                              this.elements[3 + 1 * 4],
+                              this.elements[3 + 2 * 4])
+                   .normalizeAndSet();
     }
 
     /** combine this transformation with <code>rt</code>, with this
@@ -424,60 +802,177 @@ public class Matrix
      * @param rt
      *            the transformation to combine after this transformation
      * @return the resulting transformation */
-    public Matrix concat(Matrix rt)
+    @Deprecated
+    public Matrix concat(final Matrix rt)
     {
-        // Matrix retval = new Matrix();
-        // for(int i = 0; i < 4; i++)
-        // {
-        // for(int j = 0; j < 3; j++)
-        // {
-        // float sum = 0;
-        // for(int k = 0; k < 4; k++)
-        // sum += get(i, k) * rt.get(k, j);
-        // retval.set(i, j, sum);
-        // }
-        // }
-        // return retval;
-        return new Matrix(get(0, 0) * rt.get(0, 0) + get(0, 1) * rt.get(1, 0)
-                                  + get(0, 2) * rt.get(2, 0),
-                          get(1, 0) * rt.get(0, 0) + get(1, 1) * rt.get(1, 0)
-                                  + get(1, 2) * rt.get(2, 0),
-                          get(2, 0) * rt.get(0, 0) + get(2, 1) * rt.get(1, 0)
-                                  + get(2, 2) * rt.get(2, 0),
-                          get(3, 0) * rt.get(0, 0) + get(3, 1) * rt.get(1, 0)
-                                  + get(3, 2) * rt.get(2, 0) + rt.get(3, 0),
-                          get(0, 0) * rt.get(0, 1) + get(0, 1) * rt.get(1, 1)
-                                  + get(0, 2) * rt.get(2, 1),
-                          get(1, 0) * rt.get(0, 1) + get(1, 1) * rt.get(1, 1)
-                                  + get(1, 2) * rt.get(2, 1),
-                          get(2, 0) * rt.get(0, 1) + get(2, 1) * rt.get(1, 1)
-                                  + get(2, 2) * rt.get(2, 1),
-                          get(3, 0) * rt.get(0, 1) + get(3, 1) * rt.get(1, 1)
-                                  + get(3, 2) * rt.get(2, 1) + rt.get(3, 1),
-                          get(0, 0) * rt.get(0, 2) + get(0, 1) * rt.get(1, 2)
-                                  + get(0, 2) * rt.get(2, 2),
-                          get(1, 0) * rt.get(0, 2) + get(1, 1) * rt.get(1, 2)
-                                  + get(1, 2) * rt.get(2, 2),
-                          get(2, 0) * rt.get(0, 2) + get(2, 1) * rt.get(1, 2)
-                                  + get(2, 2) * rt.get(2, 2),
-                          get(3, 0) * rt.get(0, 2) + get(3, 1) * rt.get(1, 2)
-                                  + get(3, 2) * rt.get(2, 2) + rt.get(3, 2));
+        return new Matrix(this.elements[0 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                  + this.elements[0 + 1 * 4]
+                                  * rt.elements[1 + 0 * 4]
+                                  + this.elements[0 + 2 * 4]
+                                  * rt.elements[2 + 0 * 4],
+                          this.elements[1 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                  + this.elements[1 + 1 * 4]
+                                  * rt.elements[1 + 0 * 4]
+                                  + this.elements[1 + 2 * 4]
+                                  * rt.elements[2 + 0 * 4],
+                          this.elements[2 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                  + this.elements[2 + 1 * 4]
+                                  * rt.elements[1 + 0 * 4]
+                                  + this.elements[2 + 2 * 4]
+                                  * rt.elements[2 + 0 * 4],
+                          this.elements[3 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                  + this.elements[3 + 1 * 4]
+                                  * rt.elements[1 + 0 * 4]
+                                  + this.elements[3 + 2 * 4]
+                                  * rt.elements[2 + 0 * 4]
+                                  + rt.elements[3 + 0 * 4],
+                          this.elements[0 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                  + this.elements[0 + 1 * 4]
+                                  * rt.elements[1 + 1 * 4]
+                                  + this.elements[0 + 2 * 4]
+                                  * rt.elements[2 + 1 * 4],
+                          this.elements[1 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                  + this.elements[1 + 1 * 4]
+                                  * rt.elements[1 + 1 * 4]
+                                  + this.elements[1 + 2 * 4]
+                                  * rt.elements[2 + 1 * 4],
+                          this.elements[2 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                  + this.elements[2 + 1 * 4]
+                                  * rt.elements[1 + 1 * 4]
+                                  + this.elements[2 + 2 * 4]
+                                  * rt.elements[2 + 1 * 4],
+                          this.elements[3 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                  + this.elements[3 + 1 * 4]
+                                  * rt.elements[1 + 1 * 4]
+                                  + this.elements[3 + 2 * 4]
+                                  * rt.elements[2 + 1 * 4]
+                                  + rt.elements[3 + 1 * 4],
+                          this.elements[0 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                  + this.elements[0 + 1 * 4]
+                                  * rt.elements[1 + 2 * 4]
+                                  + this.elements[0 + 2 * 4]
+                                  * rt.elements[2 + 2 * 4],
+                          this.elements[1 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                  + this.elements[1 + 1 * 4]
+                                  * rt.elements[1 + 2 * 4]
+                                  + this.elements[1 + 2 * 4]
+                                  * rt.elements[2 + 2 * 4],
+                          this.elements[2 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                  + this.elements[2 + 1 * 4]
+                                  * rt.elements[1 + 2 * 4]
+                                  + this.elements[2 + 2 * 4]
+                                  * rt.elements[2 + 2 * 4],
+                          this.elements[3 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                  + this.elements[3 + 1 * 4]
+                                  * rt.elements[1 + 2 * 4]
+                                  + this.elements[3 + 2 * 4]
+                                  * rt.elements[2 + 2 * 4]
+                                  + rt.elements[3 + 2 * 4]);
+    }
+
+    public Matrix concat(final Matrix dest, final Matrix rt)
+    {
+        return set(dest,
+                   this.elements[0 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[0 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[0 + 2 * 4] * rt.elements[2 + 0 * 4],
+                   this.elements[1 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[1 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[1 + 2 * 4] * rt.elements[2 + 0 * 4],
+                   this.elements[2 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[2 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[2 + 2 * 4] * rt.elements[2 + 0 * 4],
+                   this.elements[3 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[3 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[3 + 2 * 4] * rt.elements[2 + 0 * 4]
+                           + rt.elements[3 + 0 * 4],
+                   this.elements[0 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[0 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[0 + 2 * 4] * rt.elements[2 + 1 * 4],
+                   this.elements[1 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[1 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[1 + 2 * 4] * rt.elements[2 + 1 * 4],
+                   this.elements[2 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[2 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[2 + 2 * 4] * rt.elements[2 + 1 * 4],
+                   this.elements[3 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[3 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[3 + 2 * 4] * rt.elements[2 + 1 * 4]
+                           + rt.elements[3 + 1 * 4],
+                   this.elements[0 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[0 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[0 + 2 * 4] * rt.elements[2 + 2 * 4],
+                   this.elements[1 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[1 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[1 + 2 * 4] * rt.elements[2 + 2 * 4],
+                   this.elements[2 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[2 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[2 + 2 * 4] * rt.elements[2 + 2 * 4],
+                   this.elements[3 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[3 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[3 + 2 * 4] * rt.elements[2 + 2 * 4]
+                           + rt.elements[3 + 2 * 4]);
+    }
+
+    public Matrix concatAndSet(final Matrix rt)
+    {
+        return set(this,
+                   this.elements[0 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[0 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[0 + 2 * 4] * rt.elements[2 + 0 * 4],
+                   this.elements[1 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[1 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[1 + 2 * 4] * rt.elements[2 + 0 * 4],
+                   this.elements[2 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[2 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[2 + 2 * 4] * rt.elements[2 + 0 * 4],
+                   this.elements[3 + 0 * 4] * rt.elements[0 + 0 * 4]
+                           + this.elements[3 + 1 * 4] * rt.elements[1 + 0 * 4]
+                           + this.elements[3 + 2 * 4] * rt.elements[2 + 0 * 4]
+                           + rt.elements[3 + 0 * 4],
+                   this.elements[0 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[0 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[0 + 2 * 4] * rt.elements[2 + 1 * 4],
+                   this.elements[1 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[1 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[1 + 2 * 4] * rt.elements[2 + 1 * 4],
+                   this.elements[2 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[2 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[2 + 2 * 4] * rt.elements[2 + 1 * 4],
+                   this.elements[3 + 0 * 4] * rt.elements[0 + 1 * 4]
+                           + this.elements[3 + 1 * 4] * rt.elements[1 + 1 * 4]
+                           + this.elements[3 + 2 * 4] * rt.elements[2 + 1 * 4]
+                           + rt.elements[3 + 1 * 4],
+                   this.elements[0 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[0 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[0 + 2 * 4] * rt.elements[2 + 2 * 4],
+                   this.elements[1 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[1 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[1 + 2 * 4] * rt.elements[2 + 2 * 4],
+                   this.elements[2 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[2 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[2 + 2 * 4] * rt.elements[2 + 2 * 4],
+                   this.elements[3 + 0 * 4] * rt.elements[0 + 2 * 4]
+                           + this.elements[3 + 1 * 4] * rt.elements[1 + 2 * 4]
+                           + this.elements[3 + 2 * 4] * rt.elements[2 + 2 * 4]
+                           + rt.elements[3 + 2 * 4]);
     }
 
     @Override
     public String toString()
     {
         StringBuilder s = new StringBuilder("Matrix");
-        for(int y = 0; y < 4; y++)
+        for(int y = 0; y < 3; y++)
         {
             s.append("\n[ ");
             for(int x = 0; x < 4; x++)
             {
-                s.append(get(x, y));
+                s.append(this.elements[x + y * 4]);
                 s.append(" ");
             }
             s.append("]");
         }
+        s.append("\n[ 0 0 0 1 ]");
         return s.toString();
     }
 
@@ -491,61 +986,93 @@ public class Matrix
      * 
      * @param m
      *            the matrix to load */
-    public static void glLoadMatrix(Matrix m)
+    public static void glLoadMatrix(final Matrix m)
     {
         float[] mat = new float[]
         {
-            m.get(0, 0),
-            m.get(0, 1),
-            m.get(0, 2),
-            m.get(0, 3),
-            m.get(1, 0),
-            m.get(1, 1),
-            m.get(1, 2),
-            m.get(1, 3),
-            m.get(2, 0),
-            m.get(2, 1),
-            m.get(2, 2),
-            m.get(2, 3),
-            m.get(3, 0),
-            m.get(3, 1),
-            m.get(3, 2),
-            m.get(3, 3)
+            m.elements[0 + 0 * 4],
+            m.elements[0 + 1 * 4],
+            m.elements[0 + 2 * 4],
+            0,
+            m.elements[1 + 0 * 4],
+            m.elements[1 + 1 * 4],
+            m.elements[1 + 2 * 4],
+            0,
+            m.elements[2 + 0 * 4],
+            m.elements[2 + 1 * 4],
+            m.elements[2 + 2 * 4],
+            0,
+            m.elements[3 + 0 * 4],
+            m.elements[3 + 1 * 4],
+            m.elements[3 + 2 * 4],
+            1
         };
-        FloatBuffer buf = org.lwjgl.BufferUtils.createFloatBuffer(16);
+        FloatBuffer buf = Main.platform.createFloatBuffer(16);
         buf.put(mat);
         buf.flip();
-        GL11.glLoadMatrix(buf);
+        Main.opengl.glLoadMatrix(buf);
     }
 
     /** combine <code>m</code> with the current OpenGL matrix
      * 
      * @param m
      *            the matrix to combine */
-    public static void glMultMatrix(Matrix m)
+    public static void glMultMatrix(final Matrix m)
     {
         float[] mat = new float[]
         {
-            m.get(0, 0),
-            m.get(0, 1),
-            m.get(0, 2),
-            m.get(0, 3),
-            m.get(1, 0),
-            m.get(1, 1),
-            m.get(1, 2),
-            m.get(1, 3),
-            m.get(2, 0),
-            m.get(2, 1),
-            m.get(2, 2),
-            m.get(2, 3),
-            m.get(3, 0),
-            m.get(3, 1),
-            m.get(3, 2),
-            m.get(3, 3)
+            m.elements[0 + 0 * 4],
+            m.elements[0 + 1 * 4],
+            m.elements[0 + 2 * 4],
+            0,
+            m.elements[1 + 0 * 4],
+            m.elements[1 + 1 * 4],
+            m.elements[1 + 2 * 4],
+            0,
+            m.elements[2 + 0 * 4],
+            m.elements[2 + 1 * 4],
+            m.elements[2 + 2 * 4],
+            0,
+            m.elements[3 + 0 * 4],
+            m.elements[3 + 1 * 4],
+            m.elements[3 + 2 * 4],
+            1
         };
-        FloatBuffer buf = org.lwjgl.BufferUtils.createFloatBuffer(32);
+        FloatBuffer buf = Main.platform.createFloatBuffer(32);
         buf.put(mat);
         buf.flip();
-        GL11.glMultMatrix(buf);
+        Main.opengl.glMultMatrix(buf);
     }
+
+    private static class ImmutableMatrix extends Matrix
+    {
+        public ImmutableMatrix(final Matrix m)
+        {
+            super(m);
+        }
+
+        public void unsupportedOp()
+        {
+            throw new UnsupportedOperationException("can't modify a immutable matrix");
+        }
+
+        @Override
+        public void set(final int x, final int y, final float value)
+        {
+            unsupportedOp();
+        }
+
+        @Override
+        public Matrix getImmutable()
+        {
+            return this;
+        }
+    }
+
+    public Matrix getImmutable()
+    {
+        return new ImmutableMatrix(this);
+    }
+
+    public static final Matrix IDENTITY = setToIdentity(new Matrix()).getImmutable();
 }

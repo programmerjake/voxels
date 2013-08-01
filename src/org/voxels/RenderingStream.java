@@ -17,158 +17,262 @@
 package org.voxels;
 
 import java.nio.FloatBuffer;
-import java.util.*;
-
-import org.lwjgl.opengl.GL11;
 
 /** @author jacob */
 public class RenderingStream
 {
+    private static class MatrixNode
+    {
+        public final Matrix mat;
+        public MatrixNode next;
+
+        public MatrixNode()
+        {
+            this.mat = Matrix.setToIdentity(new Matrix());
+            this.next = null;
+        }
+    }
+
+    private static MatrixNode[] freeMatrixHead = new MatrixNode[]
+    {
+        null
+    };
+
+    private static void freeMatrix(final MatrixNode m)
+    {
+        synchronized(freeMatrixHead)
+        {
+            m.next = freeMatrixHead[0];
+            freeMatrixHead[0] = m;
+        }
+    }
+
+    private static MatrixNode allocMatrix()
+    {
+        synchronized(freeMatrixHead)
+        {
+            MatrixNode retval = freeMatrixHead[0];
+            if(retval != null)
+            {
+                freeMatrixHead[0] = retval.next;
+                retval.next = null;
+                Matrix.set(retval.mat, Matrix.IDENTITY);
+                return retval;
+            }
+        }
+        return new MatrixNode();
+    }
+
     /** if <code>RenderingStream</code> should use vertex arrays and the texture
      * atlas */
     public static boolean USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = false;
     private static final boolean USE_TEXTURE_ATLAS = false;
-
-    /** @author jacob */
-    public static final class Polygon
+    private static final TextureAtlas.TextureHandle whiteTexture = TextureAtlas.addImage(new Image(Color.V(1.0f)));
+    /**
+     * 
+     */
+    public static final TextureAtlas.TextureHandle NO_TEXTURE = null;
+    private RenderingStream next = null;
+    private static final RenderingStream[] pool = new RenderingStream[]
     {
-        /** the polygon's texture */
-        public final TextureAtlas.TextureHandle texture;
-        /***/
-        public static final int VERT_SIZE = 3 + 2 + 4;
-        /***/
-        public static final int VERT_X = 0;
-        /***/
-        public static final int VERT_Y = 1;
-        /***/
-        public static final int VERT_Z = 2;
-        /***/
-        public static final int VERT_U = 3;
-        /***/
-        public static final int VERT_V = 4;
-        /***/
-        public static final int VERT_R = 5;
-        /***/
-        public static final int VERT_G = 6;
-        /***/
-        public static final int VERT_B = 7;
-        /***/
-        public static final int VERT_A = 8;
-        /***/
-        public static final int VERT_COUNT = 3;
-        /***/
-        public static final int POLY_COMMAND = GL11.GL_TRIANGLES;
-        /** the polygon's values with each vertex's values in the order pos.x,
-         * pos.y, pos.z, u, v, clr.r, clr.g, clr.b, clr.a */
-        public final float[] values = new float[VERT_SIZE * VERT_COUNT];
-        private int index = 0;
+        null
+    };
 
-        /** @param pos
-         *            the vertex's position
-         * @param u
-         *            the vertex's U texture coordinate
-         * @param v
-         *            the vertex's V texture coordinate
-         * @param clr
-         *            the vertex's color
-         * @return <code>this</code> */
-        public Polygon addVertex(Vector pos, float u, float v, Color clr)
+    public static RenderingStream allocate()
+    {
+        synchronized(pool)
         {
-            this.values[this.index++] = pos.x;
-            this.values[this.index++] = pos.y;
-            this.values[this.index++] = pos.z;
-            this.values[this.index++] = u;
-            this.values[this.index++] = v;
-            this.values[this.index++] = Color.GetRValue(clr) / 255.0f;
-            this.values[this.index++] = Color.GetGValue(clr) / 255.0f;
-            this.values[this.index++] = Color.GetBValue(clr) / 255.0f;
-            this.values[this.index++] = Color.GetAValue(clr) / 255.0f;
-            return this;
-        }
-
-        private static final TextureAtlas.TextureHandle whiteTexture = TextureAtlas.addImage(new Image(Color.V(1.0f)));
-        /**
-         * 
-         */
-        public static final TextureAtlas.TextureHandle NO_TEXTURE = null;
-
-        /** @param texture
-         *            the polygon's texture or <code>NO_TEXTURE</code> */
-        public Polygon(TextureAtlas.TextureHandle texture)
-        {
-            if(texture == NO_TEXTURE)
-                this.texture = whiteTexture;
-            else
-                this.texture = texture;
-        }
-
-        /** construct a copy of a polygon
-         * 
-         * @param rt
-         *            the polygon to copy */
-        public Polygon(Polygon rt)
-        {
-            this.texture = rt.texture;
-            this.index = rt.index;
-            for(int i = 0; i < this.index; i++)
-                this.values[i] = rt.values[i];
-        }
-
-        /** @param index
-         *            the vertex index
-         * @return the point */
-        public Vector getPoint(int index)
-        {
-            return new Vector(this.values[index * VERT_SIZE + VERT_X],
-                              this.values[index * VERT_SIZE + VERT_Y],
-                              this.values[index * VERT_SIZE + VERT_Z]);
-        }
-
-        /** @param index
-         *            the vertex index
-         * @param v
-         *            the new point */
-        public void setPoint(int index, Vector v)
-        {
-            this.values[index * VERT_SIZE + VERT_X] = v.x;
-            this.values[index * VERT_SIZE + VERT_Y] = v.y;
-            this.values[index * VERT_SIZE + VERT_Z] = v.z;
-        }
-
-        /** @param tform
-         *            the transformation
-         * @return new transformed polygon */
-        public Polygon transform(Matrix tform)
-        {
-            Polygon retval = new Polygon(this);
-            for(int i = 0; i < VERT_COUNT; i++)
-                retval.setPoint(i, tform.apply(getPoint(i)));
+            if(pool[0] == null)
+                return new RenderingStream();
+            RenderingStream retval = pool[0];
+            pool[0] = retval.next;
+            retval.clear();
             return retval;
         }
     }
 
-    private final ArrayList<Polygon> polys;
-    private final Deque<Matrix> matrixStack;
+    public static void free(final RenderingStream rs)
+    {
+        if(rs == null)
+            return;
+        synchronized(pool)
+        {
+            rs.next = pool[0];
+            pool[0] = rs;
+        }
+    }
+
+    private static float[] expandArray(final float[] array, final int newSize)
+    {
+        float[] retval = new float[newSize];
+        if(array != null)
+            System.arraycopy(array, 0, retval, 0, array.length);
+        return retval;
+    }
+
+    private static TextureAtlas.TextureHandle[]
+        expandArray(final TextureAtlas.TextureHandle[] array, final int newSize)
+    {
+        TextureAtlas.TextureHandle[] retval = new TextureAtlas.TextureHandle[newSize];
+        System.arraycopy(array, 0, retval, 0, array.length);
+        return retval;
+    }
+
+    private float[] vertexArray = null;
+    private float[] colorArray = null;
+    private float[] texCoordArray = null;
+    private float[] transformedTexCoordArray = null;
+    private TextureAtlas.TextureHandle[] textureArray = new TextureAtlas.TextureHandle[0];
+    private int trianglesUsed = 0;
+    private MatrixNode matrixStack = null;
+    private int trianglePoint = -1;
+
+    public void clear()
+    {
+        this.trianglesUsed = 0;
+        this.next = null;
+        while(this.matrixStack != null)
+        {
+            MatrixNode node = this.matrixStack;
+            this.matrixStack = node.next;
+            freeMatrix(node);
+        }
+        this.matrixStack = allocMatrix();
+        this.matrixStack.next = null;
+        this.trianglePoint = -1;
+    }
 
     /**
 	 * 
 	 */
-    public RenderingStream()
+    private RenderingStream()
     {
-        this.polys = new ArrayList<RenderingStream.Polygon>();
-        this.matrixStack = new LinkedList<Matrix>();
-        this.matrixStack.addFirst(Matrix.identity());
+        this.trianglesUsed = 0;
+        this.next = null;
+        this.matrixStack = allocMatrix();
+        this.matrixStack.next = null;
+        this.trianglePoint = -1;
     }
 
-    /** @param p
-     *            the polygon to add
-     * @return <code>this</code> */
-    public RenderingStream add(Polygon p)
+    public RenderingStream
+        beginTriangle(final TextureAtlas.TextureHandle texture)
     {
-        if(p == null)
-            throw new NullPointerException();
-        this.polys.add(p.transform(this.matrixStack.getFirst()));
+        if(this.trianglePoint >= 0)
+            throw new IllegalStateException("beginTriangle called twice without endTriangle call in between");
+        this.trianglePoint = 0;
+        if(this.trianglesUsed >= this.textureArray.length)
+        {
+            this.textureArray = expandArray(this.textureArray,
+                                            this.textureArray.length + 256);
+            this.vertexArray = expandArray(this.vertexArray,
+                                           this.textureArray.length * 3 * 3);
+            this.colorArray = expandArray(this.colorArray,
+                                          this.textureArray.length * 4 * 3);
+            this.texCoordArray = expandArray(this.texCoordArray,
+                                             this.textureArray.length * 2 * 3);
+            this.transformedTexCoordArray = expandArray(this.transformedTexCoordArray,
+                                                        this.textureArray.length * 2 * 3);
+        }
+        if(texture == NO_TEXTURE)
+            this.textureArray[this.trianglesUsed] = whiteTexture;
+        else
+            this.textureArray[this.trianglesUsed] = texture;
         return this;
+    }
+
+    public RenderingStream endTriangle()
+    {
+        if(this.trianglePoint != 3)
+        {
+            if(this.trianglePoint == -1)
+                throw new IllegalStateException("endTriangle called without beginTriangle call before");
+            throw new IllegalStateException("endTriangle called without three vertex calls before");
+        }
+        this.trianglePoint = -1;
+        this.trianglesUsed++;
+        return this;
+    }
+
+    private Vector vertex_t1 = Vector.allocate();
+
+    public RenderingStream vertex(final float x,
+                                  final float y,
+                                  final float z,
+                                  final float u,
+                                  final float v,
+                                  final float r,
+                                  final float g,
+                                  final float b,
+                                  final float a)
+    {
+        if(this.trianglePoint == -1)
+            throw new IllegalStateException("vertex called without beginTriangle call before");
+        if(this.trianglePoint >= 3)
+            throw new IllegalStateException("missing endTriangle call before");
+        Vector p = this.matrixStack.mat.apply(this.vertex_t1,
+                                              Vector.set(this.vertex_t1,
+                                                         x,
+                                                         y,
+                                                         z));
+        int vi = (this.trianglePoint + 3 * this.trianglesUsed) * 3;
+        int ci = (this.trianglePoint + 3 * this.trianglesUsed) * 4;
+        int ti = (this.trianglePoint + 3 * this.trianglesUsed) * 2;
+        this.trianglePoint++;
+        this.colorArray[ci++] = r;
+        this.colorArray[ci++] = g;
+        this.colorArray[ci++] = b;
+        this.colorArray[ci] = a;
+        this.vertexArray[vi++] = p.getX();
+        this.vertexArray[vi++] = p.getY();
+        this.vertexArray[vi] = p.getZ();
+        this.texCoordArray[ti++] = u;
+        this.texCoordArray[ti] = v;
+        return this;
+    }
+
+    public RenderingStream vertex(final Vector p,
+                                  final float u,
+                                  final float v,
+                                  final float r,
+                                  final float g,
+                                  final float b,
+                                  final float a)
+    {
+        return vertex(p.getX(), p.getY(), p.getZ(), u, v, r, g, b, a);
+    }
+
+    public RenderingStream vertex(final Vector p,
+                                  final float u,
+                                  final float v,
+                                  final Color c)
+    {
+        return vertex(p.getX(),
+                      p.getY(),
+                      p.getZ(),
+                      u,
+                      v,
+                      Color.GetRValue(c) / 255f,
+                      Color.GetGValue(c) / 255f,
+                      Color.GetBValue(c) / 255f,
+                      Color.GetAValue(c) / 255f);
+    }
+
+    public RenderingStream vertex(final float x,
+                                  final float y,
+                                  final float z,
+                                  final float u,
+                                  final float v,
+                                  final Color c)
+    {
+        return vertex(x,
+                      y,
+                      z,
+                      u,
+                      v,
+                      Color.GetRValue(c) / 255f,
+                      Color.GetGValue(c) / 255f,
+                      Color.GetBValue(c) / 255f,
+                      Color.GetAValue(c) / 255f);
     }
 
     /** insert a new rectangle from &lt;<code>x1</code>, <code>y1</code>, 0&gt;
@@ -195,34 +299,34 @@ public class RenderingStream
      * @param texture
      *            the texture or <code>Polygon.NO_TEXTURE</code>
      * @return <code>this</code> */
-    public RenderingStream addRect(float x1,
-                                   float y1,
-                                   float x2,
-                                   float y2,
-                                   float u1,
-                                   float v1,
-                                   float u2,
-                                   float v2,
-                                   Color color,
-                                   TextureAtlas.TextureHandle texture)
+    public RenderingStream addRect(final float x1,
+                                   final float y1,
+                                   final float x2,
+                                   final float y2,
+                                   final float u1,
+                                   final float v1,
+                                   final float u2,
+                                   final float v2,
+                                   final Color color,
+                                   final TextureAtlas.TextureHandle texture)
     {
-        Polygon p1 = new Polygon(texture);
-        p1.addVertex(new Vector(x1, y1, 0), u1, v1, color);
-        p1.addVertex(new Vector(x2, y1, 0), u2, v1, color);
-        p1.addVertex(new Vector(x2, y2, 0), u2, v2, color);
-        add(p1);
-        Polygon p2 = new RenderingStream.Polygon(texture);
-        p2.addVertex(new Vector(x2, y2, 0), u2, v2, color);
-        p2.addVertex(new Vector(x1, y2, 0), u1, v2, color);
-        p2.addVertex(new Vector(x1, y1, 0), u1, v1, color);
-        add(p2);
+        beginTriangle(texture);
+        vertex(x1, y1, 0, u1, v1, color);
+        vertex(x2, y1, 0, u2, v1, color);
+        vertex(x2, y2, 0, u2, v2, color);
+        endTriangle();
+        beginTriangle(texture);
+        vertex(x2, y2, 0, u2, v2, color);
+        vertex(x1, y2, 0, u1, v2, color);
+        vertex(x1, y1, 0, u1, v1, color);
+        endTriangle();
         return this;
     }
 
     /** @return the current matrix */
     public Matrix getMatrix()
     {
-        return new Matrix(this.matrixStack.getFirst());
+        return this.matrixStack.mat;
     }
 
     /**
@@ -230,27 +334,29 @@ public class RenderingStream
 	 */
     public void pushMatrixStack()
     {
-        this.matrixStack.addFirst(new Matrix(this.matrixStack.getFirst()));
+        Matrix oldMat = this.matrixStack.mat;
+        MatrixNode newNode = allocMatrix();
+        Matrix.set(newNode.mat, oldMat);
+        newNode.next = this.matrixStack;
+        this.matrixStack = newNode;
     }
 
     /** @param mat
      *            the matrix to set to */
-    public void setMatrix(Matrix mat)
+    public void setMatrix(final Matrix mat)
     {
         if(mat == null)
             throw new NullPointerException();
-        this.matrixStack.removeFirst();
-        this.matrixStack.addFirst(new Matrix(mat));
+        Matrix.set(this.matrixStack.mat, mat);
     }
 
     /** @param mat
      *            the matrix to concat to */
-    public void concatMatrix(Matrix mat)
+    public void concatMatrix(final Matrix mat)
     {
         if(mat == null)
             throw new NullPointerException();
-        Matrix addMat = mat.concat(this.matrixStack.removeFirst());
-        this.matrixStack.addFirst(addMat);
+        mat.concat(this.matrixStack.mat, this.matrixStack.mat);
     }
 
     /**
@@ -258,151 +364,169 @@ public class RenderingStream
 	 */
     public void popMatrixStack()
     {
-        this.matrixStack.removeFirst();
+        if(this.matrixStack.next == null)
+            throw new IllegalStateException("can not pop the last matrix off the stack");
+        MatrixNode node = this.matrixStack;
+        this.matrixStack = this.matrixStack.next;
+        freeMatrix(node);
     }
 
     /** @param rs
      *            the rendering stream
      * @return <code>this</code> */
-    public RenderingStream add(RenderingStream rs)
+    public RenderingStream add(final RenderingStream rs)
     {
         if(rs == null)
             throw new NullPointerException();
         assert rs != this;
-        for(Polygon p : rs.polys)
-            add(p);
+        for(int tri = 0, vi = 0, ci = 0, ti = 0; tri < rs.trianglesUsed; tri++)
+        {
+            beginTriangle(rs.textureArray[tri]);
+            for(int i = 0; i < 3; i++)
+            {
+                float x = rs.vertexArray[vi++];
+                float y = rs.vertexArray[vi++];
+                float z = rs.vertexArray[vi++];
+                float u = rs.texCoordArray[ti++];
+                float v = rs.texCoordArray[ti++];
+                float r = rs.colorArray[ci++];
+                float g = rs.colorArray[ci++];
+                float b = rs.colorArray[ci++];
+                float a = rs.colorArray[ci++];
+                vertex(x, y, z, u, v, r, g, b, a);
+            }
+            endTriangle();
+        }
         return this;
     }
 
-    /**
-	 * 
-	 */
-    public void render()
+    private FloatBuffer vertexBuffer = null;
+    private FloatBuffer texCoordBuffer = null;
+    private FloatBuffer colorBuffer = null;
+
+    private FloatBuffer checkBufferLength(final FloatBuffer origBuffer,
+                                          final int minLength)
     {
+        if(origBuffer == null || origBuffer.capacity() < minLength)
+            return Main.platform.createFloatBuffer(minLength);
+        return origBuffer;
+    }
+
+    /** @return this */
+    public RenderingStream render()
+    {
+        if(this.trianglePoint != -1)
+            throw new IllegalStateException("render called between beginTriangle and endTriangle");
+        if(this.trianglesUsed <= 0)
+            return this;
         if(USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS)
         {
-            FloatBuffer vertexArray = org.lwjgl.BufferUtils.createFloatBuffer(Polygon.VERT_COUNT
-                    * 3 * this.polys.size());
-            FloatBuffer textureArray = org.lwjgl.BufferUtils.createFloatBuffer(Polygon.VERT_COUNT
-                    * 2 * this.polys.size());
-            FloatBuffer colorArray = org.lwjgl.BufferUtils.createFloatBuffer(Polygon.VERT_COUNT
-                    * 4 * this.polys.size());
-            for(Polygon p : this.polys)
-            {
-                for(int i = 0; i < Polygon.VERT_COUNT; i++)
-                {
-                    vertexArray.put(p.values[i * Polygon.VERT_SIZE
-                            + Polygon.VERT_X]);
-                    vertexArray.put(p.values[i * Polygon.VERT_SIZE
-                            + Polygon.VERT_Y]);
-                    vertexArray.put(p.values[i * Polygon.VERT_SIZE
-                            + Polygon.VERT_Z]);
-                    colorArray.put(p.values[i * Polygon.VERT_SIZE
-                            + Polygon.VERT_R]);
-                    colorArray.put(p.values[i * Polygon.VERT_SIZE
-                            + Polygon.VERT_G]);
-                    colorArray.put(p.values[i * Polygon.VERT_SIZE
-                            + Polygon.VERT_B]);
-                    colorArray.put(p.values[i * Polygon.VERT_SIZE
-                            + Polygon.VERT_A]);
-                }
-            }
-            Image texImage = TextureAtlas.transformTextureCoords(this.polys,
-                                                                 textureArray);
-            vertexArray.flip();
-            textureArray.flip();
-            colorArray.flip();
-            GL11.glFlush();
-            GL11.glEnableClientState(GL11.GL_COLOR_ARRAY);
-            GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-            GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-            GL11.glVertexPointer(3, 0, vertexArray);
-            GL11.glTexCoordPointer(2, 0, textureArray);
-            GL11.glColorPointer(4, 0, colorArray);
+            this.vertexBuffer = checkBufferLength(this.vertexBuffer,
+                                                  this.vertexArray.length);
+            this.texCoordBuffer = checkBufferLength(this.texCoordBuffer,
+                                                    this.texCoordArray.length);
+            this.colorBuffer = checkBufferLength(this.colorBuffer,
+                                                 this.colorArray.length);
+            Image texImage = TextureAtlas.transformTextureCoords(this.texCoordArray,
+                                                                 this.textureArray,
+                                                                 this.trianglesUsed,
+                                                                 this.transformedTexCoordArray);
+            Main.opengl.glFinish();
+            Main.opengl.glEnableClientState(Main.opengl.GL_COLOR_ARRAY());
+            Main.opengl.glEnableClientState(Main.opengl.GL_TEXTURE_COORD_ARRAY());
+            Main.opengl.glEnableClientState(Main.opengl.GL_VERTEX_ARRAY());
+            this.colorBuffer.clear();
+            this.colorBuffer.put(this.colorArray, 0, this.trianglesUsed * 4 * 3);
+            this.colorBuffer.flip();
+            this.texCoordBuffer.clear();
+            this.texCoordBuffer.put(this.transformedTexCoordArray,
+                                    0,
+                                    this.trianglesUsed * 2 * 3);
+            this.vertexBuffer.clear();
+            this.vertexBuffer.put(this.vertexArray,
+                                  0,
+                                  this.trianglesUsed * 3 * 3);
+            this.vertexBuffer.flip();
+            Main.opengl.glVertexPointer(this.vertexBuffer);
+            Main.opengl.glTexCoordPointer(this.texCoordBuffer);
+            Main.opengl.glColorPointer(this.colorBuffer);
             texImage.selectTexture();
-            GL11.glDrawArrays(Polygon.POLY_COMMAND, 0, Polygon.VERT_COUNT
-                    * this.polys.size());
-            GL11.glFlush();
-            GL11.glDisableClientState(GL11.GL_COLOR_ARRAY);
-            GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-            GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
+            Main.opengl.glDrawArrays(Main.opengl.GL_TRIANGLES(),
+                                     0,
+                                     this.trianglesUsed * 3);
+            Main.opengl.glFinish();
+            Main.opengl.glDisableClientState(Main.opengl.GL_COLOR_ARRAY());
+            Main.opengl.glDisableClientState(Main.opengl.GL_TEXTURE_COORD_ARRAY());
+            Main.opengl.glDisableClientState(Main.opengl.GL_VERTEX_ARRAY());
         }
         else if(USE_TEXTURE_ATLAS)
         {
-            FloatBuffer textureArray = FloatBuffer.allocate(Polygon.VERT_COUNT
-                    * 2 * this.polys.size());
-            Image texImage = TextureAtlas.transformTextureCoords(this.polys,
-                                                                 textureArray);
-            textureArray.flip();
+            Image texImage = TextureAtlas.transformTextureCoords(this.texCoordArray,
+                                                                 this.textureArray,
+                                                                 this.trianglesUsed,
+                                                                 this.transformedTexCoordArray);
             texImage.selectTexture();
-            GL11.glBegin(Polygon.POLY_COMMAND);
-            for(Polygon p : this.polys)
+            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+            int ti = 0, ci = 0, vi = 0;
+            for(int tri = 0; tri < this.trianglesUsed; tri++)
             {
-                for(int vertex = 0; vertex < Polygon.VERT_COUNT; vertex++)
+                for(int vertex = 0; vertex < 3; vertex++)
                 {
-                    GL11.glColor4f(p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_R],
-                                   p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_G],
-                                   p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_B],
-                                   p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_A]);
-                    float u = textureArray.get();
-                    float v = textureArray.get();
-                    GL11.glTexCoord2f(u, v);
-                    GL11.glVertex3f(p.values[vertex * Polygon.VERT_SIZE
-                                            + Polygon.VERT_X],
-                                    p.values[vertex * Polygon.VERT_SIZE
-                                            + Polygon.VERT_Y],
-                                    p.values[vertex * Polygon.VERT_SIZE
-                                            + Polygon.VERT_Z]);
+                    float r = this.colorArray[ci++];
+                    float g = this.colorArray[ci++];
+                    float b = this.colorArray[ci++];
+                    float a = this.colorArray[ci++];
+                    Main.opengl.glColor4f(r, g, b, a);
+                    float u = this.texCoordArray[ti++];
+                    float v = this.texCoordArray[ti++];
+                    Main.opengl.glTexCoord2f(u, v);
+                    float x = this.vertexArray[vi++];
+                    float y = this.vertexArray[vi++];
+                    float z = this.vertexArray[vi++];
+                    Main.opengl.glVertex3f(x, y, z);
                 }
             }
-            GL11.glEnd();
+            Main.opengl.glEnd();
         }
         else
         {
             boolean insideBeginEnd = false;
-            for(Polygon p : this.polys)
+            int ti = 0, ci = 0, vi = 0;
+            for(int tri = 0; tri < this.trianglesUsed; tri++)
             {
-                if(!p.texture.getImage().isSelected())
+                if(!this.textureArray[tri].getImage().isSelected())
                 {
                     if(insideBeginEnd)
                     {
-                        GL11.glEnd();
+                        Main.opengl.glEnd();
                         insideBeginEnd = false;
                     }
-                    p.texture.getImage().selectTexture();
+                    this.textureArray[tri].getImage().selectTexture();
                 }
                 if(!insideBeginEnd)
                 {
-                    GL11.glBegin(Polygon.POLY_COMMAND);
+                    Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
                     insideBeginEnd = true;
                 }
-                for(int vertex = 0; vertex < Polygon.VERT_COUNT; vertex++)
+                for(int vertex = 0; vertex < 3; vertex++)
                 {
-                    GL11.glColor4f(p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_R],
-                                   p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_G],
-                                   p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_B],
-                                   p.values[vertex * Polygon.VERT_SIZE
-                                           + Polygon.VERT_A]);
-                    GL11.glTexCoord2f(p.values[vertex * Polygon.VERT_SIZE
-                            + Polygon.VERT_U], p.values[vertex
-                            * Polygon.VERT_SIZE + Polygon.VERT_V]);
-                    GL11.glVertex3f(p.values[vertex * Polygon.VERT_SIZE
-                                            + Polygon.VERT_X],
-                                    p.values[vertex * Polygon.VERT_SIZE
-                                            + Polygon.VERT_Y],
-                                    p.values[vertex * Polygon.VERT_SIZE
-                                            + Polygon.VERT_Z]);
+                    float r = this.colorArray[ci++];
+                    float g = this.colorArray[ci++];
+                    float b = this.colorArray[ci++];
+                    float a = this.colorArray[ci++];
+                    Main.opengl.glColor4f(r, g, b, a);
+                    float u = this.texCoordArray[ti++];
+                    float v = this.texCoordArray[ti++];
+                    Main.opengl.glTexCoord2f(u, v);
+                    float x = this.vertexArray[vi++];
+                    float y = this.vertexArray[vi++];
+                    float z = this.vertexArray[vi++];
+                    Main.opengl.glVertex3f(x, y, z);
                 }
             }
             if(insideBeginEnd)
-                GL11.glEnd();
+                Main.opengl.glEnd();
         }
+        return this;
     }
 }

@@ -53,14 +53,14 @@ public final class Rand
          *            <code>OutputStream</code> to write to
          * @throws IOException
          *             the exception thrown */
-        public void write(DataOutput o) throws IOException
+        public void write(final DataOutput o) throws IOException
         {
             o.writeInt(version);
             o.writeBoolean(this.isSuperflat);
         }
 
         private void
-            internalReadVer0(DataInput i, int curVersion) throws IOException
+            internalReadVer0(final DataInput i, final int curVersion) throws IOException
         {
             if(curVersion != 0)
                 throw new IOException("invalid Rand.Settings version");
@@ -74,7 +74,7 @@ public final class Rand
          * @return the read <code>Settings</code>
          * @throws IOException
          *             the exception thrown */
-        public static Settings read(DataInput i) throws IOException
+        public static Settings read(final DataInput i) throws IOException
         {
             Settings retval = new Settings();
             int curVersion = i.readInt();
@@ -100,13 +100,13 @@ public final class Rand
             this.settings = new Settings();
             add(new CheckMenuItem("Superflat",
                                   Color.RGB(0f, 0f, 0f),
-                                  this.getBackgroundColor(),
+                                  getBackgroundColor(),
                                   Color.RGB(0f, 0f, 0f),
                                   Color.RGB(0.0f, 0.0f, 1.0f),
                                   this)
             {
                 @Override
-                public void setChecked(boolean checked)
+                public void setChecked(final boolean checked)
                 {
                     SettingsCreatorMenu.this.settings.isSuperflat = checked;
                 }
@@ -120,38 +120,46 @@ public final class Rand
             add(new SpacerMenuItem(Color.V(0), this));
             add(new TextMenuItem("Create World",
                                  Color.RGB(0.0f, 0.0f, 0.0f),
-                                 this.getBackgroundColor(),
+                                 getBackgroundColor(),
                                  Color.RGB(0.0f, 0.0f, 0.0f),
                                  Color.RGB(0.0f, 0.0f, 1.0f),
                                  this)
             {
                 @Override
-                public void onMouseOver(float mouseX, float mouseY)
+                public void onMouseOver(final float mouseX, final float mouseY)
                 {
                     select();
                 }
 
                 @Override
-                public void onClick(float mouseX, float mouseY)
+                public void onClick(final float mouseX, final float mouseY)
                 {
                     this.container.close();
                 }
             });
         }
 
+        private static Matrix drawBackground_t1 = new Matrix();
+        private static Matrix drawBackground_t2 = new Matrix();
+
         @Override
-        protected void drawBackground(Matrix tform)
+        protected void drawBackground(final Matrix tform)
         {
             super.drawBackground(tform);
             String str = "New World Settings";
             float xScale = 2f / 40f;
-            Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
-                            .concat(Matrix.translate(-xScale / 2f
-                                                             * Text.sizeW(str)
-                                                             / Text.sizeW("A"),
-                                                     0.7f,
-                                                     0))
-                            .concat(tform),
+            Text.draw(Matrix.setToScale(drawBackground_t1,
+                                        xScale,
+                                        2f / 40f,
+                                        1.0f)
+                            .concatAndSet(Matrix.setToTranslate(drawBackground_t2,
+                                                                -xScale
+                                                                        / 2f
+                                                                        * Text.sizeW(str)
+                                                                        / Text.sizeW("A"),
+                                                                0.7f,
+                                                                0))
+                            .concatAndSet(tform),
                       Color.RGB(0, 0, 0),
                       str);
         }
@@ -163,7 +171,7 @@ public final class Rand
      */
     public final boolean isSuperflat;
 
-    private Rand(int seed, Settings settings)
+    private Rand(final int seed, final Settings settings)
     {
         this.seed = seed;
         this.isSuperflat = settings.isSuperflat;
@@ -172,7 +180,7 @@ public final class Rand
             this.treeChunkHashTableSync[i] = new Object();
     }
 
-    private Rand(Settings settings)
+    private Rand(final Settings settings)
     {
         this.seed = new Random().nextInt();
         this.isSuperflat = settings.isSuperflat;
@@ -184,7 +192,7 @@ public final class Rand
     /** @param settings
      *            the land generator settings
      * @return new land generator */
-    public static Rand create(Settings settings)
+    public static Rand create(final Settings settings)
     {
         Settings s = settings;
         if(s == null)
@@ -196,11 +204,7 @@ public final class Rand
             retval = new Rand(s);
             rockHeight = retval.getRockHeight(0, 0);
         }
-        while(rockHeight < WaterHeight
-                || (Main.DEBUG && !retval.getBiomeName(0, 0)
-                                         .equals("Extreme Hills")) // TODO
-                // finish
-                || retval.isInCave(0, rockHeight, 0)
+        while(rockHeight < WaterHeight || retval.isInCave(0, rockHeight, 0)
                 || retval.getTree(0, 0, true) != null);
         return retval;
     }
@@ -210,7 +214,7 @@ public final class Rand
      * @param settings
      *            the land generator settings
      * @return new land generator */
-    public static Rand create(int seed, Settings settings)
+    public static Rand create(final int seed, final Settings settings)
     {
         Settings s = settings;
         if(s == null)
@@ -239,7 +243,12 @@ public final class Rand
         BiomeTemperature,
         BiomeRainfall,
         BiomeHeight,
-        Vect/* Vect must be last */
+        Vect/*
+             * Vect
+             * must
+             * be
+             * last
+             */
     }
 
     private static class Node
@@ -254,7 +263,7 @@ public final class Rand
 
     private Node[] hashTable = new Node[hashPrime];
 
-    private int genHash(int x, int y, int z, int rc)
+    private int genHash(final int x, final int y, final int z, final int rc)
     {
         long retval = x + 9L * (y + 9L * (z + 9L * rc));
         retval %= hashPrime;
@@ -265,7 +274,7 @@ public final class Rand
 
     private Object genRandSyncObj = new Object();
 
-    private float genRand(int x, int y, int z, int w)
+    private float genRand(final int x, final int y, final int z, final int w)
     {
         synchronized(this.genRandSyncObj)
         {
@@ -306,27 +315,33 @@ public final class Rand
         }
     }
 
-    private float genRand(int x, int y, int z, RandClass rc)
+    private float genRand(final int x,
+                          final int y,
+                          final int z,
+                          final RandClass rc)
     {
         return genRand(x, y, z, rc.ordinal());
     }
 
-    private Vector genRandV(int x, int y, int z)
+    private Vector genRandV(final int x, final int y, final int z)
     {
-        Vector retval = new Vector();
+        Vector retval = Vector.allocate();
         int w = RandClass.Vect.ordinal();
         do
         {
-            retval.x = genRand(x, y, z, w++) * 2.0f - 1.0f;
-            retval.y = genRand(x, y, z, w++) * 2.0f - 1.0f;
-            retval.z = genRand(x, y, z, w++) * 2.0f - 1.0f;
+            retval.setX(genRand(x, y, z, w++) * 2.0f - 1.0f);
+            retval.setY(genRand(x, y, z, w++) * 2.0f - 1.0f);
+            retval.setZ(genRand(x, y, z, w++) * 2.0f - 1.0f);
         }
         while(retval.abs() > 1.0f || retval.abs() < 0.0001f);
         return retval;
     }
 
     @SuppressWarnings("unused")
-    private float getNoise(float x, float y, float z, RandClass rc)
+    private float getNoise(final float x,
+                           final float y,
+                           final float z,
+                           final RandClass rc)
     {
         int xmin = (int)Math.floor(x);
         int xmax = xmin + 1;
@@ -357,12 +372,12 @@ public final class Rand
         return v0 * nfx + v1 * fx;
     }
 
-    private float getFractalNoise(float x_in,
-                                  float y_in,
-                                  float z_in,
-                                  RandClass rc,
-                                  int iterations,
-                                  float roughness)
+    private float getFractalNoise(final float x_in,
+                                  final float y_in,
+                                  final float z_in,
+                                  final RandClass rc,
+                                  final int iterations,
+                                  final float roughness)
     {
         float retval = 0;
         float factor = 1.0f;
@@ -406,7 +421,7 @@ public final class Rand
 
     private final float biomeScale = 128f;
 
-    private float getInternalBiomeTemperature(int x, int z)
+    private float getInternalBiomeTemperature(final int x, final int z)
     {
         return Math.max(Math.min(getFractalNoise(x / this.biomeScale,
                                                  0,
@@ -417,7 +432,7 @@ public final class Rand
                                  1.0f), 0.0f);
     }
 
-    private float getInternalBiomeRainfall(int x, int z)
+    private float getInternalBiomeRainfall(final int x, final int z)
     {
         return Math.max(Math.min(getFractalNoise(x / this.biomeScale,
                                                  0,
@@ -428,7 +443,7 @@ public final class Rand
                                  1.0f), 0.0f);
     }
 
-    private float getInternalBiomeHeight(int x, int z)
+    private float getInternalBiomeHeight(final int x, final int z)
     {
         return Math.max(Math.min(getFractalNoise(x / this.biomeScale,
                                                  0,
@@ -462,15 +477,15 @@ public final class Rand
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 return (1f - height) * 15f;
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 return 0f;
             }
@@ -510,6 +525,12 @@ public final class Rand
             {
                 return Block.NewSand();
             }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewSand();
+            }
         },
         ExtremeHills
         {
@@ -532,9 +553,9 @@ public final class Rand
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 float retval = height;
                 retval *= retval;
@@ -546,7 +567,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 if(tt == TreeType.Oak)
                     return 0.002f;
@@ -588,6 +609,12 @@ public final class Rand
             {
                 return Block.NewGrass();
             }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewDirt();
+            }
         },
         Taiga
         {
@@ -628,9 +655,9 @@ public final class Rand
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 float retval = 1.0f - Math.abs(height - 0.5f);
                 retval *= 1.0f - Math.abs(rainfall - getRainfall());
@@ -639,7 +666,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 switch(tt)
                 {
@@ -671,6 +698,12 @@ public final class Rand
             public Block getSurfaceBlock()
             {
                 return Block.NewGrass();
+            }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewDirt();
             }
         },
         Tundra
@@ -712,9 +745,9 @@ public final class Rand
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 float retval = 1.0f - Math.abs(height - getHeight());
                 retval *= retval;
@@ -723,7 +756,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 if(tt == TreeType.Oak)
                     return 0.005f;
@@ -746,6 +779,12 @@ public final class Rand
             public Block getSurfaceBlock()
             {
                 return Block.NewGrass();
+            }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewDirt();
             }
         },
         Forest
@@ -787,9 +826,9 @@ public final class Rand
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 float retval = 1.0f - Math.abs(height - 0.4f);
                 retval *= 1.0f - Math.abs(rainfall - getRainfall());
@@ -798,7 +837,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 if(tt == TreeType.Oak)
                     return 1 / 20f;
@@ -823,6 +862,12 @@ public final class Rand
             public Block getSurfaceBlock()
             {
                 return Block.NewGrass();
+            }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewDirt();
             }
         },
         Desert
@@ -860,14 +905,13 @@ public final class Rand
             @Override
             public float getHeightFrequency()
             {
-                // TODO Auto-generated method stub
                 return 0.01f;
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 float retval = 1.0f - Math.abs(height - 0.5f);
                 retval *= 1.0f - Math.abs(rainfall - getRainfall());
@@ -876,7 +920,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 return 0;
             }
@@ -898,20 +942,24 @@ public final class Rand
             {
                 return Block.NewSand();
             }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewSand();
+            }
         },
         Plains
         {
             @Override
             public float getRainfall()
             {
-                // TODO Auto-generated method stub
                 return 0.33f;
             }
 
             @Override
             public float getTemperature()
             {
-                // TODO Auto-generated method stub
                 return 0.66f;
             }
 
@@ -940,9 +988,9 @@ public final class Rand
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 float retval = 1.0f - Math.abs(height - 0.5f);
                 retval *= 1.0f - Math.abs(rainfall - getRainfall());
@@ -951,7 +999,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 return 0;
             }
@@ -972,6 +1020,12 @@ public final class Rand
             public Block getSurfaceBlock()
             {
                 return Block.NewGrass();
+            }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewDirt();
             }
         },
         Jungle
@@ -1013,9 +1067,9 @@ public final class Rand
             }
 
             @Override
-            public float getCorrespondence(float rainfall,
-                                           float temperature,
-                                           float height)
+            public float getCorrespondence(final float rainfall,
+                                           final float temperature,
+                                           final float height)
             {
                 float retval = 1.0f - Math.abs(height - 0.5f);
                 retval *= 1.0f - Math.abs(rainfall - getRainfall());
@@ -1024,7 +1078,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(TreeType tt)
+            public float getTreeProb(final TreeType tt)
             {
                 if(tt == TreeType.Jungle)
                     return 1 / 20f;
@@ -1049,6 +1103,12 @@ public final class Rand
             public Block getSurfaceBlock()
             {
                 return Block.NewGrass();
+            }
+
+            @Override
+            public Block getSubSurfaceBlock()
+            {
+                return Block.NewDirt();
             }
         },
         ;
@@ -1077,6 +1137,8 @@ public final class Rand
         public abstract float getSnow();
 
         public abstract Block getSurfaceBlock();
+
+        public abstract Block getSubSurfaceBlock();
     }
 
     private static final class BiomeFactorsChunk
@@ -1085,7 +1147,7 @@ public final class Rand
         public final float[][] biomeFactors = new float[size * size][];
         public final int cx, cz;
 
-        public BiomeFactorsChunk(int cx, int cz)
+        public BiomeFactorsChunk(final int cx, final int cz)
         {
             this.cx = cx;
             this.cz = cz;
@@ -1095,18 +1157,18 @@ public final class Rand
             }
         }
 
-        public float[] get(int x, int z)
+        public float[] get(final int x, final int z)
         {
             return this.biomeFactors[x + size * z];
         }
 
-        public void set(int x, int z, float[] v)
+        public void set(final int x, final int z, final float[] v)
         {
             this.biomeFactors[x + size * z] = v;
         }
     }
 
-    private void initBiomeFactorsChunk(BiomeFactorsChunk bfc)
+    private void initBiomeFactorsChunk(final BiomeFactorsChunk bfc)
     {
         Integer[] indirArray = new Integer[Biome.values.length];
         for(int x = 0; x < BiomeFactorsChunk.size; x++)
@@ -1140,14 +1202,15 @@ public final class Rand
                 }
                 for(int i = 0; i < biomeFactors.length; i++)
                 {
-                    indirArray[i] = new Integer(i);
+                    indirArray[i] = Integer.valueOf(i);
                 }
                 Arrays.sort(indirArray, new Comparator<Integer>()
                 {
                     @Override
-                    public int compare(Integer o1, Integer o2) // sort in
-                                                               // descending
-                                                               // order
+                    public int compare(final Integer o1, final Integer o2) // sort
+                                                                           // in
+                    // descending
+                    // order
                     {
                         int v1 = o1.intValue(), v2 = o2.intValue();
                         float f1 = biomeFactors[v1], f2 = biomeFactors[v2];
@@ -1158,7 +1221,7 @@ public final class Rand
                         return -1;
                     }
                 });
-                final int keepCount = 2;
+                final int keepCount = 20000;
                 for(int i = keepCount; i < indirArray.length; i++)
                 {
                     biomeFactors[indirArray[i].intValue()] = 0.0f;
@@ -1183,7 +1246,7 @@ public final class Rand
             this.biomeFactorsHashTableSync[i] = new Object();
     }
 
-    private Object getBiomeFactorsSynchronizeObject(int x, int z)
+    private Object getBiomeFactorsSynchronizeObject(final int x, final int z)
     {
         int cx = x - (x & (BiomeFactorsChunk.size - 1));
         int cz = z - (z & (BiomeFactorsChunk.size - 1));
@@ -1192,7 +1255,7 @@ public final class Rand
     }
 
     // must synchronize over call and all accesses to the return value
-    private float[] getBiomeFactors(int x, int z)
+    private float[] getBiomeFactors(final int x, final int z)
     {
         int cx = x - (x & (BiomeFactorsChunk.size - 1));
         int cz = z - (z & (BiomeFactorsChunk.size - 1));
@@ -1216,7 +1279,7 @@ public final class Rand
      *            the z coordinate
      * @return the biome temperature */
     @SuppressWarnings("unused")
-    private float getBiomeTemperature(int x, int z)
+    private float getBiomeTemperature(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1235,7 +1298,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the amount of snow */
-    private float getBiomeSnow(int x, int z)
+    private float getBiomeSnow(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1251,16 +1314,22 @@ public final class Rand
 
     private static final class XZPosition
     {
-        public final int x, z;
+        public int x, z;
 
-        public XZPosition(int x, int z)
+        public XZPosition(final int x, final int z)
         {
             this.x = x;
             this.z = z;
         }
 
+        public XZPosition(final XZPosition rt)
+        {
+            this.x = rt.x;
+            this.z = rt.z;
+        }
+
         @Override
-        public boolean equals(Object obj)
+        public boolean equals(final Object obj)
         {
             if(obj == null || !(obj instanceof XZPosition))
                 return false;
@@ -1277,7 +1346,7 @@ public final class Rand
 
     private Map<XZPosition, String> biomeNameMap = new HashMap<XZPosition, String>();
 
-    private String internalGetBiomeName(int x, int z)
+    private String internalGetBiomeName(final int x, final int z)
     {
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
         {
@@ -1296,7 +1365,7 @@ public final class Rand
         }
     }
 
-    private Block getBiomeSurfaceBlock(int x, int z)
+    private Block getBiomeSurfaceBlock(final int x, final int z)
     {
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
         {
@@ -1315,21 +1384,44 @@ public final class Rand
         }
     }
 
+    private Block getBiomeSubSurfaceBlock(final int x, final int z)
+    {
+        synchronized(getBiomeFactorsSynchronizeObject(x, z))
+        {
+            float[] factors = getBiomeFactors(x, z);
+            Biome retval = Biome.values[0];
+            float v = factors[0];
+            for(int i = 1; i < factors.length; i++)
+            {
+                if(factors[i] > v)
+                {
+                    retval = Biome.values[i];
+                    v = factors[i];
+                }
+            }
+            return retval.getSubSurfaceBlock();
+        }
+    }
+
+    private XZPosition getBiomeName_t1 = new XZPosition(0, 0);
+
     /** @param x
      *            the x coordinate
      * @param z
      *            the z coordinate
      * @return the biome name */
-    public String getBiomeName(int x, int z)
+    public String getBiomeName(final int x, final int z)
     {
         synchronized(this.biomeNameMap)
         {
-            XZPosition p = new XZPosition(x, z);
+            XZPosition p = this.getBiomeName_t1;
+            p.x = x;
+            p.z = z;
             String retval = this.biomeNameMap.get(p);
             if(retval == null)
             {
                 retval = internalGetBiomeName(x, z);
-                this.biomeNameMap.put(p, retval);
+                this.biomeNameMap.put(new XZPosition(p), retval);
             }
             return retval;
         }
@@ -1341,7 +1433,7 @@ public final class Rand
      *            the z coordinate
      * @return the biome rain fall */
     @SuppressWarnings("unused")
-    private float getBiomeRainfall(int x, int z)
+    private float getBiomeRainfall(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1360,7 +1452,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the biome height */
-    private float getBiomeHeight(int x, int z)
+    private float getBiomeHeight(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1379,7 +1471,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the biome roughness */
-    private float getBiomeRoughness(int x, int z)
+    private float getBiomeRoughness(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1398,7 +1490,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the biome height variation */
-    private float getBiomeHeightVariation(int x, int z)
+    private float getBiomeHeightVariation(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1417,7 +1509,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the biome height frequency */
-    private float getBiomeHeightFrequency(int x, int z)
+    private float getBiomeHeightFrequency(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1431,7 +1523,8 @@ public final class Rand
         return retval;
     }
 
-    private float getRockHeightNoiseH(float x, float z, int i)
+    private float
+        getRockHeightNoiseH(final float x, final float z, final int i)
     {
         int xmin = (int)Math.floor(x);
         int xmax = xmin + 1;
@@ -1450,7 +1543,7 @@ public final class Rand
         return y0 * nfx + y1 * fx;
     }
 
-    private float getRockHeightNoise(int x, int z)
+    private float getRockHeightNoise(final int x, final int z)
     {
         float retval = 0.0f;
         float frequency = getBiomeHeightFrequency(x, z);
@@ -1487,12 +1580,12 @@ public final class Rand
         {
         }
 
-        public int getY(int x, int z)
+        public int getY(final int x, final int z)
         {
             return this.y[x + size * z];
         }
 
-        public void setY(int x, int z, int newY)
+        public void setY(final int x, final int z, final int newY)
         {
             this.y[x + size * z] = newY;
         }
@@ -1500,7 +1593,7 @@ public final class Rand
 
     private RockChunk[] rockChunkHashTable = new RockChunk[hashPrime];
 
-    private int internalGetRockHeight(int x, int z)
+    private int internalGetRockHeight(final int x, final int z)
     {
         final int maxY = Math.min(World.Height, World.Depth) - 1, minY = -World.Depth;
         final boolean USE_NEW_METHOD = true;
@@ -1552,7 +1645,7 @@ public final class Rand
      * @param z
      *            z coordinate
      * @return height of land */
-    public int getRockHeight(int x, int z)
+    public int getRockHeight(final int x, final int z)
     {
         int cx = x - (x % RockChunk.size + RockChunk.size) % RockChunk.size;
         int cz = z - (z % RockChunk.size + RockChunk.size) % RockChunk.size;
@@ -1583,7 +1676,7 @@ public final class Rand
     /***/
     public static final int WaterHeight = 0;
 
-    private boolean waterInArea(int x, int y, int z)
+    private boolean waterInArea(final int x, final int y, final int z)
     {
         final int dist = 3;
         if(y > WaterHeight)
@@ -1613,24 +1706,24 @@ public final class Rand
         private int lakeSize[] = new int[size * size];
         public int cx, cz;
 
-        public void setLakeSize(int x, int z, int v)
+        public void setLakeSize(final int x, final int z, final int v)
         {
             this.lakeSize[x + size * z] = v;
         }
 
-        public int getLakeSize(int x, int z)
+        public int getLakeSize(final int x, final int z)
         {
             return this.lakeSize[x + size * z];
         }
 
-        public LavaNode(int cx, int cz)
+        public LavaNode(final int cx, final int cz)
         {
             this.cx = cx;
             this.cz = cz;
         }
     }
 
-    private LavaNode makeLavaNode(int cx, int cz)
+    private LavaNode makeLavaNode(final int cx, final int cz)
     {
         LavaNode retval = new LavaNode(cx, cz);
         final float lakeProbability = 0.05f
@@ -1656,7 +1749,7 @@ public final class Rand
 
     private LavaNode[] lavaNodeHashTable = new LavaNode[hashPrime];
 
-    private synchronized LavaNode getLavaNode(int cx, int cz)
+    private synchronized LavaNode getLavaNode(final int cx, final int cz)
     {
         int hash = getChunkHash(cx, cz);
         LavaNode node = this.lavaNodeHashTable[hash];
@@ -1668,14 +1761,14 @@ public final class Rand
         return node;
     }
 
-    private int getLavaLakeSize(int x, int z)
+    private int getLavaLakeSize(final int x, final int z)
     {
         int cx = x - (x % LavaNode.size + LavaNode.size) % LavaNode.size;
         int cz = z - (z % LavaNode.size + LavaNode.size) % LavaNode.size;
         return getLavaNode(cx, cz).getLakeSize(x - cx, z - cz);
     }
 
-    private int getLavaLakeHeight(int x, int z)
+    private int getLavaLakeHeight(final int x, final int z)
     {
         float t = genRand(x, 2, z, RandClass.Lava);
         float v = LavaNode.minHeight + t
@@ -1683,7 +1776,7 @@ public final class Rand
         return (int)Math.floor(v);
     }
 
-    private boolean isLava(int x, int y, int z)
+    private boolean isLava(final int x, final int y, final int z)
     {
         if(y < LavaNode.minHeight || y > LavaNode.maxHeight)
             return false;
@@ -1705,7 +1798,7 @@ public final class Rand
     }
 
     @SuppressWarnings("unused")
-    private boolean isOverLava(int x, int z)
+    private boolean isOverLava(final int x, final int z)
     {
         for(int dx = -LavaNode.maxLakeSize; dx <= LavaNode.maxLakeSize; dx++)
         {
@@ -1736,44 +1829,44 @@ public final class Rand
         private int r[] = new int[size * size];
         private Vector dir[] = new Vector[size * size];
 
-        public CaveType getCave(int x, int z)
+        public CaveType getCave(final int x, final int z)
         {
             return this.caves[x + size * z];
         }
 
-        public int getY(int x, int z)
+        public int getY(final int x, final int z)
         {
             return this.y[x + size * z];
         }
 
-        public int getR(int x, int z)
+        public int getR(final int x, final int z)
         {
             return this.r[x + size * z];
         }
 
-        public Vector getDir(int x, int z)
+        public Vector getDir(final int x, final int z)
         {
             return this.dir[x + size * z];
         }
 
-        public void setCave(int x, int z, CaveType c)
+        public void setCave(final int x, final int z, final CaveType c)
         {
             this.caves[x + size * z] = c;
         }
 
-        public void setY(int x, int z, int y)
+        public void setY(final int x, final int z, final int y)
         {
             this.y[x + size * z] = y;
         }
 
-        public void setR(int x, int z, int r)
+        public void setR(final int x, final int z, final int r)
         {
             this.r[x + size * z] = r;
         }
 
-        public void setDir(int x, int z, Vector dir)
+        public void setDir(final int x, final int z, final Vector dir)
         {
-            this.dir[x + size * z] = new Vector(dir);
+            this.dir[x + size * z] = Vector.allocate(dir);
         }
 
         public CaveChunk()
@@ -1784,7 +1877,7 @@ public final class Rand
     private CaveChunk caveChunkHashTable[] = new CaveChunk[hashPrime];
     private static final int caveMaxSize = 80;
 
-    void fillCaveChunk(CaveChunk cc)
+    void fillCaveChunk(final CaveChunk cc)
     {
         // final float caveProb = 2.0f;
         final float caveProb = 10.0f;
@@ -1822,7 +1915,7 @@ public final class Rand
         }
     }
 
-    synchronized CaveChunk getCaveChunk(int cx, int cz)
+    synchronized CaveChunk getCaveChunk(final int cx, final int cz)
     {
         int hash = getChunkHash(cx, cz);
         CaveChunk node = this.caveChunkHashTable[hash];
@@ -1838,18 +1931,26 @@ public final class Rand
         return node;
     }
 
-    private class InCaveChunk
+    private static class InCaveChunk
     {
         public static final int size = 4;
         private boolean v[] = new boolean[size * size * size];
         public int cx, cy, cz;
 
-        private void setInCave(int x, int y, int z, boolean v)
+        private void setInCave(final int x,
+                               final int y,
+                               final int z,
+                               final boolean v)
         {
             this.v[x + size * (y + size * z)] = v;
         }
 
-        public InCaveChunk(int cx, int cy, int cz)
+        private static Vector InCaveChunk_t1 = Vector.allocate();
+
+        public InCaveChunk(final int cx,
+                           final int cy,
+                           final int cz,
+                           final Rand rand)
         {
             this.cx = cx;
             this.cy = cy;
@@ -1859,7 +1960,7 @@ public final class Rand
                 for(int cdz = -caveMaxSize; cdz <= caveMaxSize + size; cdz++)
                 {
                     int px = cx + cdx, pz = cz + cdz;
-                    CaveChunk cc = getCaveChunk(px
+                    CaveChunk cc = rand.getCaveChunk(px
                             - (px % CaveChunk.size + CaveChunk.size)
                             % CaveChunk.size, pz
                             - (pz % CaveChunk.size + CaveChunk.size)
@@ -1899,13 +2000,13 @@ public final class Rand
                                 case Cylinder3:
                                 case Cylinder4:
                                 {
-                                    dir = new Vector(dir);
-                                    dir.y = 1 / 3f;
-                                    dir = dir.normalize();
-                                    Vector p = dir.mul(0.95f * dir.dot(new Vector(dx,
-                                                                                  dy,
-                                                                                  dz)))
-                                                  .sub(new Vector(dx, dy, dz));
+                                    dir = InCaveChunk_t1.set(dir);
+                                    dir.setY(1 / 3f);
+                                    dir = dir.normalizeAndSet();
+                                    Vector p = dir.mulAndSet(0.95f * dir.dot(dx,
+                                                                             dy,
+                                                                             dz))
+                                                  .subAndSet(dx, dy, dz);
                                     if(p.abs() < r / 16.0f)
                                         newValue = true;
                                     break;
@@ -1919,7 +2020,7 @@ public final class Rand
             }
         }
 
-        public boolean isInCave(int x, int y, int z)
+        public boolean isInCave(final int x, final int y, final int z)
         {
             return this.v[x + size * (y + size * z)];
         }
@@ -1927,7 +2028,9 @@ public final class Rand
 
     private InCaveChunk inCaveChunkHashTable[] = new InCaveChunk[hashPrime];
 
-    private synchronized InCaveChunk getInCaveChunk(int cx, int cy, int cz)
+    private synchronized InCaveChunk getInCaveChunk(final int cx,
+                                                    final int cy,
+                                                    final int cz)
     {
         int hash = genHash(cx, cy, cz, 0);
         InCaveChunk node = this.inCaveChunkHashTable[hash];
@@ -1935,12 +2038,13 @@ public final class Rand
         {
             return node;
         }
-        node = new InCaveChunk(cx, cy, cz);
+        node = new InCaveChunk(cx, cy, cz, this);
         this.inCaveChunkHashTable[hash] = node;
         return node;
     }
 
-    private synchronized boolean isInCave(int x, int y, int z)
+    private synchronized boolean
+        isInCave(final int x, final int y, final int z)
     {
         if(y > getRockHeight(x, z))
             return false;
@@ -1962,7 +2066,7 @@ public final class Rand
         private Tree tree[] = new Tree[size * size];
         public TreeChunk next;
 
-        public TreeChunk(int cx, int cz)
+        public TreeChunk(final int cx, final int cz)
         {
             this.cx = cx;
             this.cz = cz;
@@ -1971,18 +2075,20 @@ public final class Rand
             this.next = null;
         }
 
-        public Tree getTree(int x, int z)
+        public Tree getTree(final int x, final int z)
         {
             return this.tree[x + z * size];
         }
 
-        public void setTree(int x, int z, Tree v)
+        public void setTree(final int x, final int z, final Tree v)
         {
             this.tree[x + z * size] = v;
         }
     }
 
-    private synchronized float[] getTreeCount(int x, int z, float[] retval)
+    private synchronized float[] getTreeCount(final int x,
+                                              final int z,
+                                              final float[] retval)
     {
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
         {
@@ -2002,7 +2108,7 @@ public final class Rand
         return retval;
     }
 
-    private synchronized TreeChunk makeTreeChunk(int cx, int cz)
+    private synchronized TreeChunk makeTreeChunk(final int cx, final int cz)
     {
         float[] treeCount = new float[Tree.TreeType.values().length];
         TreeChunk tc = new TreeChunk(cx, cz);
@@ -2017,7 +2123,11 @@ public final class Rand
                      cz + TreeChunk.size / 2,
                      treeCount);
         int totalTreeCount = 0;
-        Random rand = new Random(new Float(genRand(cx, 0, cz, RandClass.Tree)).hashCode());
+        Random rand = new Random(Float.valueOf(genRand(cx,
+                                                       0,
+                                                       cz,
+                                                       RandClass.Tree))
+                                      .hashCode());
         for(int i = 0; i < treeCount.length; i++)
         {
             treeCount[i] = (float)Math.floor(treeCount[i] + rand.nextFloat());
@@ -2080,7 +2190,7 @@ public final class Rand
         return tc;
     }
 
-    private static int getChunkHash(int cx, int cz)
+    private static int getChunkHash(final int cx, final int cz)
     {
         int retval = (int)((cx + 3L * cz) % hashPrime);
         if(retval < 0)
@@ -2091,7 +2201,7 @@ public final class Rand
     private TreeChunk[] treeChunkHashTable = new TreeChunk[hashPrime];
     private Object[] treeChunkHashTableSync;
 
-    private Tree getTree(int x, int z, boolean make)
+    private Tree getTree(final int x, final int z, final boolean make)
     {
         int cx = x - (x % TreeChunk.size + TreeChunk.size) % TreeChunk.size;
         int cz = z - (z % TreeChunk.size + TreeChunk.size) % TreeChunk.size;
@@ -2124,7 +2234,9 @@ public final class Rand
     }
 
     @SuppressWarnings("unused")
-    private synchronized Block internalGetTreeBlockKind(int x, int y, int z)
+    private synchronized Block internalGetTreeBlockKind(final int x,
+                                                        final int y,
+                                                        final int z)
     {
         final int searchDist = Tree.maxXZExtent;
         Block retval = null;
@@ -2158,14 +2270,14 @@ public final class Rand
         public int cx, cy, cz;
         private Block v[] = new Block[size * size * size];
 
-        public TreeBlockKindChunk(int cx, int cy, int cz)
+        public TreeBlockKindChunk(final int cx, final int cy, final int cz)
         {
             this.cx = cx;
             this.cy = cy;
             this.cz = cz;
         }
 
-        public Block get(int x_in, int y_in, int z_in)
+        public Block get(final int x_in, final int y_in, final int z_in)
         {
             int x = x_in - this.cx;
             int y = y_in - this.cy;
@@ -2174,7 +2286,10 @@ public final class Rand
             return retval;
         }
 
-        public void put(int x_in, int y_in, int z_in, Block v)
+        public void put(final int x_in,
+                        final int y_in,
+                        final int z_in,
+                        final Block v)
         {
             int x = x_in - this.cx;
             int y = y_in - this.cy;
@@ -2185,7 +2300,8 @@ public final class Rand
 
     private TreeBlockKindChunk treeBlockKindChunkHashTable[] = new TreeBlockKindChunk[hashPrime];
 
-    private synchronized void fillTreeBlockKindChunk(TreeBlockKindChunk c)
+    private synchronized void
+        fillTreeBlockKindChunk(final TreeBlockKindChunk c)
     {
         final int searchDist = Tree.maxXZExtent;
         for(int dx = -searchDist; dx <= searchDist + TreeBlockKindChunk.size; dx++)
@@ -2224,9 +2340,9 @@ public final class Rand
         }
     }
 
-    private synchronized TreeBlockKindChunk getTreeBlockKindChunk(int cx,
-                                                                  int cy,
-                                                                  int cz)
+    private synchronized TreeBlockKindChunk getTreeBlockKindChunk(final int cx,
+                                                                  final int cy,
+                                                                  final int cz)
     {
         int hash = genHash(cx, cy, cz, 0);
         TreeBlockKindChunk node = this.treeBlockKindChunkHashTable[hash];
@@ -2240,7 +2356,9 @@ public final class Rand
         return node;
     }
 
-    private synchronized Block getTreeBlockKind(int x, int y, int z)
+    private synchronized Block getTreeBlockKind(final int x,
+                                                final int y,
+                                                final int z)
     {
         int cx = x - (x % TreeBlockKindChunk.size + TreeBlockKindChunk.size)
                 % TreeBlockKindChunk.size;
@@ -2255,20 +2373,34 @@ public final class Rand
 
     enum DecorationType
     {
-        Torch, Chest, Last;
+        Torch, Chest, Cobweb, Last;
         public static final int count = Last.ordinal();
     }
 
-    private Block getCaveDecoration(int x, int y, int z)
+    private Block getCaveDecoration(final int x, final int y, final int z)
     {
         final float genBlockProb = 0.1f;
         float ftype = genRand(x, y, z, RandClass.CaveDecoration)
                 * DecorationType.count / genBlockProb;
         int type = (int)Math.floor(ftype);
         if(type >= DecorationType.count)
+        {
             return new Block();
+        }
         switch(DecorationType.values()[type])
         {
+        case Cobweb:
+        {
+            int againstWallCount = 0;
+            for(int o = 0; o < 6; o++)
+                if(!isInCave(x + Block.getOrientationDX(o),
+                             y + Block.getOrientationDY(o),
+                             z + Block.getOrientationDZ(o)))
+                    againstWallCount++;
+            if(againstWallCount >= 2)
+                return Block.NewCobweb();
+            return new Block();
+        }
         case Torch:
         {
             if(isInCave(x, y - 1, z))
@@ -2313,6 +2445,7 @@ public final class Rand
     }
 
     private static boolean didSetPos = false;
+    private static Vector genChunk_t1 = Vector.allocate();
 
     /** generates a chunk
      * 
@@ -2326,7 +2459,10 @@ public final class Rand
      *            chunk size
      * @return the generated chunk */
     @SuppressWarnings("unused")
-    public GeneratedChunk genChunk(int cx, int cy, int cz, int chunkSize)
+    public GeneratedChunk genChunk(final int cx,
+                                   final int cy,
+                                   final int cz,
+                                   final int chunkSize)
     {
         GeneratedChunk generatedChunk = new GeneratedChunk(chunkSize,
                                                            cx,
@@ -2336,7 +2472,7 @@ public final class Rand
         {
             if(!didSetPos)
             {
-                players.front().setPosition(new Vector(0.5f, 1.0f, 0.5f));
+                players.front().setPosition(genChunk_t1.set(0.5f, 1.0f, 0.5f));
                 didSetPos = true;
             }
             for(int x = cx; x < cx + chunkSize; x++)
@@ -2445,7 +2581,7 @@ public final class Rand
                             block = Block.NewStone();
                     }
                     else if(y < rockHeight)
-                        block = Block.NewDirt();
+                        block = getBiomeSubSurfaceBlock(x, z);
                     else if(y == rockHeight)
                         block = getBiomeSurfaceBlock(x, z);
                     else if(y <= WaterHeight)
