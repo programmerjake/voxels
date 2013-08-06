@@ -23,7 +23,7 @@ import java.util.*;
 
 import org.voxels.*;
 import org.voxels.Vector;
-import org.voxels.generate.Tree.TreeType;
+import org.voxels.generate.Plant.PlantType;
 
 /** Land generator
  * 
@@ -139,29 +139,10 @@ public final class Rand
             });
         }
 
-        private static Matrix drawBackground_t1 = new Matrix();
-        private static Matrix drawBackground_t2 = new Matrix();
-
         @Override
         protected void drawBackground(final Matrix tform)
         {
-            super.drawBackground(tform);
-            String str = "New World Settings";
-            float xScale = 2f / 40f;
-            Text.draw(Matrix.setToScale(drawBackground_t1,
-                                        xScale,
-                                        2f / 40f,
-                                        1.0f)
-                            .concatAndSet(Matrix.setToTranslate(drawBackground_t2,
-                                                                -xScale
-                                                                        / 2f
-                                                                        * Text.sizeW(str)
-                                                                        / Text.sizeW("A"),
-                                                                0.7f,
-                                                                0))
-                            .concatAndSet(tform),
-                      Color.RGB(0, 0, 0),
-                      str);
+            drawTextBackground("New World Settings", tform);
         }
     }
 
@@ -175,18 +156,18 @@ public final class Rand
     {
         this.seed = seed;
         this.isSuperflat = settings.isSuperflat;
-        this.treeChunkHashTableSync = new Object[hashPrime];
+        this.plantChunkHashTableSync = new Object[hashPrime];
         for(int i = 0; i < hashPrime; i++)
-            this.treeChunkHashTableSync[i] = new Object();
+            this.plantChunkHashTableSync[i] = new Object();
     }
 
     private Rand(final Settings settings)
     {
         this.seed = new Random().nextInt();
         this.isSuperflat = settings.isSuperflat;
-        this.treeChunkHashTableSync = new Object[hashPrime];
+        this.plantChunkHashTableSync = new Object[hashPrime];
         for(int i = 0; i < hashPrime; i++)
-            this.treeChunkHashTableSync[i] = new Object();
+            this.plantChunkHashTableSync[i] = new Object();
     }
 
     /** @param settings
@@ -204,8 +185,10 @@ public final class Rand
             retval = new Rand(s);
             rockHeight = retval.getRockHeight(0, 0);
         }
-        while(rockHeight < WaterHeight || retval.isInCave(0, rockHeight, 0)
-                || retval.getTree(0, 0, true) != null);
+        while(rockHeight < WaterHeight
+                || (!retval.getBiomeName(0, 0).equals("Desert") && Main.DEBUG)
+                || retval.isInCave(0, rockHeight, 0)
+                || retval.getPlant(0, 0, true) != null);
         return retval;
     }
 
@@ -234,7 +217,7 @@ public final class Rand
     {
         RockHeight,
         LakeBedType,
-        Tree,
+        Plant,
         Lava,
         OreType,
         Cave,
@@ -485,7 +468,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
                 return 0f;
             }
@@ -567,9 +550,9 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
-                if(tt == TreeType.Oak)
+                if(t == PlantType.OakTree)
                     return 0.002f;
                 return 0f;
             }
@@ -666,18 +649,20 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
-                switch(tt)
+                switch(t)
                 {
-                case Birch:
+                case BirchTree:
                     return 0.0f;
-                case Jungle:
+                case JungleTree:
                     return 0.0f;
-                case Oak:
+                case OakTree:
                     return 0.0f;
-                case Spruce:
+                case SpruceTree:
                     return 0.05f;
+                case Cactus:
+                    return 0.0f;
                 }
                 return 0.0f;
             }
@@ -756,9 +741,9 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
-                if(tt == TreeType.Oak)
+                if(t == PlantType.OakTree)
                     return 0.005f;
                 return 0;
             }
@@ -837,11 +822,11 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
-                if(tt == TreeType.Oak)
+                if(t == PlantType.OakTree)
                     return 1 / 20f;
-                if(tt == TreeType.Birch)
+                if(t == PlantType.BirchTree)
                     return 1 / 30f;
                 return 0;
             }
@@ -916,12 +901,14 @@ public final class Rand
                 float retval = 1.0f - Math.abs(height - 0.5f);
                 retval *= 1.0f - Math.abs(rainfall - getRainfall());
                 retval *= 1.0f - Math.abs(temperature - getTemperature());
-                return retval * 8.0f;
+                return retval * 12.0f;
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
+                if(t == PlantType.Cactus)
+                    return 0.03f;
                 return 0;
             }
 
@@ -999,7 +986,7 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
                 return 0;
             }
@@ -1078,11 +1065,11 @@ public final class Rand
             }
 
             @Override
-            public float getTreeProb(final TreeType tt)
+            public float getPlantProb(final PlantType t)
             {
-                if(tt == TreeType.Jungle)
+                if(t == PlantType.JungleTree)
                     return 1 / 20f;
-                if(tt == TreeType.Oak)
+                if(t == PlantType.OakTree)
                     return 1 / 60f;
                 return 0;
             }
@@ -1128,7 +1115,7 @@ public final class Rand
                                                 float temperature,
                                                 float height);
 
-        public abstract float getTreeProb(Tree.TreeType tt);
+        public abstract float getPlantProb(PlantType t);
 
         public abstract String getName();
 
@@ -2059,36 +2046,36 @@ public final class Rand
         return retval;
     }
 
-    private static class TreeChunk
+    private static class PlantChunk
     {
         public static final int size = 4;
         public int cx, cz;
-        private Tree tree[] = new Tree[size * size];
-        public TreeChunk next;
+        private Plant plant[] = new Plant[size * size];
+        public PlantChunk next;
 
-        public TreeChunk(final int cx, final int cz)
+        public PlantChunk(final int cx, final int cz)
         {
             this.cx = cx;
             this.cz = cz;
             for(int i = size * size - 1; i >= 0; i--)
-                this.tree[i] = null;
+                this.plant[i] = null;
             this.next = null;
         }
 
-        public Tree getTree(final int x, final int z)
+        public Plant get(final int x, final int z)
         {
-            return this.tree[x + z * size];
+            return this.plant[x + z * size];
         }
 
-        public void setTree(final int x, final int z, final Tree v)
+        public void set(final int x, final int z, final Plant plant)
         {
-            this.tree[x + z * size] = v;
+            this.plant[x + z * size] = plant;
         }
     }
 
-    private synchronized float[] getTreeCount(final int x,
-                                              final int z,
-                                              final float[] retval)
+    private synchronized float[] getPlantCount(final int x,
+                                               final int z,
+                                               final float[] retval)
     {
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
         {
@@ -2096,47 +2083,47 @@ public final class Rand
             for(int i = 0; i < retval.length; i++)
             {
                 retval[i] = 0;
-                TreeType tt = TreeType.values()[i];
+                PlantType pt = PlantType.values()[i];
                 for(int bi = 0; bi < biomeFactors.length; bi++)
                 {
                     retval[i] += biomeFactors[bi]
-                            * Biome.values[bi].getTreeProb(tt);
+                            * Biome.values[bi].getPlantProb(pt);
                 }
-                retval[i] *= TreeChunk.size * TreeChunk.size;
+                retval[i] *= PlantChunk.size * PlantChunk.size;
             }
         }
         return retval;
     }
 
-    private synchronized TreeChunk makeTreeChunk(final int cx, final int cz)
+    private synchronized PlantChunk makePlantChunk(final int cx, final int cz)
     {
-        float[] treeCount = new float[Tree.TreeType.values().length];
-        TreeChunk tc = new TreeChunk(cx, cz);
-        for(int x = 0; x < TreeChunk.size; x++)
+        float[] plantCount = new float[PlantType.values().length];
+        PlantChunk pc = new PlantChunk(cx, cz);
+        for(int x = 0; x < PlantChunk.size; x++)
         {
-            for(int z = 0; z < TreeChunk.size; z++)
+            for(int z = 0; z < PlantChunk.size; z++)
             {
-                tc.setTree(x, z, null);
+                pc.set(x, z, null);
             }
         }
-        getTreeCount(cx + TreeChunk.size / 2,
-                     cz + TreeChunk.size / 2,
-                     treeCount);
-        int totalTreeCount = 0;
+        getPlantCount(cx + PlantChunk.size / 2,
+                      cz + PlantChunk.size / 2,
+                      plantCount);
+        int totalPlantCount = 0;
         Random rand = new Random(Float.valueOf(genRand(cx,
                                                        0,
                                                        cz,
-                                                       RandClass.Tree))
+                                                       RandClass.Plant))
                                       .hashCode());
-        for(int i = 0; i < treeCount.length; i++)
+        for(int i = 0; i < plantCount.length; i++)
         {
-            treeCount[i] = (float)Math.floor(treeCount[i] + rand.nextFloat());
-            totalTreeCount += (int)treeCount[i];
+            plantCount[i] = (float)Math.floor(plantCount[i] + rand.nextFloat());
+            totalPlantCount += (int)plantCount[i];
         }
-        while(totalTreeCount > 0)
+        while(totalPlantCount > 0)
         {
-            int x = rand.nextInt(TreeChunk.size);
-            int z = rand.nextInt(TreeChunk.size);
+            int x = rand.nextInt(PlantChunk.size);
+            int z = rand.nextInt(PlantChunk.size);
             int RockHeight = getRockHeight(x + cx, z + cz);
             if(RockHeight >= WaterHeight
                     && !isInCave(x + cx, RockHeight, z + cz)
@@ -2148,20 +2135,22 @@ public final class Rand
                 {
                     for(int dz = -searchDist; dz <= searchDist; dz++)
                     {
-                        if(getTree(x + cx + dx, z + cz + dz, false) != null)
+                        if(getPlant(x + cx + dx, z + cz + dz, false) != null)
                         {
                             probFactor *= 1.0f - 1.0f / (1.0f + dx * dx + dz
                                     * dz);
                         }
                     }
                 }
-                int treeKind = rand.nextInt(treeCount.length);
-                if(treeCount[treeKind] > 0.5f && rand.nextFloat() < probFactor)
+                int plantKind = rand.nextInt(plantCount.length);
+                if(plantCount[plantKind] > 0.5f
+                        && rand.nextFloat() < probFactor)
                 {
-                    tc.setTree(x, z, new Tree(Tree.TreeType.values()[treeKind],
-                                              rand.nextFloat()));
-                    treeCount[treeKind] -= 1.0f;
-                    totalTreeCount--;
+                    pc.set(x,
+                           z,
+                           Plant.PlantType.values()[plantKind].make(rand.nextFloat()));
+                    plantCount[plantKind] -= 1.0f;
+                    totalPlantCount--;
                 }
             }
             else
@@ -2172,22 +2161,23 @@ public final class Rand
                 {
                     for(int dz = -searchDist; dz <= searchDist; dz++)
                     {
-                        if(getTree(x + cx + dx, z + cz + dz, false) != null)
+                        if(getPlant(x + cx + dx, z + cz + dz, false) != null)
                         {
                             probFactor *= 1.0f - 1.0f / (1.0f + dx * dx + dz
                                     * dz);
                         }
                     }
                 }
-                int treeKind = rand.nextInt(treeCount.length);
-                if(treeCount[treeKind] > 0.5f && rand.nextFloat() < probFactor)
+                int plantKind = rand.nextInt(plantCount.length);
+                if(plantCount[plantKind] > 0.5f
+                        && rand.nextFloat() < probFactor)
                 {
-                    treeCount[treeKind] -= 1.0f;
-                    totalTreeCount--;
+                    plantCount[plantKind] -= 1.0f;
+                    totalPlantCount--;
                 }
             }
         }
-        return tc;
+        return pc;
     }
 
     private static int getChunkHash(final int cx, final int cz)
@@ -2198,17 +2188,17 @@ public final class Rand
         return retval;
     }
 
-    private TreeChunk[] treeChunkHashTable = new TreeChunk[hashPrime];
-    private Object[] treeChunkHashTableSync;
+    private PlantChunk[] plantChunkHashTable = new PlantChunk[hashPrime];
+    private Object[] plantChunkHashTableSync;
 
-    private Tree getTree(final int x, final int z, final boolean make)
+    private Plant getPlant(final int x, final int z, final boolean make)
     {
-        int cx = x - (x % TreeChunk.size + TreeChunk.size) % TreeChunk.size;
-        int cz = z - (z % TreeChunk.size + TreeChunk.size) % TreeChunk.size;
+        int cx = x - (x % PlantChunk.size + PlantChunk.size) % PlantChunk.size;
+        int cz = z - (z % PlantChunk.size + PlantChunk.size) % PlantChunk.size;
         int hash = getChunkHash(cx, cz);
-        synchronized(this.treeChunkHashTableSync[hash])
+        synchronized(this.plantChunkHashTableSync[hash])
         {
-            TreeChunk node = this.treeChunkHashTable[hash], parent = null;
+            PlantChunk node = this.plantChunkHashTable[hash], parent = null;
             while(node != null)
             {
                 if(node.cx == cx && node.cz == cz)
@@ -2216,40 +2206,40 @@ public final class Rand
                     if(parent != null)
                     {
                         parent.next = node.next;
-                        node.next = this.treeChunkHashTable[hash];
-                        this.treeChunkHashTable[hash] = node;
+                        node.next = this.plantChunkHashTable[hash];
+                        this.plantChunkHashTable[hash] = node;
                     }
-                    return node.getTree(x - cx, z - cz);
+                    return node.get(x - cx, z - cz);
                 }
                 parent = node;
                 node = node.next;
             }
             if(!make)
                 return null;
-            node = makeTreeChunk(cx, cz);
-            node.next = this.treeChunkHashTable[hash];
-            this.treeChunkHashTable[hash] = node;
-            return node.getTree(x - cx, z - cz);
+            node = makePlantChunk(cx, cz);
+            node.next = this.plantChunkHashTable[hash];
+            this.plantChunkHashTable[hash] = node;
+            return node.get(x - cx, z - cz);
         }
     }
 
     @SuppressWarnings("unused")
-    private synchronized Block internalGetTreeBlockKind(final int x,
-                                                        final int y,
-                                                        final int z)
+    private synchronized Block internalGetPlantBlockKind(final int x,
+                                                         final int y,
+                                                         final int z)
     {
-        final int searchDist = Tree.maxXZExtent;
+        final int searchDist = Plant.maxXZExtent;
         Block retval = null;
         for(int dx = -searchDist; dx <= searchDist; dx++)
         {
             for(int dz = -searchDist; dz <= searchDist; dz++)
             {
                 int cx = dx + x, cz = dz + z;
-                Tree tree = getTree(cx, cz, true);
-                if(tree != null)
+                Plant plant = getPlant(cx, cz, true);
+                if(plant != null)
                 {
                     int rockHeight = getRockHeight(cx, cz);
-                    Block b = tree.getBlock(-dx, y - rockHeight, -dz);
+                    Block b = plant.getBlock(-dx, y - rockHeight, -dz);
                     if(b == null)
                         continue;
                     if(retval == null)
@@ -2264,13 +2254,13 @@ public final class Rand
         return retval;
     }
 
-    private static class TreeBlockKindChunk
+    private static class PlantBlockKindChunk
     {
         public static final int size = 4;
         public int cx, cy, cz;
         private Block v[] = new Block[size * size * size];
 
-        public TreeBlockKindChunk(final int cx, final int cy, final int cz)
+        public PlantBlockKindChunk(final int cx, final int cy, final int cz)
         {
             this.cx = cx;
             this.cy = cy;
@@ -2298,33 +2288,33 @@ public final class Rand
         }
     }
 
-    private TreeBlockKindChunk treeBlockKindChunkHashTable[] = new TreeBlockKindChunk[hashPrime];
+    private PlantBlockKindChunk plantBlockKindChunkHashTable[] = new PlantBlockKindChunk[hashPrime];
 
     private synchronized void
-        fillTreeBlockKindChunk(final TreeBlockKindChunk c)
+        fillPlantBlockKindChunk(final PlantBlockKindChunk c)
     {
-        final int searchDist = Tree.maxXZExtent;
-        for(int dx = -searchDist; dx <= searchDist + TreeBlockKindChunk.size; dx++)
+        final int searchDist = Plant.maxXZExtent;
+        for(int dx = -searchDist; dx <= searchDist + PlantBlockKindChunk.size; dx++)
         {
             for(int dz = -searchDist; dz <= searchDist
-                    + TreeBlockKindChunk.size; dz++)
+                    + PlantBlockKindChunk.size; dz++)
             {
                 int cx = dx + c.cx, cz = dz + c.cz;
-                Tree tree = getTree(cx, cz, true);
-                if(tree != null)
+                Plant plant = getPlant(cx, cz, true);
+                if(plant != null)
                 {
                     int rockHeight = getRockHeight(cx, cz);
-                    for(int x = c.cx; x < c.cx + TreeBlockKindChunk.size; x++)
+                    for(int x = c.cx; x < c.cx + PlantBlockKindChunk.size; x++)
                     {
-                        for(int y = c.cy; y < c.cy + TreeBlockKindChunk.size; y++)
+                        for(int y = c.cy; y < c.cy + PlantBlockKindChunk.size; y++)
                         {
                             for(int z = c.cz; z < c.cz
-                                    + TreeBlockKindChunk.size; z++)
+                                    + PlantBlockKindChunk.size; z++)
                             {
                                 Block retval = c.get(x, y, z);
-                                Block b = tree.getBlock(x - cx,
-                                                        y - rockHeight,
-                                                        z - cz);
+                                Block b = plant.getBlock(x - cx,
+                                                         y - rockHeight,
+                                                         z - cz);
                                 if(b == null)
                                     continue;
                                 if(retval == null)
@@ -2340,19 +2330,18 @@ public final class Rand
         }
     }
 
-    private synchronized TreeBlockKindChunk getTreeBlockKindChunk(final int cx,
-                                                                  final int cy,
-                                                                  final int cz)
+    private synchronized PlantBlockKindChunk
+        getPlantBlockKindChunk(final int cx, final int cy, final int cz)
     {
         int hash = genHash(cx, cy, cz, 0);
-        TreeBlockKindChunk node = this.treeBlockKindChunkHashTable[hash];
+        PlantBlockKindChunk node = this.plantBlockKindChunkHashTable[hash];
         if(node != null && node.cx == cx && node.cy == cy && node.cz == cz)
         {
             return node;
         }
-        node = new TreeBlockKindChunk(cx, cy, cz);
-        fillTreeBlockKindChunk(node);
-        this.treeBlockKindChunkHashTable[hash] = node;
+        node = new PlantBlockKindChunk(cx, cy, cz);
+        fillPlantBlockKindChunk(node);
+        this.plantBlockKindChunkHashTable[hash] = node;
         return node;
     }
 
@@ -2360,21 +2349,21 @@ public final class Rand
                                                 final int y,
                                                 final int z)
     {
-        int cx = x - (x % TreeBlockKindChunk.size + TreeBlockKindChunk.size)
-                % TreeBlockKindChunk.size;
-        int cy = y - (y % TreeBlockKindChunk.size + TreeBlockKindChunk.size)
-                % TreeBlockKindChunk.size;
-        int cz = z - (z % TreeBlockKindChunk.size + TreeBlockKindChunk.size)
-                % TreeBlockKindChunk.size;
-        TreeBlockKindChunk c = getTreeBlockKindChunk(cx, cy, cz);
+        int cx = x - (x % PlantBlockKindChunk.size + PlantBlockKindChunk.size)
+                % PlantBlockKindChunk.size;
+        int cy = y - (y % PlantBlockKindChunk.size + PlantBlockKindChunk.size)
+                % PlantBlockKindChunk.size;
+        int cz = z - (z % PlantBlockKindChunk.size + PlantBlockKindChunk.size)
+                % PlantBlockKindChunk.size;
+        PlantBlockKindChunk c = getPlantBlockKindChunk(cx, cy, cz);
         Block retval = c.get(x, y, z);
         return retval;
     }
 
     enum DecorationType
     {
-        Torch, Chest, Cobweb, Last;
-        public static final int count = Last.ordinal();
+        Torch, Chest, Cobweb, Mushroom;
+        public static final int count = values().length;
     }
 
     private Block getCaveDecoration(final int x, final int y, final int z)
@@ -2389,6 +2378,16 @@ public final class Rand
         }
         switch(DecorationType.values()[type])
         {
+        case Mushroom:
+        {
+            if(isInCave(x, y - 1, z))
+            {
+                return new Block();
+            }
+            if(ftype - type > 0.5f)
+                return Block.NewBrownMushroom();
+            return Block.NewRedMushroom();
+        }
         case Cobweb:
         {
             int againstWallCount = 0;
@@ -2438,7 +2437,6 @@ public final class Rand
             }
             return retval;
         }
-        case Last:
         default:
             return new Block();
         }

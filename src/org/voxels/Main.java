@@ -113,13 +113,17 @@ public final class Main
     }
 
     private static float fps = 30.0f;
+    private static Matrix renderFrame_t1 = new Matrix();
 
     private static void renderFrame()
     {
         players.draw();
         opengl.glClear(opengl.GL_DEPTH_BUFFER_BIT());
         final float dist = 480f / Text.sizeH("A") / 2.0f;
-        Text.draw(Matrix.translate(-dist * aspectRatio(), dist - 1.0f, -dist),
+        Text.draw(Matrix.setToTranslate(renderFrame_t1,
+                                        -dist * aspectRatio(),
+                                        dist - 1.0f,
+                                        -dist),
                   Color.RGB(1.0f, 1.0f, 1.0f),
                   frameText);
         frameText = "";
@@ -521,19 +525,7 @@ public final class Main
             @Override
             protected void drawBackground(final Matrix tform)
             {
-                super.drawBackground(tform);
-                String str = title;
-                float xScale = 2f / 40f;
-                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
-                                .concat(Matrix.translate(-xScale
-                                                                 / 2f
-                                                                 * Text.sizeW(str)
-                                                                 / Text.sizeW("A"),
-                                                         0.7f,
-                                                         0))
-                                .concat(tform),
-                          Color.RGB(0, 0, 0),
-                          str);
+                drawTextBackground(title, tform);
             }
 
             {
@@ -602,19 +594,7 @@ public final class Main
             @Override
             protected void drawBackground(final Matrix tform)
             {
-                super.drawBackground(tform);
-                String str = title;
-                float xScale = 2f / 40f;
-                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
-                                .concat(Matrix.translate(-xScale
-                                                                 / 2f
-                                                                 * Text.sizeW(str)
-                                                                 / Text.sizeW("A"),
-                                                         0.7f,
-                                                         0))
-                                .concat(tform),
-                          Color.RGB(0, 0, 0),
-                          str);
+                drawTextBackground(title, tform);
             }
 
             {
@@ -853,19 +833,7 @@ public final class Main
             @Override
             protected void drawBackground(final Matrix tform)
             {
-                super.drawBackground(tform);
-                String str = "Options";
-                float xScale = 2f / 40f;
-                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
-                                .concat(Matrix.translate(-xScale
-                                                                 / 2f
-                                                                 * Text.sizeW(str)
-                                                                 / Text.sizeW("A"),
-                                                         0.7f,
-                                                         0))
-                                .concat(tform),
-                          Color.RGB(0, 0, 0),
-                          str);
+                drawTextBackground("Options", tform);
             }
 
             {
@@ -1144,19 +1112,7 @@ public final class Main
             @Override
             protected void drawBackground(final Matrix tform)
             {
-                super.drawBackground(tform);
-                String str = "Main Menu";
-                float xScale = 2f / 40f;
-                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
-                                .concat(Matrix.translate(-xScale
-                                                                 / 2f
-                                                                 * Text.sizeW(str)
-                                                                 / Text.sizeW("A"),
-                                                         0.7f,
-                                                         0))
-                                .concat(tform),
-                          Color.RGB(0, 0, 0),
-                          str);
+                drawTextBackground("Main Menu", tform);
             }
 
             {
@@ -1435,18 +1391,7 @@ public final class Main
         @Override
         protected void drawBackground(final Matrix tform)
         {
-            super.drawBackground(tform);
-            String str = progressLabelText;
-            float xScale = 2f / 40f;
-            Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
-                            .concat(Matrix.translate(-xScale / 2f
-                                                             * Text.sizeW(str)
-                                                             / Text.sizeW("A"),
-                                                     0.7f,
-                                                     0))
-                            .concat(tform),
-                      Color.RGB(0, 0, 0),
-                      str);
+            drawTextBackground(progressLabelText, tform);
         }
 
         {

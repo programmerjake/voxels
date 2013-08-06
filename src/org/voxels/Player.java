@@ -64,7 +64,7 @@ public class Player implements GameObject
 
     private enum State
     {
-        Normal, Workbench, Chest, Furnace, DispenserDropper
+        Normal, Workbench, Chest, Furnace, DispenserDropper, Hopper
     }
 
     private State state = State.Normal;
@@ -282,6 +282,7 @@ public class Player implements GameObject
     private static Image furnaceImg = new Image("furnace.png");
     private static Image hotbarBoxImg = new Image("hotbarbox.png");
     private static Image dispenserDropperImg = new Image("dispenserdropper.png");
+    private static Image hopperImg = new Image("hopper.png");
     private static final float workbenchZDist = -1.0f;
     private static final float simScreenHeight = 240f;
     private static final int dialogW = 170, dialogH = 151,
@@ -306,6 +307,8 @@ public class Player implements GameObject
             touchButtonHeight = 0.25f;
     private static final int dispenserDropperLeft = 59,
             dispenserDropperBottom = 255 - 166;
+    private static final int hopperLeft = 41;
+    private static final int hopperBottom = 255 - 148;
 
     private float getPlaceButtonLeft()
     {
@@ -997,7 +1000,7 @@ public class Player implements GameObject
                                                     this.blockZ);
             if(dispenserDropper == null
                     || (dispenserDropper.getType() != BlockType.BTDispenser && dispenserDropper.getType() != BlockType.BTDropper))
-                dispenserDropper = Block.NewChest();
+                dispenserDropper = Block.NewDropper(-1);
             for(int row = 0; row < Block.DISPENSER_DROPPER_ROWS; row++)
             {
                 for(int column = 0; column < Block.DISPENSER_DROPPER_COLUMNS; column++)
@@ -1012,6 +1015,50 @@ public class Player implements GameObject
                              dispenserDropperBottom + row * cellSize,
                              false);
                 }
+            }
+            break;
+        }
+        case Hopper:
+        {
+            Main.opengl.glMatrixMode(Main.opengl.GL_MODELVIEW());
+            Main.opengl.glLoadIdentity();
+            hopperImg.selectTexture();
+            final float maxU = (float)dialogW / dialogTextureSize, maxV = (float)dialogH
+                    / dialogTextureSize;
+            Matrix imgMat = getImageMat();
+            Main.opengl.glColor3f(1, 1, 1);
+            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glTexCoord2f(maxU, 0);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, 0, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(maxU, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, dialogW, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, maxV);
+            glVertex(imgMat.apply(drawAll_t3,
+                                  Vector.set(drawAll_t3, 0, dialogH, 0)));
+            Main.opengl.glTexCoord2f(0, 0);
+            glVertex(imgMat.apply(drawAll_t3, Vector.ZERO));
+            Main.opengl.glEnd();
+            Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
+            drawInventory();
+            Block hopper = world.getBlock(this.blockX, this.blockY, this.blockZ);
+            if(hopper == null || hopper.getType() != BlockType.BTHopper)
+                hopper = Block.NewHopper(-1);
+            for(int slot = 0; slot < Block.HOPPER_SLOTS; slot++)
+            {
+                int count = hopper.hopperGetBlockCount(slot);
+                Block b = hopper.hopperGetBlockType(slot);
+                drawCell(b,
+                         count,
+                         hopperLeft + slot * cellSize,
+                         hopperBottom,
+                         false);
             }
             break;
         }
@@ -1279,6 +1326,34 @@ public class Player implements GameObject
         y += cellBorder;
         if(x >= 0 && x < cellSize * Block.DISPENSER_DROPPER_COLUMNS && y >= 0
                 && y < cellSize * Block.DISPENSER_DROPPER_ROWS)
+            return (int)Math.floor(x / cellSize);
+        return -1;
+    }
+
+    private boolean mouseIsInHopper(final float mouseX, final float mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= hopperLeft;
+        y -= hopperBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.HOPPER_SLOTS && y >= 0
+                && y < cellSize)
+            return true;
+        return false;
+    }
+
+    private int mouseGetHopperSlot(final float mouseX, final float mouseY)
+    {
+        float x = mouseGetSimX(mouseX);
+        float y = mouseGetSimY(mouseY);
+        x -= hopperLeft;
+        y -= hopperBottom;
+        x += cellBorder;
+        y += cellBorder;
+        if(x >= 0 && x < cellSize * Block.HOPPER_SLOTS && y >= 0
+                && y < cellSize)
             return (int)Math.floor(x / cellSize);
         return -1;
     }
@@ -1866,6 +1941,20 @@ public class Player implements GameObject
             return (this.dragCount > 0) ? MouseMoveKind.Grabbed
                     : MouseMoveKind.Normal;
         }
+        case Hopper:
+        {
+            this.wasPaused = true;
+            this.deleteAnimTime = -1;
+            if(mouseX != this.lastMouseX || mouseY != this.lastMouseY)
+            {
+                this.lastMouseX = mouseX;
+                this.lastMouseY = mouseY;
+                this.dragX = mouseGetSimX(mouseX);
+                this.dragY = mouseGetSimY(mouseY);
+            }
+            return (this.dragCount > 0) ? MouseMoveKind.Grabbed
+                    : MouseMoveKind.Normal;
+        }
         }
         return MouseMoveKind.Normal;
     }
@@ -2240,6 +2329,236 @@ public class Player implements GameObject
         world.insertEntity(Entity.NewBlock(this.position, b, Vector.ZERO));
     }
 
+    private Block getContainer()
+    {
+        Block c = world.getBlock(this.blockX, this.blockY, this.blockZ);
+        if(c == null)
+        {
+            quitToNormal();
+            return null;
+        }
+        switch(this.state)
+        {
+        case Chest:
+            if(c.getType() == BlockType.BTChest)
+                return c;
+            break;
+        case DispenserDropper:
+            if(c.getType() == BlockType.BTDispenser)
+                return c;
+            if(c.getType() == BlockType.BTDropper)
+                return c;
+            break;
+        case Furnace:
+            break;
+        case Hopper:
+            if(c.getType() == BlockType.BTHopper)
+                return c;
+            break;
+        case Normal:
+            break;
+        case Workbench:
+            break;
+        }
+        quitToNormal();
+        return null;
+    }
+
+    private Block getSelectedBlockType(final Block container,
+                                       final int row,
+                                       final int column)
+    {
+        Block b = container;
+        if(b == null)
+            return null;
+        switch(this.state)
+        {
+        case Normal:
+            return null;
+        case Workbench:
+            return null;
+        case Furnace:
+            return null;
+        case Chest:
+            if(b.getType() != BlockType.BTChest)
+                return null;
+            return b.chestGetBlockType(row, column);
+        case DispenserDropper:
+            if(b.getType() != BlockType.BTDispenser
+                    && b.getType() != BlockType.BTDropper)
+                return null;
+            return b.dispenserDropperGetBlockType(row, column);
+        case Hopper:
+            if(b.getType() != BlockType.BTHopper)
+                return null;
+            return b.hopperGetBlockType(row);
+        }
+        return null;
+    }
+
+    private int getSelectedBlockCount(final Block container,
+                                      final int row,
+                                      final int column)
+    {
+        Block b = container;
+        if(b == null)
+            return 0;
+        switch(this.state)
+        {
+        case Normal:
+            return 0;
+        case Workbench:
+            return 0;
+        case Furnace:
+            return 0;
+        case Chest:
+            if(b.getType() != BlockType.BTChest)
+                return 0;
+            return b.chestGetBlockCount(row, column);
+        case DispenserDropper:
+            if(b.getType() != BlockType.BTDispenser
+                    && b.getType() != BlockType.BTDropper)
+                return 0;
+            return b.dispenserDropperGetBlockCount(row, column);
+        case Hopper:
+            if(b.getType() != BlockType.BTHopper)
+                return 0;
+            return b.hopperGetBlockCount(row);
+        }
+        return 0;
+    }
+
+    private int addToSelectedBlock(final Block container,
+                                   final int row,
+                                   final int column,
+                                   final Block blockToAdd,
+                                   final int count)
+    {
+        Block b = container;
+        if(b == null)
+            return 0;
+        switch(this.state)
+        {
+        case Normal:
+            return 0;
+        case Workbench:
+            return 0;
+        case Furnace:
+            return 0;
+        case Chest:
+            if(b.getType() != BlockType.BTChest)
+                return 0;
+            return b.chestAddBlocks(blockToAdd, count, row, column);
+        case DispenserDropper:
+            if(b.getType() != BlockType.BTDispenser
+                    && b.getType() != BlockType.BTDropper)
+                return 0;
+            return b.dispenserDropperAddBlocks(blockToAdd, count, row, column);
+        case Hopper:
+            if(b.getType() != BlockType.BTHopper)
+                return 0;
+            return b.hopperAddBlocks(blockToAdd, count, row);
+        }
+        return 0;
+    }
+
+    private int removeFromSelectedBlock(final Block container,
+                                        final int row,
+                                        final int column,
+                                        final Block blockToRemove,
+                                        final int count)
+    {
+        Block b = container;
+        if(b == null)
+            return 0;
+        switch(this.state)
+        {
+        case Normal:
+            return 0;
+        case Workbench:
+            return 0;
+        case Furnace:
+            return 0;
+        case Chest:
+            if(b.getType() != BlockType.BTChest)
+                return 0;
+            return b.chestRemoveBlocks(blockToRemove, count, row, column);
+        case DispenserDropper:
+            if(b.getType() != BlockType.BTDispenser
+                    && b.getType() != BlockType.BTDropper)
+                return 0;
+            return b.dispenserDropperRemoveBlocks(blockToRemove,
+                                                  count,
+                                                  row,
+                                                  column);
+        case Hopper:
+            if(b.getType() != BlockType.BTHopper)
+                return 0;
+            return b.hopperRemoveBlocks(blockToRemove, count, row);
+        }
+        return 0;
+    }
+
+    private void handleMouseDownOnContainer(final int row, final int column)
+    {
+        Block container = getContainer();
+        if(container == null)
+            return;
+        container = new Block(container);
+        if(this.dragCount <= 0)
+        {
+            if(getSelectedBlockCount(container, row, column) > 0)
+            {
+                this.dragType = getSelectedBlockType(container, row, column);
+                this.dragCount = removeFromSelectedBlock(container,
+                                                         row,
+                                                         column,
+                                                         this.dragType,
+                                                         getSelectedBlockCount(container,
+                                                                               row,
+                                                                               column));
+                if(Main.isCreativeMode)
+                    this.dragCount = 0;
+                if(this.dragCount <= 0)
+                    this.dragType = null;
+            }
+        }
+        else if(getSelectedBlockCount(container, row, column) <= 0
+                || Main.isCreativeMode)
+        {
+            int addedCount = addToSelectedBlock(container,
+                                                row,
+                                                column,
+                                                this.dragType,
+                                                this.dragCount);
+            if(!Main.isCreativeMode)
+                this.dragCount -= addedCount;
+            if(this.dragCount <= 0)
+                this.dragType = null;
+        }
+        else
+        // pick
+        // up
+        // more
+        // blocks
+        {
+            int transferCount = Math.min(getSelectedBlockCount(container,
+                                                               row,
+                                                               column),
+                                         Block.BLOCK_STACK_SIZE
+                                                 - this.dragCount);
+            transferCount = removeFromSelectedBlock(container,
+                                                    row,
+                                                    column,
+                                                    this.dragType,
+                                                    transferCount);
+            this.dragCount += transferCount;
+        }
+        // world.addModNode(blockX, blockY, blockZ, chest);
+        // TODO finish
+        world.setBlock(this.blockX, this.blockY, this.blockZ, container);
+    }
+
     private Vector handleMouseUpDown_t1 = Vector.allocate();
 
     /** @param event
@@ -2342,6 +2661,16 @@ public class Player implements GameObject
             {
                 if(getCurrentHotbarBlock() == null)
                     return;
+                if(getCurrentHotbarBlock().getType() == BlockType.BTSnow)
+                {
+                    Block b = takeBlock();
+                    world.insertEntity(Entity.NewThrownBlock(this.position,
+                                                             b,
+                                                             Vector.mul(throwBlock_t1,
+                                                                        getForwardVector(),
+                                                                        15.0f)));
+                    return;
+                }
                 Block oldb;
                 {
                     boolean didAnything = false;
@@ -2531,6 +2860,13 @@ public class Player implements GameObject
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     didAction = true;
                 }
+                else if(b != null && b.getType() == BlockType.BTHopper)
+                {
+                    this.state = State.Hopper;
+                    this.dragCount = 0;
+                    this.dragType = null;
+                    didAction = true;
+                }
                 if(didAction)
                     Main.play(Main.clickAudio);
             }
@@ -2562,7 +2898,7 @@ public class Player implements GameObject
                             if(b == null)
                                 count = 0;
                             else
-                                count = Block.BLOCK_STACK_SIZE;
+                                count = 1;
                             if(this.dragCount <= 0)
                             {
                                 if(count > 0)
@@ -2577,7 +2913,12 @@ public class Player implements GameObject
                                 this.dragType = null;
                             }
                             else if(b.equals(this.dragType))
-                                this.dragCount = Block.BLOCK_STACK_SIZE;
+                            {
+                                if(this.dragCount + 1 > Block.BLOCK_STACK_SIZE)
+                                    this.dragCount = Block.BLOCK_STACK_SIZE;
+                                else
+                                    this.dragCount++;
+                            }
                             else
                             {
                                 this.dragCount = 0;
@@ -2651,65 +2992,7 @@ public class Player implements GameObject
                         int row = mouseGetChestRow(event.mouseX, event.mouseY);
                         int column = mouseGetChestColumn(event.mouseX,
                                                          event.mouseY);
-                        Block chest = world.getBlock(this.blockX,
-                                                     this.blockY,
-                                                     this.blockZ);
-                        if(chest == null
-                                || chest.getType() != BlockType.BTChest)
-                        {
-                            for(int i = 0; i < this.dragCount; i++)
-                                if(!giveBlock(this.dragType, false))
-                                    dropBlock(this.dragType);
-                            this.state = State.Normal;
-                            return;
-                        }
-                        chest = new Block(chest);
-                        if(this.dragCount <= 0)
-                        {
-                            if(chest.chestGetBlockCount(row, column) > 0)
-                            {
-                                this.dragType = chest.chestGetBlockType(row,
-                                                                        column);
-                                this.dragCount = chest.chestRemoveBlocks(this.dragType,
-                                                                         chest.chestGetBlockCount(row,
-                                                                                                  column),
-                                                                         row,
-                                                                         column);
-                                if(this.dragCount <= 0)
-                                    this.dragType = null;
-                            }
-                        }
-                        else if(chest.chestGetBlockCount(row, column) <= 0)
-                        {
-                            this.dragCount -= chest.chestAddBlocks(this.dragType,
-                                                                   this.dragCount,
-                                                                   row,
-                                                                   column);
-                            if(this.dragCount <= 0)
-                                this.dragType = null;
-                        }
-                        else
-                        // pick
-                        // up
-                        // more
-                        // blocks
-                        {
-                            int transferCount = Math.min(chest.chestGetBlockCount(row,
-                                                                                  column),
-                                                         Block.BLOCK_STACK_SIZE
-                                                                 - this.dragCount);
-                            transferCount = chest.chestRemoveBlocks(this.dragType,
-                                                                    transferCount,
-                                                                    row,
-                                                                    column);
-                            this.dragCount += transferCount;
-                        }
-                        // world.addModNode(blockX, blockY, blockZ, chest);
-                        // TODO finish
-                        world.setBlock(this.blockX,
-                                       this.blockY,
-                                       this.blockZ,
-                                       chest);
+                        handleMouseDownOnContainer(row, column);
                     }
                 }
                 else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
@@ -2736,17 +3019,30 @@ public class Player implements GameObject
                                 b = new Block(b);
                             else
                             {
-                                for(int i = 0; i < this.dragCount; i++)
-                                    if(!giveBlock(this.dragType, false))
-                                        dropBlock(this.dragType);
-                                this.state = State.Normal;
+                                quitToNormal();
                                 return;
                             }
                             if(this.dragType.getBurnTime() > 0)
                             {
                                 b.furnaceAddFire(this.dragType);
-                                if(--this.dragCount <= 0)
-                                    this.dragType = null;
+                                if(!Main.isCreativeMode)
+                                {
+                                    if(--this.dragCount <= 0)
+                                    {
+                                        if(this.dragType.isItemInBucket())
+                                        {
+                                            this.dragType = Block.NewBucket();
+                                            this.dragCount = 1;
+                                        }
+                                        else
+                                            this.dragType = null;
+                                    }
+                                    else
+                                    {
+                                        if(!giveBlock(Block.NewBucket(), false))
+                                            dropBlock(Block.NewBucket());
+                                    }
+                                }
                             }
                             // world.addModNode(blockX, blockY, blockZ, b);
                             // TODO finish
@@ -2767,15 +3063,17 @@ public class Player implements GameObject
                                 b = new Block(b);
                             else
                             {
-                                for(int i = 0; i < this.dragCount; i++)
-                                    if(!giveBlock(this.dragType, false))
-                                        dropBlock(this.dragType);
-                                this.state = State.Normal;
+                                quitToNormal();
                                 return;
                             }
                             if(b.furnaceAddBlock(this.dragType))
-                                if(--this.dragCount <= 0)
-                                    this.dragType = null;
+                            {
+                                if(!Main.isCreativeMode)
+                                {
+                                    if(--this.dragCount <= 0)
+                                        this.dragType = null;
+                                }
+                            }
                             // world.addModNode(blockX, blockY, blockZ, b);
                             // TODO finish
                             world.setBlock(this.blockX,
@@ -2793,17 +3091,14 @@ public class Player implements GameObject
                             b = new Block(b);
                         else
                         {
-                            for(int i = 0; i < this.dragCount; i++)
-                                if(!giveBlock(this.dragType, false))
-                                    dropBlock(this.dragType);
-                            this.state = State.Normal;
+                            quitToNormal();
                             return;
                         }
                         if((this.dragCount <= 0 || this.dragType.equals(b.furnaceGetDestBlock()))
                                 && this.dragCount < Block.BLOCK_STACK_SIZE)
                         {
                             Block newB = b.furnaceRemoveBlock();
-                            if(newB != null)
+                            if(newB != null && !Main.isCreativeMode)
                             {
                                 this.dragCount++;
                                 this.dragType = newB;
@@ -2830,68 +3125,27 @@ public class Player implements GameObject
                                                               event.mouseY);
                         int column = mouseGetDispenserDropperColumn(event.mouseX,
                                                                     event.mouseY);
-                        Block dispenserDropper = world.getBlock(this.blockX,
-                                                                this.blockY,
-                                                                this.blockZ);
-                        if(dispenserDropper == null
-                                || (dispenserDropper.getType() != BlockType.BTDispenser && dispenserDropper.getType() != BlockType.BTDropper))
-                        {
-                            for(int i = 0; i < this.dragCount; i++)
-                                if(!giveBlock(this.dragType, false))
-                                    dropBlock(this.dragType);
-                            this.state = State.Normal;
-                            return;
-                        }
-                        dispenserDropper = new Block(dispenserDropper);
-                        if(this.dragCount <= 0)
-                        {
-                            if(dispenserDropper.dispenserDropperGetBlockCount(row,
-                                                                              column) > 0)
-                            {
-                                this.dragType = dispenserDropper.dispenserDropperGetBlockType(row,
-                                                                                              column);
-                                this.dragCount = dispenserDropper.dispenserDropperRemoveBlocks(this.dragType,
-                                                                                               dispenserDropper.dispenserDropperGetBlockCount(row,
-                                                                                                                                              column),
-                                                                                               row,
-                                                                                               column);
-                                if(this.dragCount <= 0)
-                                    this.dragType = null;
-                            }
-                        }
-                        else if(dispenserDropper.dispenserDropperGetBlockCount(row,
-                                                                               column) <= 0)
-                        {
-                            this.dragCount -= dispenserDropper.dispenserDropperAddBlocks(this.dragType,
-                                                                                         this.dragCount,
-                                                                                         row,
-                                                                                         column);
-                            if(this.dragCount <= 0)
-                                this.dragType = null;
-                        }
-                        else
-                        // pick
-                        // up
-                        // more
-                        // blocks
-                        {
-                            int transferCount = Math.min(dispenserDropper.dispenserDropperGetBlockCount(row,
-                                                                                                        column),
-                                                         Block.BLOCK_STACK_SIZE
-                                                                 - this.dragCount);
-                            transferCount = dispenserDropper.dispenserDropperRemoveBlocks(this.dragType,
-                                                                                          transferCount,
-                                                                                          row,
-                                                                                          column);
-                            this.dragCount += transferCount;
-                        }
-                        // world.addModNode(blockX, blockY, blockZ,
-                        // dispenserDropper);
-                        // TODO finish
-                        world.setBlock(this.blockX,
-                                       this.blockY,
-                                       this.blockZ,
-                                       dispenserDropper);
+                        handleMouseDownOnContainer(row, column);
+                    }
+                }
+                else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
+                {
+                }
+            }
+            break;
+        }
+        case Hopper:
+        {
+            this.deleteAnimTime = -1;
+            if(!handleInventoryOrHotbarClick(event))
+            {
+                if(event.isDown && event.button == Main.MouseEvent.LEFT)
+                {
+                    if(mouseIsInHopper(event.mouseX, event.mouseY))
+                    {
+                        int slot = mouseGetHopperSlot(event.mouseX,
+                                                      event.mouseY);
+                        handleMouseDownOnContainer(slot, 0);
                     }
                 }
                 else if(event.isDown && event.button == Main.MouseEvent.RIGHT)
@@ -3203,6 +3457,11 @@ public class Player implements GameObject
             this.isShiftDown = false;
             break;
         }
+        case Hopper:
+        {
+            this.isShiftDown = false;
+            break;
+        }
         }
     }
 
@@ -3236,6 +3495,7 @@ public class Player implements GameObject
         }
         case Chest:
         case DispenserDropper:
+        case Hopper:
         {
             this.deleteAnimTime = -1;
             for(int i = 0; i < this.dragCount; i++)
@@ -3303,6 +3563,7 @@ public class Player implements GameObject
             }
             case Chest:
             case DispenserDropper:
+            case Hopper:
             {
                 this.deleteAnimTime = -1;
                 if(event.key == Main.KEY_ESCAPE || event.key == Main.KEY_Q)

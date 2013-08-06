@@ -218,6 +218,9 @@ public class Entity implements GameObject
         case RemoveBlockIfEqual:
             retval.data.block = rt.data.block;
             break;
+        case TransferItem:
+            retval.data.velocity = Vector.allocate(rt.data.velocity);
+            break;
         }
         return retval;
     }
@@ -352,7 +355,17 @@ public class Entity implements GameObject
                 rs.concatMatrix(worldToCamera);
                 this.data.block.drawAsEntity(rs,
                                              Matrix.setToTranslate(draw_t1,
-                                                                   this.position));
+                                                                   -0.5f,
+                                                                   -0.5f,
+                                                                   -0.5f)
+                                                   .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                                   2 * tntItemSize))
+                                                   .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                                       this.position))
+                                                   .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                                       0.5f,
+                                                                                       0.5f,
+                                                                                       0.5f)));
                 rs.popMatrixStack();
             }
             break;
@@ -377,6 +390,7 @@ public class Entity implements GameObject
         }
         case PlaceBlockIfReplaceable:
         case RemoveBlockIfEqual:
+        case TransferItem:
             return rs;
         }
         return rs;
@@ -562,9 +576,9 @@ public class Entity implements GameObject
                 clear();
                 return;
             }
-            Block b = world.getBlock((int)Math.floor(this.position.getX()),
-                                     (int)Math.floor(this.position.getY()),
-                                     (int)Math.floor(this.position.getZ()));
+            Block b = world.getBlockEval((int)Math.floor(this.position.getX()),
+                                         (int)Math.floor(this.position.getY()),
+                                         (int)Math.floor(this.position.getZ()));
             if(b != null)
             {
                 if(b.getType() == BlockType.BTWoodPressurePlate
@@ -581,6 +595,25 @@ public class Entity implements GameObject
                                    (int)Math.floor(this.position.getY()),
                                    (int)Math.floor(this.position.getZ()),
                                    b);
+                }
+            }
+            b = world.getBlockEval((int)Math.floor(this.position.getX()),
+                                   (int)Math.floor(this.position.getY()) - 1,
+                                   (int)Math.floor(this.position.getZ()));
+            if(b != null)
+            {
+                if(b.getType() == BlockType.BTHopper && b.hopperIsActive())
+                {
+                    b = new Block(b);
+                    if(b.addBlockToContainer(this.data.block, 5))
+                    {
+                        world.setBlock((int)Math.floor(this.position.getX()),
+                                       (int)Math.floor(this.position.getY()) - 1,
+                                       (int)Math.floor(this.position.getZ()),
+                                       b);
+                        clear();
+                        return;
+                    }
                 }
             }
             this.data.theta = (this.data.theta + (float)Main.getFrameDuration()
@@ -661,7 +694,7 @@ public class Entity implements GameObject
             int y = Math.round(this.position.getY());
             int z = Math.round(this.position.getZ());
             {
-                final float ParticlesPerSecond = 25;
+                final float ParticlesPerSecond = 5;
                 int startcount = (int)Math.floor(this.data.existduration
                         * ParticlesPerSecond);
                 this.data.existduration -= Main.getFrameDuration();
@@ -751,6 +784,20 @@ public class Entity implements GameObject
             clear();
             return;
         }
+        case TransferItem:
+        {
+            int srcX = Math.round(this.position.getX());
+            int srcY = Math.round(this.position.getY());
+            int srcZ = Math.round(this.position.getZ());
+            int destX = Math.round(this.data.velocity.getX());
+            int destY = Math.round(this.data.velocity.getY());
+            int destZ = Math.round(this.data.velocity.getZ());
+            Block src = world.getBlockEval(srcX, srcY, srcZ);
+            if(src != null)
+                src.runTransferItem(srcX, srcY, srcZ, destX, destY, destZ);
+            clear();
+            return;
+        }
         }
     }
 
@@ -807,6 +854,8 @@ public class Entity implements GameObject
         case PlaceBlockIfReplaceable:
             break;
         case RemoveBlockIfEqual:
+            break;
+        case TransferItem:
             break;
         }
     }
@@ -924,6 +973,7 @@ public class Entity implements GameObject
         }
         case PlaceBlockIfReplaceable:
         case RemoveBlockIfEqual:
+        case TransferItem:
             break;
         }
     }
@@ -1079,6 +1129,19 @@ public class Entity implements GameObject
         return retval;
     }
 
+    public static Entity NewTransferItem(final int srcX,
+                                         final int srcY,
+                                         final int srcZ,
+                                         final int destX,
+                                         final int destY,
+                                         final int destZ)
+    {
+        Vector t = Vector.allocate(srcX, srcY, srcZ);
+        Entity retval = allocate(t, EntityType.TransferItem);
+        retval.data.velocity = t.set(destX, destY, destZ);
+        return retval;
+    }
+
     private void readPhiTheta(final DataInput i) throws IOException
     {
         this.data.phi = i.readFloat();
@@ -1174,6 +1237,11 @@ public class Entity implements GameObject
             this.data.block = Block.read(i);
             return;
         }
+        case TransferItem:
+        {
+            this.data.velocity = Vector.read(i);
+            return;
+        }
         }
     }
 
@@ -1264,6 +1332,12 @@ public class Entity implements GameObject
         case RemoveBlockIfEqual:
         {
             this.data.block.write(o);
+            return;
+        }
+        case TransferItem:
+        {
+            this.data.velocity.write(o);
+            return;
         }
         }
     }

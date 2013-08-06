@@ -194,6 +194,8 @@ public class Block implements GameObject
         return NewFurnace(0, null, 0, 0);
     }
 
+    public static final float FURNACE_SMELT_TIME = 10.0f;
+
     /** @param fuelleft
      *            the amount of fuel left
      * @param sourceblock
@@ -213,9 +215,11 @@ public class Block implements GameObject
         retval.data.blockdata = sourceblock;
         retval.data.destcount = destcount;
         retval.data.srccount = srccount;
+        retval.data.runTime = -1;
         if(srccount > 0 && fuelleft > 0)
-            retval.data.runTime = world.getCurTime() + 10.0f; // time when
-                                                              // furnace
+            retval.data.runTime = world.getCurTime() + FURNACE_SMELT_TIME; // time
+                                                                           // when
+        // furnace
         // is done smelting
         return retval;
     }
@@ -702,7 +706,10 @@ public class Block implements GameObject
         NewPiston(final int orientation, final boolean extended)
     {
         Block retval = new Block(BlockType.BTPiston);
-        retval.data.orientation = Math.max(0, Math.min(5, orientation));
+        if(orientation == -1)
+            retval.data.orientation = 5;
+        else
+            retval.data.orientation = Math.max(0, Math.min(5, orientation));
         retval.data.intdata = (extended ? 1 : 0);
         retval.data.step = (extended ? 1 : 0);
         return retval;
@@ -717,7 +724,10 @@ public class Block implements GameObject
                                         final boolean extended)
     {
         Block retval = new Block(BlockType.BTStickyPiston);
-        retval.data.orientation = Math.max(0, Math.min(5, orientation));
+        if(orientation == -1)
+            retval.data.orientation = 5;
+        else
+            retval.data.orientation = Math.max(0, Math.min(5, orientation));
         retval.data.intdata = (extended ? 1 : 0);
         retval.data.step = (extended ? 1 : 0);
         return retval;
@@ -915,6 +925,36 @@ public class Block implements GameObject
     public static Block NewBow()
     {
         return new Block(BlockType.BTBow);
+    }
+
+    public static final int HOPPER_SLOTS = 5;
+
+    public static Block NewHopper(final int orientation)
+    {
+        Block retval = new Block(BlockType.BTHopper);
+        retval.data.intdata = 0;
+        retval.data.BlockCounts = new int[HOPPER_SLOTS];
+        retval.data.BlockTypes = new Block[HOPPER_SLOTS];
+        if(orientation < 0 || orientation > 4)
+            retval.data.orientation = 4;
+        else
+            retval.data.orientation = orientation;
+        return retval;
+    }
+
+    public static Block NewCactus()
+    {
+        return new Block(BlockType.BTCactus);
+    }
+
+    public static Block NewRedMushroom()
+    {
+        return new Block(BlockType.BTRedMushroom);
+    }
+
+    public static Block NewBrownMushroom()
+    {
+        return new Block(BlockType.BTBrownMushroom);
     }
 
     private static Vector drawFace_t1 = Vector.allocate();
@@ -3107,6 +3147,183 @@ public class Block implements GameObject
                              isAsItem);
                 break;
             }
+            case BTHopper:
+            {
+                if(isAsItem || isEntity)
+                {
+                    drawItem(rs,
+                             Matrix.IDENTITY,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             this.type.textures[3],
+                             isEntity,
+                             isAsItem);
+                }
+                else
+                {
+                    internalDraw(rs,
+                                 0x3F,
+                                 Matrix.setToScale(draw_t1, 1, 0.5f, 1)
+                                       .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                           0,
+                                                                           0.5f,
+                                                                           0)),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[0],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 0x3F,
+                                 Matrix.setToScale(draw_t1, 0.5f, 0.5f, 0.5f)
+                                       .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                           0.25f,
+                                                                           0.125f,
+                                                                           0.25f)),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[1],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    switch(this.data.orientation)
+                    {
+                    case 0:
+                        internalDraw(rs,
+                                     0x3F,
+                                     Matrix.setToScale(draw_t1,
+                                                       1 / 4f,
+                                                       1 / 2f,
+                                                       1 / 4f)
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               -1 / 8f,
+                                                                               -1 / 2f,
+                                                                               -1 / 8f))
+                                           .concatAndSet(Matrix.setToRotateZ(draw_t2,
+                                                                             -Math.PI / 2))
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               1 / 2f,
+                                                                               5 / 16f,
+                                                                               1 / 2f)),
+                                     blockToWorld,
+                                     bx,
+                                     by,
+                                     bz,
+                                     this.type.textures[2],
+                                     false,
+                                     isEntity,
+                                     isAsItem);
+                        break;
+                    case 1:
+                        internalDraw(rs,
+                                     0x3F,
+                                     Matrix.setToScale(draw_t1,
+                                                       1 / 4f,
+                                                       1 / 2f,
+                                                       1 / 4f)
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               -1 / 8f,
+                                                                               -1 / 2f,
+                                                                               -1 / 8f))
+                                           .concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                             Math.PI / 2))
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               1 / 2f,
+                                                                               5 / 16f,
+                                                                               1 / 2f)),
+                                     blockToWorld,
+                                     bx,
+                                     by,
+                                     bz,
+                                     this.type.textures[2],
+                                     false,
+                                     isEntity,
+                                     isAsItem);
+                        break;
+                    case 2:
+                        internalDraw(rs,
+                                     0x3F,
+                                     Matrix.setToScale(draw_t1,
+                                                       1 / 4f,
+                                                       1 / 2f,
+                                                       1 / 4f)
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               -1 / 8f,
+                                                                               -1 / 2f,
+                                                                               -1 / 8f))
+                                           .concatAndSet(Matrix.setToRotateZ(draw_t2,
+                                                                             Math.PI / 2))
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               1 / 2f,
+                                                                               5 / 16f,
+                                                                               1 / 2f)),
+                                     blockToWorld,
+                                     bx,
+                                     by,
+                                     bz,
+                                     this.type.textures[2],
+                                     false,
+                                     isEntity,
+                                     isAsItem);
+                        break;
+                    case 3:
+                        internalDraw(rs,
+                                     0x3F,
+                                     Matrix.setToScale(draw_t1,
+                                                       1 / 4f,
+                                                       1 / 2f,
+                                                       1 / 4f)
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               -1 / 8f,
+                                                                               -1 / 2f,
+                                                                               -1 / 8f))
+                                           .concatAndSet(Matrix.setToRotateX(draw_t2,
+                                                                             -Math.PI / 2))
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               1 / 2f,
+                                                                               5 / 16f,
+                                                                               1 / 2f)),
+                                     blockToWorld,
+                                     bx,
+                                     by,
+                                     bz,
+                                     this.type.textures[2],
+                                     false,
+                                     isEntity,
+                                     isAsItem);
+                        break;
+                    case 4:
+                    default:
+                        internalDraw(rs,
+                                     0x3F,
+                                     Matrix.setToScale(draw_t1,
+                                                       1 / 4f,
+                                                       1 / 2f,
+                                                       1 / 4f)
+                                           .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                               3 / 8f,
+                                                                               0,
+                                                                               3 / 8f)),
+                                     blockToWorld,
+                                     bx,
+                                     by,
+                                     bz,
+                                     this.type.textures[2],
+                                     false,
+                                     isEntity,
+                                     isAsItem);
+                        break;
+                    }
+                }
+                break;
+            }
             default:
                 break;
             }
@@ -3680,6 +3897,10 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return;
         }
     }
@@ -3808,13 +4029,19 @@ public class Block implements GameObject
             if(fuelleft <= 0 || sourceblock == null || srccount <= 0
                     || destcount >= BLOCK_STACK_SIZE)
                 return null;
-            if(world.getCurTime() < this.data.runTime)
+            Block retval = null;
+            if(this.data.runTime < 0)
+                retval = NewFurnace(fuelleft, sourceblock, srccount, destcount);
+            double runTime = this.data.runTime;
+            if(retval != null)
+                runTime = retval.data.runTime;
+            if(world.getCurTime() < runTime)
             {
                 world.addTimedInvalidate(bx,
                                          by,
                                          bz,
-                                         this.data.runTime - world.getCurTime());
-                return null;
+                                         runTime - world.getCurTime());
+                return retval;
             }
             srccount--;
             destcount++;
@@ -4074,6 +4301,10 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             break;
         case BTSnow:
         {
@@ -4120,12 +4351,66 @@ public class Block implements GameObject
         case BTEmpty:
         {
             Block py = world.getBlockEval(bx, by + 1, bz);
+            Block ny = world.getBlockEval(bx, by - 1, bz);
             if(py != null)
             {
                 if(py.getType() == BlockType.BTVines)
                 {
                     return new Block(py);
                 }
+            }
+            if(ny != null)
+            {
+                if(ny.getType() == BlockType.BTCactus)
+                {
+                    int stackHeight = 0;
+                    Block b;
+                    int i;
+                    for(i = 1, b = ny; b != null
+                            && b.getType() == BlockType.BTCactus; i++, b = world.getBlockEval(bx,
+                                                                                              by
+                                                                                                      - i,
+                                                                                              bz))
+                    {
+                        stackHeight++;
+                    }
+                    if(b != null && b.getType() == BlockType.BTSand
+                            && stackHeight < 3)
+                        return NewCactus();
+                }
+            }
+            boolean hasRedMushroom = false, hasBrownMushroom = false;
+            for(int dx = -3; dx <= 3; dx++)
+            {
+                for(int dy = -3; dy <= 3; dy++)
+                {
+                    for(int dz = -3; dz <= 3; dz++)
+                    {
+                        Block b = world.getBlockEval(dx + bx, dy + by, dz + bz);
+                        if(b != null)
+                        {
+                            if(b.getType() == BlockType.BTRedMushroom)
+                                hasRedMushroom = true;
+                            else if(b.getType() == BlockType.BTBrownMushroom)
+                                hasBrownMushroom = true;
+                        }
+                    }
+                }
+            }
+            if(this.light <= 12 && this.scatteredSunlight <= 12
+                    && isBlockSupported(bx, by, bz, 4)
+                    && World.fRand(0, 1) <= 0.5f)
+            {
+                if(hasRedMushroom && hasBrownMushroom)
+                {
+                    if(World.fRand(0, 1) <= 0.5f)
+                        return NewBrownMushroom();
+                    return NewRedMushroom();
+                }
+                else if(hasRedMushroom)
+                    return NewRedMushroom();
+                else if(hasBrownMushroom)
+                    return NewBrownMushroom();
             }
             return null;
         }
@@ -4278,6 +4563,10 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             break;
         }
         return null;
@@ -4741,10 +5030,101 @@ public class Block implements GameObject
                 retval.dropperDropBlock(bx, by, bz);
             return retval;
         }
+        case BTHopper:
+        {
+            boolean isOn = false;
+            for(int orientation = 0; orientation < 6; orientation++)
+            {
+                int dx = getOrientationDX(orientation);
+                int dy = getOrientationDY(orientation);
+                int dz = getOrientationDZ(orientation);
+                int x = bx + dx, y = by + dy, z = bz + dz;
+                int curPower = getEvalRedstoneIOValue(x,
+                                                      y,
+                                                      z,
+                                                      getNegOrientation(orientation));
+                if(curPower == REDSTONE_POWER_STRONG)
+                {
+                    isOn = true;
+                    break;
+                }
+                if(curPower >= REDSTONE_POWER_WEAK_MIN
+                        && curPower <= REDSTONE_POWER_WEAK_MAX)
+                {
+                    isOn = true;
+                    break;
+                }
+            }
+            if(this.data.intdata == 0 && !isOn)
+            {
+                Block removeFromBlock = world.getBlockEval(bx, by + 1, bz);
+                boolean canTransfer = false;
+                int step = this.data.step;
+                if(removeFromBlock != null)
+                {
+                    int removeDescriptor = removeFromBlock.makeRemoveBlockFromContainerDescriptor(4);
+                    if(removeFromBlock.getRemovedBlockFromContainer(4,
+                                                                    removeDescriptor) != null)
+                    {
+                        if(!canTransfer)
+                            step++;
+                        canTransfer = true;
+                        if(step >= HOPPER_TRANSFER_STEP_COUNT)
+                        {
+                            world.insertEntity(Entity.NewTransferItem(bx,
+                                                                      by + 1,
+                                                                      bz,
+                                                                      bx,
+                                                                      by,
+                                                                      bz));
+                        }
+                    }
+                }
+                int destX = bx + getOrientationDX(this.data.orientation);
+                int destY = by + getOrientationDY(this.data.orientation);
+                int destZ = bz + getOrientationDZ(this.data.orientation);
+                Block addToBlock = world.getBlockEval(destX, destY, destZ);
+                if(addToBlock != null && addToBlock.isContainer())
+                {
+                    if(!canTransfer)
+                        step++;
+                    canTransfer = true;
+                    if(step >= HOPPER_TRANSFER_STEP_COUNT)
+                    {
+                        world.insertEntity(Entity.NewTransferItem(bx,
+                                                                  by,
+                                                                  bz,
+                                                                  destX,
+                                                                  destY,
+                                                                  destZ));
+                    }
+                }
+                if(!canTransfer || step >= HOPPER_TRANSFER_STEP_COUNT)
+                    step = 0;
+                if(step != this.data.step)
+                {
+                    Block retval = new Block(this);
+                    retval.data.step = step;
+                    return retval;
+                }
+                return null;
+            }
+            if(this.data.intdata != 0 && isOn)
+                return null;
+            Block retval = new Block(this);
+            retval.data.intdata = isOn ? 1 : 0;
+            retval.data.step = 0;
+            return retval;
+        }
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return null;
         }
         return null;
     }
 
+    public static final int HOPPER_TRANSFER_STEP_COUNT = 4;
     public static final int DISPENSER_DROPPER_ROWS = 3;
     public static final int DISPENSER_DROPPER_COLUMNS = 3;
 
@@ -4793,33 +5173,90 @@ public class Block implements GameObject
         if(index == -1)
             return;
         Block b = this.data.BlockTypes[index];
-        this.data.BlockCounts[index]--;
-        if(this.data.BlockCounts[index] <= 0)
-            this.data.BlockTypes[index] = null;
         int dx = getOrientationDX(this.data.orientation);
         int dy = getOrientationDY(this.data.orientation);
         int dz = getOrientationDZ(this.data.orientation);
         Vector dir = Vector.allocate(dx, dy, dz);
-        b.onDrop(bx + dx, by + dy, bz + dz, dir);
+        if(!b.onDrop(bx, by, bz, bx + dx, by + dy, bz + dz, dir))
+        {
+            dir.free();
+            return;
+        }
         dir.free();
+        this.data.BlockCounts[index]--;
+        if(this.data.BlockCounts[index] <= 0)
+            this.data.BlockTypes[index] = null;
+    }
+
+    private static Vector runTransferItem_t1 = Vector.allocate();
+
+    public void runTransferItem(final int srcX,
+                                final int srcY,
+                                final int srcZ,
+                                final int destX,
+                                final int destY,
+                                final int destZ)
+    {
+        if(!isContainer())
+            return;
+        Block dest = new Block(world.getBlockEval(destX, destY, destZ));
+        if(dest == null || !dest.isContainer())
+            return;
+        Block src = new Block(this);
+        final int o = getOrientationFromVector(runTransferItem_t1.set(destX,
+                                                                      destY,
+                                                                      destZ)
+                                                                 .subAndSet(srcX,
+                                                                            srcY,
+                                                                            srcZ));
+        final int descriptor = src.makeRemoveBlockFromContainerDescriptor(o);
+        if(descriptor == -1)
+            return;
+        final Block b = src.getRemovedBlockFromContainer(o, descriptor);
+        if(b == null)
+            return;
+        if(dest.addBlockToContainer(b, getNegOrientation(o)))
+        {
+            src.removeBlockFromContainer(o, descriptor);
+            world.setBlock(srcX, srcY, srcZ, src);
+            world.setBlock(destX, destY, destZ, dest);
+        }
     }
 
     private static Vector onDrop_t1 = Vector.allocate();
     private static Vector onDrop_t2 = Vector.allocate();
 
-    private void onDrop(final int destX,
-                        final int destY,
-                        final int destZ,
-                        final Vector dir)
+    private boolean onDrop(final int srcX,
+                           final int srcY,
+                           final int srcZ,
+                           final int destX,
+                           final int destY,
+                           final int destZ,
+                           final Vector dir)
     {
-        if(this.type != BlockType.BTEmpty)
-            world.insertEntity(Entity.NewBlock(onDrop_t1.set(destX + 0.5f,
-                                                             destY + 0.5f,
-                                                             destZ + 0.5f),
-                                               this,
-                                               World.vRand(onDrop_t2, 0.2f)
-                                                    .addAndSet(dir)
-                                                    .mulAndSet(5f)));
+        if(this.type == BlockType.BTEmpty)
+            return false;
+        Block b = world.getBlockEval(destX, destY, destZ);
+        if(b != null && b.isContainer())
+        {
+            world.insertEntity(Entity.NewTransferItem(srcX,
+                                                      srcY,
+                                                      srcZ,
+                                                      destX,
+                                                      destY,
+                                                      destZ));
+            return false;
+        }
+        world.insertEntity(Entity.NewBlock(onDrop_t1.set(dir)
+                                                    .mulAndSet(-(0.5f - 0.25f + 0.05f))
+                                                    .addAndSet(destX + 0.5f,
+                                                               destY + 0.5f,
+                                                               destZ + 0.5f),
+                                           this,
+                                           World.vRand(onDrop_t2, 0.2f)
+                                                .addAndSet(dir)
+                                                .mulAndSet(5f)));
+        return true;
     }
 
     private void
@@ -4867,7 +5304,7 @@ public class Block implements GameObject
             }
             if(b != null)
             {
-                b.onDrop(bx + dx, by + dy, bz + dz, dir);
+                b.onDrop(bx, by, bz, bx + dx, by + dy, bz + dz, dir);
             }
         }
         dir.free();
@@ -4894,7 +5331,19 @@ public class Block implements GameObject
         {
             Block b = world.getBlockEval(destX, destY, destZ);
             if(b == null || !b.isItemInBucket())
-                return this;
+            {
+                world.insertEntity(Entity.NewBlock(onDispense_t1.set(dir)
+                                                                .mulAndSet(-(0.5f - 0.25f + 0.05f))
+                                                                .addAndSet(destX + 0.5f,
+                                                                           destY + 0.5f,
+                                                                           destZ + 0.5f),
+                                                   this,
+                                                   World.vRand(onDispense_t2,
+                                                               0.2f)
+                                                        .addAndSet(dir)
+                                                        .mulAndSet(5f)));
+                return null;
+            }
             world.insertEntity(Entity.NewRemoveBlockIfEqual(onDispense_t1.set(destX,
                                                                               destY,
                                                                               destZ),
@@ -4914,9 +5363,11 @@ public class Block implements GameObject
             return NewBucket();
         }
         case BTSnow:
-            world.insertEntity(Entity.NewBlock(onDispense_t1.set(destX + 0.5f,
-                                                                 destY + 0.5f,
-                                                                 destZ + 0.5f),
+            world.insertEntity(Entity.NewBlock(onDispense_t1.set(dir)
+                                                            .mulAndSet(-(0.5f - 0.25f + 0.01f))
+                                                            .addAndSet(destX + 0.5f,
+                                                                       destY + 0.5f,
+                                                                       destZ + 0.5f),
                                                this,
                                                World.vRand(onDispense_t2, 0.2f)
                                                     .addAndSet(dir)
@@ -5003,11 +5454,17 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
-            world.insertEntity(Entity.NewBlock(onDrop_t1.set(destX + 0.5f,
-                                                             destY + 0.5f,
-                                                             destZ + 0.5f),
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            world.insertEntity(Entity.NewBlock(onDispense_t1.set(dir)
+                                                            .mulAndSet(-(0.5f - 0.25f + 0.05f))
+                                                            .addAndSet(destX + 0.5f,
+                                                                       destY + 0.5f,
+                                                                       destZ + 0.5f),
                                                this,
-                                               World.vRand(onDrop_t2, 0.2f)
+                                               World.vRand(onDispense_t2, 0.2f)
                                                     .addAndSet(dir)
                                                     .mulAndSet(5f)));
             return null;
@@ -5309,9 +5766,13 @@ public class Block implements GameObject
         case BTQuartz:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return PushType.DropAsEntity;
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
             return PushType.Pushed;
         }
         return PushType.NonPushable;
@@ -5499,6 +5960,30 @@ public class Block implements GameObject
                                        World.vRand(evalBlockToEntity_t2, 0.1f));
             return null;
         }
+        case BTCactus:
+        {
+            boolean doDestroy = false;
+            if(!isBlockSupported(bx, by, bz, 4))
+                doDestroy = true;
+            for(int o = 0; o <= 3 && !doDestroy; o++)
+            {
+                Block b = world.getBlockEval(bx + getOrientationDX(o), by
+                        + getOrientationDY(o), bz + getOrientationDZ(o));
+                if(b != null)
+                {
+                    if(b.isSolid() || b.isSupporting())
+                        doDestroy = true;
+                }
+            }
+            if(doDestroy)
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
+                                                  0.5f + by,
+                                                  0.5f + bz),
+                                       this.type.make(-1),
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
+            return null;
+        }
         case BTLever:
         {
             if(!isBlockSupported(bx, by, bz, this.data.orientation))
@@ -5530,7 +6015,27 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
             return null;
+        case BTRedMushroom:
+        case BTBrownMushroom:
+        {
+            if(this.light > 12 || this.scatteredSunlight > 12)
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
+                                                  0.5f + by,
+                                                  0.5f + bz),
+                                       this.type.make(-1),
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
+            if(!isBlockSupported(bx, by, bz, this.data.orientation))
+                return Entity.NewBlock(Vector.set(evalBlockToEntity_t1,
+                                                  0.5f + bx,
+                                                  0.5f + by,
+                                                  0.5f + bz),
+                                       this.type.make(-1),
+                                       World.vRand(evalBlockToEntity_t2, 0.1f));
+            return null;
+        }
         }
         return retval;
     }
@@ -5865,6 +6370,10 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return 1;
         }
         return 0;
@@ -5873,6 +6382,7 @@ public class Block implements GameObject
     private static Vector rayIntersects_t1 = Vector.allocate();
     private static Vector rayIntersects_t2 = Vector.allocate();
     private static Matrix rayIntersects_t3 = new Matrix();
+    private static Matrix rayIntersects_t4 = new Matrix();
 
     /** checks if a ray intersects this block
      * 
@@ -6057,7 +6567,18 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
             return 0;
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return rayIntersectsBlock(hitpos,
+                                      dir,
+                                      Matrix.setToScale(rayIntersects_t3, 0.25f)
+                                            .concatAndSet(Matrix.setToTranslate(rayIntersects_t4,
+                                                                                3 / 8f,
+                                                                                0,
+                                                                                3 / 8f)));
         }
         return -1;
     }
@@ -6192,6 +6713,9 @@ public class Block implements GameObject
             return rs;
         case BTSapling:
         case BTCobweb:
+        case BTHopper:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTBedrock:
@@ -6212,9 +6736,7 @@ public class Block implements GameObject
         case BTWoodShovel:
         case BTStoneShovel:
         {
-            drawImgAsEntity(rs,
-                            blockToWorld,
-                            this.type.textures[this.data.intdata]);
+            drawImgAsEntity(rs, blockToWorld, this.type.textures[0]);
             return rs;
         }
         case BTWater:
@@ -6365,6 +6887,7 @@ public class Block implements GameObject
         case BTTNT:
         case BTDispenser:
         case BTDropper:
+        case BTCactus:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTBlazeRod:
@@ -6464,10 +6987,13 @@ public class Block implements GameObject
         case BTPlank:
         case BTDispenser:
         case BTDropper:
+        case BTCactus:
             drawBlockAsItem(rs, blockToWorld);
             return rs;
         case BTSapling:
         case BTCobweb:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             draw(rs, Matrix.setToTranslate(drawAsItem_t1, 0, 0, -0.5f)
                            .concatAndSet(blockToWorld), false, true);
             return rs;
@@ -6478,6 +7004,7 @@ public class Block implements GameObject
         case BTStoneShovel:
         case BTShears:
         case BTBucket:
+        case BTHopper:
         {
             draw(rs, blockToWorld, false, true);
             return rs;
@@ -7655,6 +8182,8 @@ public class Block implements GameObject
         case BTTNT:
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
+        case BTCactus:
             return solidAdjustPlayerPosition(position, getHeight(), distLimit);
         case BTBlazeRod:
         case BTBlazePowder:
@@ -7672,6 +8201,8 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return position;
         }
         return null;
@@ -7796,6 +8327,10 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return true;
         }
         return false;
@@ -7914,6 +8449,27 @@ public class Block implements GameObject
                                                                            0.1f)));
             }
             return;
+        case BTHopper:
+            if(dropItems)
+            {
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   this.type.make(-1),
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
+                for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+                    for(int j = 0; j < this.data.BlockCounts[slot]; j++)
+                        world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                      x + 0.5f,
+                                                                      y + 0.5f,
+                                                                      z + 0.5f),
+                                                           this.data.BlockTypes[slot],
+                                                           World.vRand(digBlock_t2,
+                                                                       0.1f)));
+            }
+            return;
         case BTCoal:
         case BTCobblestone:
         case BTDiamondPick:
@@ -7969,6 +8525,9 @@ public class Block implements GameObject
         case BTQuartz:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             if(dropItems)
                 world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
                                                               x + 0.5f,
@@ -8349,6 +8908,7 @@ public class Block implements GameObject
         case BTTNT:
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
             return REDSTONE_POWER_INPUT;
         case BTBlazeRod:
         case BTBlazePowder:
@@ -8365,6 +8925,9 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return REDSTONE_POWER_NONE;
         case BTRedstoneComparator:
         {
@@ -8508,6 +9071,10 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return false;
         case BTBedrock:
         case BTChest:
@@ -8798,6 +9365,9 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return false;
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -8842,6 +9412,7 @@ public class Block implements GameObject
         case BTRedstoneComparator:
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
             return true;
         }
         return true;
@@ -8966,6 +9537,9 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -9022,6 +9596,19 @@ public class Block implements GameObject
             {
                 double reltime = this.data.runTime - world.getCurTime();
                 o.writeDouble(reltime);
+            }
+            return;
+        }
+        case BTHopper:
+        {
+            o.writeBoolean(this.data.intdata != 0);
+            o.writeByte(this.data.step);
+            o.writeByte(this.data.orientation);
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                o.writeInt(this.data.BlockCounts[slot]);
+                if(this.data.BlockCounts[slot] > 0)
+                    this.data.BlockTypes[slot].write(o);
             }
             return;
         }
@@ -9158,6 +9745,9 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -9261,6 +9851,31 @@ public class Block implements GameObject
                         || value <= 0 || value > 10.0)
                     throw new IOException("furnace left to smelt is out of range");
                 this.data.runTime = value + world.getCurTime();
+            }
+            return;
+        }
+        case BTHopper:
+        {
+            this.data.intdata = i.readBoolean() ? 1 : 0;
+            this.data.step = i.readUnsignedByte();
+            if(this.data.step >= HOPPER_TRANSFER_STEP_COUNT
+                    || (this.data.intdata != 0 && this.data.step != 0))
+                throw new IOException("hopper step is out of range");
+            this.data.orientation = i.readUnsignedByte();
+            if(this.data.orientation > 4)
+                throw new IOException("hopper orientation is out of range");
+            this.data.BlockCounts = new int[HOPPER_SLOTS];
+            this.data.BlockTypes = new Block[HOPPER_SLOTS];
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                this.data.BlockCounts[slot] = i.readInt();
+                if(this.data.BlockCounts[slot] < 0
+                        || this.data.BlockCounts[slot] > BLOCK_STACK_SIZE)
+                    throw new IOException("hopper slot's item count is out of range");
+                if(this.data.BlockCounts[slot] > 0)
+                    this.data.BlockTypes[slot] = Block.read(i);
+                else
+                    this.data.BlockTypes[slot] = null;
             }
             return;
         }
@@ -10103,6 +10718,9 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return true;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -10142,6 +10760,20 @@ public class Block implements GameObject
             if(this.data.blockdata != null
                     && !this.data.blockdata.equals(rt.data.blockdata))
                 return false;
+            return true;
+        case BTHopper:
+            if(this.data.intdata != rt.data.intdata
+                    || this.data.step != rt.data.step
+                    || this.data.orientation != rt.data.orientation)
+                return false;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                if(this.data.BlockCounts[slot] != rt.data.BlockCounts[slot])
+                    return false;
+                if(this.data.BlockCounts[slot] > 0
+                        && !this.data.BlockTypes[slot].equals(rt.data.BlockTypes[slot]))
+                    return false;
+            }
             return true;
         case BTLadder:
         case BTVines:
@@ -10270,6 +10902,9 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return hash;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -10301,6 +10936,16 @@ public class Block implements GameObject
                     + 61873268 * this.data.destcount;
             if(this.data.blockdata != null)
                 hash += 3 * this.data.blockdata.hashCode();
+            return hash;
+        case BTHopper:
+            hash += this.data.intdata * 234879 + this.data.step * 1279747
+                    + this.data.orientation * 17492;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                hash += 759234 * this.data.BlockCounts[slot];
+                if(this.data.BlockCounts[slot] > 0)
+                    hash += this.data.BlockTypes[slot].hashCode() * 129123;
+            }
             return hash;
         case BTLadder:
         case BTVines:
@@ -10634,6 +11279,9 @@ public class Block implements GameObject
         case BTQuartz:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return new BlockDigDescriptor(0.0f, true, true);
         case BTChest:
         case BTWorkbench:
@@ -10714,6 +11362,26 @@ public class Block implements GameObject
                     return new BlockDigDescriptor(0.6f);
                 case Gold:
                     return new BlockDigDescriptor(15f, false, true);
+                default:
+                    break;
+                }
+            }
+            return new BlockDigDescriptor(15f, false, true);
+        case BTHopper:
+            if(toolType == ToolType.Pickaxe)
+            {
+                switch(toolLevel)
+                {
+                case Wood:
+                    return new BlockDigDescriptor(2.25f, false, true);
+                case Stone:
+                    return new BlockDigDescriptor(1.15f, false, true);
+                case Iron:
+                    return new BlockDigDescriptor(0.75f);
+                case Diamond:
+                    return new BlockDigDescriptor(0.6f);
+                case Gold:
+                    return new BlockDigDescriptor(0.4f, false, true);
                 default:
                     break;
                 }
@@ -11130,6 +11798,22 @@ public class Block implements GameObject
         return this.data.BlockTypes[index];
     }
 
+    public int hopperGetBlockCount(final int slot)
+    {
+        assert this.type == BlockType.BTHopper;
+        if(slot < 0 || slot >= HOPPER_SLOTS)
+            return 0;
+        return this.data.BlockCounts[slot];
+    }
+
+    public Block hopperGetBlockType(final int slot)
+    {
+        assert this.type == BlockType.BTHopper;
+        if(slot < 0 || slot >= HOPPER_SLOTS)
+            return null;
+        return this.data.BlockTypes[slot];
+    }
+
     public int getContainerLevel()
     {
         switch(this.type)
@@ -11189,6 +11873,27 @@ public class Block implements GameObject
             }
             float v = slotsTaken
                     / (DISPENSER_DROPPER_ROWS * DISPENSER_DROPPER_COLUMNS);
+            if(v > 0)
+                return Math.min((int)Math.floor(Math.max(1, v * 16)), 15);
+            return 0;
+        }
+        case BTHopper:
+        {
+            float slotsTaken = 0;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                if(this.data.BlockCounts[slot] > 0)
+                {
+                    Block b = this.data.BlockTypes[slot];
+                    if(b.getToolType() != BlockType.ToolType.None
+                            && b.toolGetUseCount() > 0)
+                        slotsTaken += 1;
+                    else
+                        slotsTaken += (float)this.data.BlockCounts[slot]
+                                / BLOCK_STACK_SIZE;
+                }
+            }
+            float v = slotsTaken / (HOPPER_SLOTS);
             if(v > 0)
                 return Math.min((int)Math.floor(Math.max(1, v * 16)), 15);
             return 0;
@@ -11275,6 +11980,9 @@ public class Block implements GameObject
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return -1;
         }
         return -1;
@@ -11291,9 +11999,7 @@ public class Block implements GameObject
                                          final int column)
     {
         assert (this.type == BlockType.BTDispenser || this.type == BlockType.BTDropper)
-                && this.data.BlockCounts != null
-                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
-                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+                && this.data.BlockCounts != null : "illegal block state";
         if(b == null || b.getType() == BlockType.BTEmpty)
             return count;
         if(row < 0 || row >= DISPENSER_DROPPER_ROWS || column < 0
@@ -11331,9 +12037,7 @@ public class Block implements GameObject
                                             final int column)
     {
         assert (this.type == BlockType.BTDispenser || this.type == BlockType.BTDropper)
-                && this.data.BlockCounts != null
-                && this.data.BlockCounts.length == CHEST_ROWS * CHEST_COLUMNS
-                && this.data.BlockTypes.length == CHEST_ROWS * CHEST_COLUMNS : "illegal block state";
+                && this.data.BlockCounts != null : "illegal block state";
         if(b == null || b.getType() == BlockType.BTEmpty)
             return count;
         if(row < 0 || row >= DISPENSER_DROPPER_ROWS || column < 0
@@ -11353,5 +12057,905 @@ public class Block implements GameObject
         }
         this.data.BlockCounts[index] -= count;
         return count;
+    }
+
+    public int
+        hopperRemoveBlocks(final Block b, final int count, final int slot)
+    {
+        assert this.type == BlockType.BTHopper && this.data.BlockCounts != null : "illegal block state";
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return count;
+        if(slot < 0 || slot >= HOPPER_SLOTS)
+            return 0;
+        int index = slot;
+        if(this.data.BlockCounts[index] <= 0)
+            return 0;
+        if(!this.data.BlockTypes[index].equals(b))
+            return 0;
+        if(this.data.BlockCounts[index] <= count)
+        {
+            int retval = this.data.BlockCounts[index];
+            this.data.BlockCounts[index] = 0;
+            this.data.BlockTypes[index] = null;
+            return retval;
+        }
+        this.data.BlockCounts[index] -= count;
+        return count;
+    }
+
+    public boolean isContainer()
+    {
+        switch(this.type)
+        {
+        case BTDeleteBlock:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return false;
+        case BTEmpty:
+        case BTBedrock:
+            return false;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTBow:
+        case BTBucket:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTCobweb:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTGlass:
+        case BTGoldAxe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronAxe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLava:
+        case BTLeaves:
+        case BTLever:
+        case BTObsidian:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTQuartz:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTShears:
+        case BTSlime:
+        case BTSnow:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTString:
+        case BTTNT:
+        case BTTorch:
+        case BTVines:
+        case BTWater:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return false;
+        case BTChest:
+        case BTDispenser:
+        case BTDropper:
+        case BTFurnace:
+        case BTHopper:
+            return true;
+        }
+        return false;
+    }
+
+    /** @param b
+     *            the block to add
+     * @param addFromOrientation
+     *            the side that the block is added from
+     * @return if the block can be added */
+    public boolean addBlockToContainer(final Block b,
+                                       final int addFromOrientation)
+    {
+        if(b == null || b.getType() == BlockType.BTEmpty)
+            return false;
+        switch(this.type)
+        {
+        case BTDeleteBlock:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return false;
+        case BTEmpty:
+        case BTBedrock:
+            return false;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTBow:
+        case BTBucket:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTCobweb:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTGlass:
+        case BTGoldAxe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronAxe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLava:
+        case BTLeaves:
+        case BTLever:
+        case BTObsidian:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTQuartz:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTShears:
+        case BTSlime:
+        case BTSnow:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTString:
+        case BTTNT:
+        case BTTorch:
+        case BTVines:
+        case BTWater:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return false;
+        case BTChest:
+        {
+            for(int row = 0; row < CHEST_ROWS; row++)
+            {
+                for(int column = 0; column < CHEST_COLUMNS; column++)
+                {
+                    if(chestAddBlocks(b, 1, row, column) > 0)
+                        return true;
+                }
+            }
+            return false;
+        }
+        case BTDispenser:
+        case BTDropper:
+        {
+            for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    if(dispenserDropperAddBlocks(b, 1, row, column) > 0)
+                        return true;
+                }
+            }
+            return false;
+        }
+        case BTFurnace:
+        {
+            switch(Block.getOrientationDY(addFromOrientation))
+            {
+            case 0:
+            {
+                int burnTime = b.getBurnTime();
+                if(burnTime <= 0)
+                    return false;
+                furnaceAddFire(b);
+                return true;
+            }
+            case 1:
+                return furnaceAddBlock(b);
+            case -1:
+            default:
+                return false;
+            }
+        }
+        case BTHopper:
+        {
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+                if(hopperAddBlocks(b, 1, slot) > 0)
+                    return true;
+            return false;
+        }
+        }
+        return false;
+    }
+
+    public int hopperAddBlocks(final Block b, final int count, final int slot)
+    {
+        assert this.type == BlockType.BTHopper;
+        if(slot < 0 || slot >= HOPPER_SLOTS || b == null || count <= 0)
+            return 0;
+        final int index = slot;
+        if(this.data.BlockCounts[index] >= BLOCK_STACK_SIZE)
+            return 0;
+        if(this.data.BlockCounts[index] <= 0)
+        {
+            this.data.BlockTypes[index] = b;
+            if(count > BLOCK_STACK_SIZE)
+            {
+                this.data.BlockCounts[index] = BLOCK_STACK_SIZE;
+                return BLOCK_STACK_SIZE;
+            }
+            this.data.BlockCounts[index] = count;
+            return count;
+        }
+        if(!this.data.BlockTypes[index].equals(b))
+            return 0;
+        if(this.data.BlockCounts[index] + count > BLOCK_STACK_SIZE)
+        {
+            int retval = BLOCK_STACK_SIZE - this.data.BlockCounts[index];
+            this.data.BlockCounts[index] = BLOCK_STACK_SIZE;
+            return retval;
+        }
+        this.data.BlockCounts[index] += count;
+        return count;
+    }
+
+    /** @param removeFromOrientation
+     *            the side that the block is removed from
+     * @return the block removal descriptor */
+    public int
+        makeRemoveBlockFromContainerDescriptor(final int removeFromOrientation)
+    {
+        switch(this.type)
+        {
+        case BTDeleteBlock:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return -1;
+        case BTEmpty:
+        case BTBedrock:
+            return -1;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTBow:
+        case BTBucket:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTCobweb:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTGlass:
+        case BTGoldAxe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronAxe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLava:
+        case BTLeaves:
+        case BTLever:
+        case BTObsidian:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTQuartz:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTShears:
+        case BTSlime:
+        case BTSnow:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTString:
+        case BTTNT:
+        case BTTorch:
+        case BTVines:
+        case BTWater:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return -1;
+        case BTChest:
+        {
+            int occupiedCount = 0;
+            for(int row = 0; row < CHEST_ROWS; row++)
+            {
+                for(int column = 0; column < CHEST_COLUMNS; column++)
+                {
+                    if(chestGetBlockCount(row, column) > 0)
+                        occupiedCount++;
+                }
+            }
+            if(occupiedCount <= 0)
+                return -1;
+            int removePos = Math.min(occupiedCount - 1,
+                                     (int)Math.floor(World.fRand(0,
+                                                                 occupiedCount)));
+            return removePos;
+        }
+        case BTDispenser:
+        case BTDropper:
+        {
+            int occupiedCount = 0;
+            for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    if(dispenserDropperGetBlockCount(row, column) > 0)
+                        occupiedCount++;
+                }
+            }
+            if(occupiedCount <= 0)
+                return -1;
+            return Math.min(occupiedCount - 1,
+                            (int)Math.floor(World.fRand(0, occupiedCount)));
+        }
+        case BTFurnace:
+        {
+            if(Block.getOrientationDY(removeFromOrientation) != -1)
+                return -1;
+            if(furnaceGetDestBlockCount() > 0)
+                return 0;
+            return -1;
+        }
+        case BTHopper:
+        {
+            int occupiedCount = 0;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                if(hopperGetBlockCount(slot) > 0)
+                    occupiedCount++;
+            }
+            if(occupiedCount <= 0)
+                return -1;
+            return Math.min(occupiedCount - 1,
+                            (int)Math.floor(World.fRand(0, occupiedCount)));
+        }
+        }
+        return -1;
+    }
+
+    /** @param removeFromOrientation
+     *            the side that the block is removed from
+     * @param removeDescriptor
+     *            the block removal descriptor
+     * @return the removed block or null */
+    public Block getRemovedBlockFromContainer(final int removeFromOrientation,
+                                              final int removeDescriptor)
+    {
+        if(removeDescriptor < 0)
+            return null;
+        switch(this.type)
+        {
+        case BTDeleteBlock:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return null;
+        case BTEmpty:
+        case BTBedrock:
+            return null;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTBow:
+        case BTBucket:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTCobweb:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTGlass:
+        case BTGoldAxe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronAxe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLava:
+        case BTLeaves:
+        case BTLever:
+        case BTObsidian:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTQuartz:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTShears:
+        case BTSlime:
+        case BTSnow:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTString:
+        case BTTNT:
+        case BTTorch:
+        case BTVines:
+        case BTWater:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return null;
+        case BTChest:
+        {
+            int occupiedCount = 0;
+            for(int row = 0; row < CHEST_ROWS; row++)
+            {
+                for(int column = 0; column < CHEST_COLUMNS; column++)
+                {
+                    if(chestGetBlockCount(row, column) > 0)
+                        occupiedCount++;
+                }
+            }
+            if(occupiedCount <= 0)
+                return null;
+            if(removeDescriptor >= occupiedCount)
+                return null;
+            int removePos = removeDescriptor;
+            int index = 0;
+            for(int row = 0; row < CHEST_ROWS; row++)
+            {
+                for(int column = 0; column < CHEST_COLUMNS; column++)
+                {
+                    if(chestGetBlockCount(row, column) > 0)
+                    {
+                        if(index == removePos)
+                        {
+                            Block retval = chestGetBlockType(row, column);
+                            return retval;
+                        }
+                        index++;
+                    }
+                }
+            }
+            return null;
+        }
+        case BTDispenser:
+        case BTDropper:
+        {
+            int occupiedCount = 0;
+            for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    if(dispenserDropperGetBlockCount(row, column) > 0)
+                        occupiedCount++;
+                }
+            }
+            if(occupiedCount <= 0)
+                return null;
+            if(removeDescriptor >= occupiedCount)
+                return null;
+            int removePos = removeDescriptor;
+            int index = 0;
+            for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    if(dispenserDropperGetBlockCount(row, column) > 0)
+                    {
+                        if(index == removePos)
+                        {
+                            Block retval = dispenserDropperGetBlockType(row,
+                                                                        column);
+                            return retval;
+                        }
+                        index++;
+                    }
+                }
+            }
+            return null;
+        }
+        case BTFurnace:
+        {
+            if(Block.getOrientationDY(removeFromOrientation) != -1)
+                return null;
+            if(furnaceGetDestBlockCount() > 0)
+                return furnaceGetDestBlock();
+            return null;
+        }
+        case BTHopper:
+        {
+            int occupiedCount = 0;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                if(hopperGetBlockCount(slot) > 0)
+                    occupiedCount++;
+            }
+            if(occupiedCount <= 0)
+                return null;
+            if(removeDescriptor >= occupiedCount)
+                return null;
+            int removePos = removeDescriptor;
+            int index = 0;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                if(hopperGetBlockCount(slot) > 0)
+                {
+                    if(index == removePos)
+                    {
+                        Block retval = hopperGetBlockType(slot);
+                        return retval;
+                    }
+                    index++;
+                }
+            }
+            return null;
+        }
+        }
+        return null;
+    }
+
+    /** @param removeFromOrientation
+     *            the side that the block is removed from
+     * @param removeDescriptor
+     *            the block removal descriptor
+     * @return the removed block or null */
+    public Block removeBlockFromContainer(final int removeFromOrientation,
+                                          final int removeDescriptor)
+    {
+        if(removeDescriptor < 0)
+            return null;
+        switch(this.type)
+        {
+        case BTDeleteBlock:
+        case BTLast:
+        case BTMoon:
+        case BTSun:
+            return null;
+        case BTEmpty:
+        case BTBedrock:
+            return null;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTBow:
+        case BTBucket:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTCobweb:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTGlass:
+        case BTGoldAxe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTGrass:
+        case BTGravel:
+        case BTGunpowder:
+        case BTIronAxe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLava:
+        case BTLeaves:
+        case BTLever:
+        case BTObsidian:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTQuartz:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTSand:
+        case BTSapling:
+        case BTShears:
+        case BTSlime:
+        case BTSnow:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTString:
+        case BTTNT:
+        case BTTorch:
+        case BTVines:
+        case BTWater:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWorkbench:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return null;
+        case BTChest:
+        {
+            int occupiedCount = 0;
+            for(int row = 0; row < CHEST_ROWS; row++)
+            {
+                for(int column = 0; column < CHEST_COLUMNS; column++)
+                {
+                    if(chestGetBlockCount(row, column) > 0)
+                        occupiedCount++;
+                }
+            }
+            if(occupiedCount <= 0)
+                return null;
+            if(removeDescriptor >= occupiedCount)
+                return null;
+            int removePos = removeDescriptor;
+            int index = 0;
+            for(int row = 0; row < CHEST_ROWS; row++)
+            {
+                for(int column = 0; column < CHEST_COLUMNS; column++)
+                {
+                    if(chestGetBlockCount(row, column) > 0)
+                    {
+                        if(index == removePos)
+                        {
+                            Block retval = chestGetBlockType(row, column);
+                            if(chestRemoveBlocks(retval, 1, row, column) > 0)
+                                return retval;
+                            break;
+                        }
+                        index++;
+                    }
+                }
+            }
+            return null;
+        }
+        case BTDispenser:
+        case BTDropper:
+        {
+            int occupiedCount = 0;
+            for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    if(dispenserDropperGetBlockCount(row, column) > 0)
+                        occupiedCount++;
+                }
+            }
+            if(occupiedCount <= 0)
+                return null;
+            if(removeDescriptor >= occupiedCount)
+                return null;
+            int removePos = removeDescriptor;
+            int index = 0;
+            for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
+            {
+                for(int column = 0; column < DISPENSER_DROPPER_COLUMNS; column++)
+                {
+                    if(dispenserDropperGetBlockCount(row, column) > 0)
+                    {
+                        if(index == removePos)
+                        {
+                            Block retval = dispenserDropperGetBlockType(row,
+                                                                        column);
+                            if(dispenserDropperRemoveBlocks(retval,
+                                                            1,
+                                                            row,
+                                                            column) > 0)
+                                return retval;
+                            break;
+                        }
+                        index++;
+                    }
+                }
+            }
+            return null;
+        }
+        case BTFurnace:
+        {
+            if(Block.getOrientationDY(removeFromOrientation) != -1)
+                return null;
+            return furnaceRemoveBlock();
+        }
+        case BTHopper:
+        {
+            int occupiedCount = 0;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                if(hopperGetBlockCount(slot) > 0)
+                    occupiedCount++;
+            }
+            if(occupiedCount <= 0)
+                return null;
+            if(removeDescriptor >= occupiedCount)
+                return null;
+            int removePos = removeDescriptor;
+            int index = 0;
+            for(int slot = 0; slot < HOPPER_SLOTS; slot++)
+            {
+                if(hopperGetBlockCount(slot) > 0)
+                {
+                    if(index == removePos)
+                    {
+                        Block retval = hopperGetBlockType(slot);
+                        if(hopperRemoveBlocks(retval, 1, slot) > 0)
+                            return retval;
+                        break;
+                    }
+                    index++;
+                }
+            }
+            return null;
+        }
+        }
+        return null;
+    }
+
+    public boolean hopperIsActive()
+    {
+        return this.data.intdata == 0;
     }
 }

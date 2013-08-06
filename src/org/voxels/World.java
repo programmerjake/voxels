@@ -167,7 +167,6 @@ public class World
         public EntityNode hashnext;
         public EntityNode hashprev;
         public EntityNode next;
-        @SuppressWarnings("unused")
         public EntityNode prev;
         public Entity e;
 
@@ -1773,12 +1772,71 @@ public class World
         players.entityCheckHitPlayers();
     }
 
+    private void removeEntityNode(final EntityNode node)
+    {
+        Vector pos = node.e.getPosition();
+        int x = (int)Math.floor(pos.getX());
+        int y = (int)Math.floor(pos.getY());
+        int z = (int)Math.floor(pos.getZ());
+        if(node.prev == null)
+            this.entityHead = node.next;
+        else
+            node.prev.next = node.next;
+        if(node.next == null)
+            this.entityTail = node.prev;
+        else
+            node.next.prev = node.prev;
+        node.next = null;
+        node.prev = null;
+        Chunk c = find(getChunkX(x), getChunkY(y), getChunkZ(z));
+        if(c == null)
+            return;
+        if(node.hashprev == null)
+            c.head = node.hashnext;
+        else
+            node.hashprev.hashnext = node.hashnext;
+        if(node.hashnext == null)
+            c.tail = node.hashprev;
+        else
+            node.hashnext.hashprev = node.hashprev;
+        node.hashnext = null;
+        node.hashprev = null;
+    }
+
     private void explodeEntities(final Vector pos, final float strength)
     {
         final int maxRadius = (int)Math.ceil(strength * 2);
-        // TODO fix
-        for(EntityNode node = removeAllEntities(), nextNode = (node != null ? node.next
-                : null); node != null; node = nextNode, nextNode = (node != null ? node.next
+        final int minChunkX = getChunkX((int)Math.floor(pos.getX()) - maxRadius);
+        final int maxChunkX = getChunkX((int)Math.ceil(pos.getX()) + maxRadius
+                + Chunk.size - 1);
+        final int minChunkY = getChunkY((int)Math.floor(pos.getY()) - maxRadius);
+        final int maxChunkY = getChunkY((int)Math.ceil(pos.getY()) + maxRadius
+                + Chunk.size - 1);
+        final int minChunkZ = getChunkZ((int)Math.floor(pos.getZ()) - maxRadius);
+        final int maxChunkZ = getChunkZ((int)Math.ceil(pos.getZ()) + maxRadius
+                + Chunk.size - 1);
+        EntityNode head = null;
+        for(int cx = minChunkX; cx <= maxChunkX; cx += Chunk.size)
+        {
+            for(int cy = minChunkY; cy <= maxChunkY; cy += Chunk.size)
+            {
+                for(int cz = minChunkZ; cz <= maxChunkZ; cz += Chunk.size)
+                {
+                    Chunk c = find(cx, cy, cz);
+                    if(c == null)
+                        continue;
+                    EntityNode node = c.head;
+                    while(node != null)
+                    {
+                        removeEntityNode(node);
+                        node.next = head;
+                        head = node;
+                        node = c.head;
+                    }
+                }
+            }
+        }
+        for(EntityNode node = head, nextNode = (node != null ? node.next : null); node != null; node = nextNode, nextNode = (node != null ? node.next
                 : null))
         {
             node.e.explode(pos, strength);

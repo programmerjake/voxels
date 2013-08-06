@@ -116,19 +116,7 @@ public class LWJGLPlatform implements Platform
             @Override
             protected void drawBackground(final Matrix tform)
             {
-                super.drawBackground(tform);
-                String str = "Change Screen Resolution";
-                float xScale = 2f / 40f;
-                Text.draw(Matrix.scale(xScale, 2f / 40f, 1.0f)
-                                .concat(Matrix.translate(-xScale
-                                                                 / 2f
-                                                                 * Text.sizeW(str)
-                                                                 / Text.sizeW("A"),
-                                                         0.7f,
-                                                         0))
-                                .concat(tform),
-                          Color.RGB(0, 0, 0),
-                          str);
+                drawTextBackground("Change Screen Resolution", tform);
             }
 
             public void setSelectedMode(final int selectedMode)

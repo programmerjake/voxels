@@ -2664,6 +2664,8 @@ public enum BlockType
         @Override
         public Block make(final int orientation)
         {
+            if(orientation == -1)
+                return Block.NewPiston(orientation, false);
             return Block.NewPiston(Block.getNegOrientation(orientation), false);
         }
 
@@ -2720,6 +2722,8 @@ public enum BlockType
         @Override
         public Block make(final int orientation)
         {
+            if(orientation == -1)
+                return Block.NewStickyPiston(orientation, false);
             return Block.NewStickyPiston(Block.getNegOrientation(orientation),
                                          false);
         }
@@ -3975,8 +3979,187 @@ public enum BlockType
             return 0;
         }
     },
+    /** hopper */
+    BTHopper(82, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("hoppertop.png")),
+                TextureAtlas.addImage(new Image("hoppermiddle.png")),
+                TextureAtlas.addImage(new Image("hopperend.png")),
+                TextureAtlas.addImage(new Image("hoppericon.png")),
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            if(orientation == -1)
+                return Block.NewHopper(-1);
+            return Block.NewHopper(orientation);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** cactus */
+    BTCactus(83, false, BlockDrawType.BDTSolid,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("cactus.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewCactus();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            if(false)
+                return BTEmpty/*BTCactusGreen*/;
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** red mushroom */
+    BTRedMushroom(84, false, BlockDrawType.BDTSim3D,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("redmushroom.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewRedMushroom();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** brown mushroom */
+    BTBrownMushroom(85, false, BlockDrawType.BDTSim3D,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("brownmushroom.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewBrownMushroom();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 1;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(82, false, BlockDrawType.BDTNone, null)
+    BTLast(86, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -4469,6 +4652,10 @@ public enum BlockType
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return 0;
         }
         return 0;
@@ -4588,6 +4775,10 @@ public enum BlockType
         case BTDispenser:
         case BTDropper:
         case BTCobweb:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return false;
         }
         return false;
@@ -4708,9 +4899,13 @@ public enum BlockType
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return false;
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
+        case BTCactus:
             return true;
         }
         return false;
@@ -4831,9 +5026,13 @@ public enum BlockType
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return false;
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
+        case BTCactus:
             return true;
         }
         return false;
@@ -4900,6 +5099,8 @@ public enum BlockType
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return true;
         case BTPlank:
         case BTLeaves:
@@ -4938,6 +5139,8 @@ public enum BlockType
         case BTRedstoneComparator:
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
+        case BTCactus:
             return false;
         }
         return false;
@@ -5028,6 +5231,10 @@ public enum BlockType
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -5171,6 +5378,10 @@ public enum BlockType
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return true;
         }
         return false;
@@ -5301,10 +5512,17 @@ public enum BlockType
         case BTCobweb:
         case BTString:
         case BTBow:
+        case BTRedMushroom:
+        case BTBrownMushroom:
             return Replaceability.Replace;
         case BTDispenser:
         case BTDropper:
+        case BTHopper:
             return Replaceability.CanNotGrow;
+        case BTCactus:
+            if(replacingBlock == BTWood)
+                return Replaceability.CanNotGrow;
+            return Replaceability.GrowAround;
         }
         return Replaceability.CanNotGrow;
     }
@@ -5508,6 +5726,13 @@ public enum BlockType
             return 17.5f;
         case BTCobweb:
             return 20;
+        case BTHopper:
+            return 15;
+        case BTCactus:
+            return 2;
+        case BTRedMushroom:
+        case BTBrownMushroom:
+            return 0; // TODO find actual value
         }
         return 1e10f;
     }

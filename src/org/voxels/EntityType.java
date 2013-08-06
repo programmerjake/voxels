@@ -37,6 +37,8 @@ public enum EntityType
     PlaceBlockIfReplaceable,
     /** removes a block if the old block is equal to the contained block */
     RemoveBlockIfEqual,
+    /** transfers a block */
+    TransferItem,
     /** used to get <code>EntityType.count</code> */
     Last;
     /** the number of valid entity types */
