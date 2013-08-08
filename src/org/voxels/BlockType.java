@@ -160,7 +160,9 @@ public enum BlockType
     BTGrass(3, true, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
     {
         TextureAtlas.addImage(new Image("grass.png")),
-        TextureAtlas.addImage(new Image("snowgrass.png"))
+        TextureAtlas.addImage(new Image("snowgrass.png")),
+        TextureAtlas.addImage(new Image("grassmask.png")),
+        TextureAtlas.addImage(new Image("dirtmask.png"))
     })
     {
         @Override
@@ -242,11 +244,7 @@ public enum BlockType
         }
     },
     /** sapling block */
-    BTSapling(5, false, BlockDrawType.BDTSim3D,
-            new TextureAtlas.TextureHandle[]
-            {
-                TextureAtlas.addImage(new Image("sapling.png"))
-            })
+    BTSapling(5, false, BlockDrawType.BDTSim3D, makeSaplingTextures())
     {
         @Override
         public double getGrowTime()
@@ -535,13 +533,7 @@ public enum BlockType
         }
     },
     /** wood block */
-    BTWood(11, true, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
-    {
-        TextureAtlas.addImage(new Image("wood.png")),
-        TextureAtlas.addImage(new Image("birchwood.png")),
-        TextureAtlas.addImage(new Image("sprucewood.png")),
-        TextureAtlas.addImage(new Image("junglewood.png")),
-    })
+    BTWood(11, true, BlockDrawType.BDTCustom, makeWoodTextures())
     {
         @Override
         public Block make(final int orientation)
@@ -596,11 +588,7 @@ public enum BlockType
         }
     },
     /** leaves block */
-    BTLeaves(12, false, BlockDrawType.BDTCustom,
-            new TextureAtlas.TextureHandle[]
-            {
-                TextureAtlas.addImage(new Image("leaves.png"))
-            })
+    BTLeaves(12, false, BlockDrawType.BDTCustom, makeLeavesTextures())
     {
         @Override
         public Block make(final int orientation)
@@ -4158,8 +4146,591 @@ public enum BlockType
             return 0;
         }
     },
+    /** dead bush */
+    BTDeadBush(86, false, BlockDrawType.BDTSim3D,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("deadbush.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewDeadBush();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** dandelion */
+    BTDandelion(87, false, BlockDrawType.BDTSim3D,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("dandelion.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewDandelion();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** rose */
+    BTRose(88, false, BlockDrawType.BDTSim3D, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("rose.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewRose();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** tall grass */
+    BTTallGrass(89, false, BlockDrawType.BDTSim3D,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("tallgrass.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewTallGrass();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** seeds */
+    BTSeeds(90, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("wheat0.png")),
+                TextureAtlas.addImage(new Image("wheat1.png")),
+                TextureAtlas.addImage(new Image("wheat2.png")),
+                TextureAtlas.addImage(new Image("wheat3.png")),
+                TextureAtlas.addImage(new Image("wheat4.png")),
+                TextureAtlas.addImage(new Image("wheat5.png")),
+                TextureAtlas.addImage(new Image("wheat6.png")),
+                TextureAtlas.addImage(new Image("wheat7.png")),
+                TextureAtlas.addImage(new Image("seeds.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewSeeds(0);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** wheat */
+    BTWheat(91, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("wheat.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewWheat();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** farmland */
+    BTFarmland(92, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("farmland.png")),
+                TextureAtlas.addImage(new Image("wetfarmland.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewFarmland(false);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** wood hoe */
+    BTWoodHoe(93, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("woodhoe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewWoodHoe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Hoe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Wood;
+        }
+    },
+    /** stone hoe */
+    BTStoneHoe(94, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("stonehoe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewStoneHoe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Hoe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Stone;
+        }
+    },
+    /** Iron Hoe */
+    BTIronHoe(95, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("ironhoe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewIronHoe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Hoe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Iron;
+        }
+    },
+    /** gold hoe */
+    BTGoldHoe(96, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("goldhoe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewGoldHoe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Hoe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Gold;
+        }
+    },
+    /** diamond hoe */
+    BTDiamondHoe(97, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("diamondhoe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewDiamondHoe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Hoe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Diamond;
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(86, false, BlockDrawType.BDTNone, null)
+    BTLast(98, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -4656,6 +5227,18 @@ public enum BlockType
         case BTCactus:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTFarmland:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
             return 0;
         }
         return 0;
@@ -4779,7 +5362,20 @@ public enum BlockType
         case BTCactus:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTFarmland:
+        case BTSeeds:
+        case BTTallGrass:
             return false;
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
+            return true;
         }
         return false;
     }
@@ -4901,11 +5497,23 @@ public enum BlockType
         case BTBow:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
             return false;
         case BTDispenser:
         case BTDropper:
         case BTHopper:
         case BTCactus:
+        case BTFarmland:
             return true;
         }
         return false;
@@ -5028,11 +5636,23 @@ public enum BlockType
         case BTBow:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
             return false;
         case BTDispenser:
         case BTDropper:
         case BTHopper:
         case BTCactus:
+        case BTFarmland:
             return true;
         }
         return false;
@@ -5101,6 +5721,17 @@ public enum BlockType
         case BTBow:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
             return true;
         case BTPlank:
         case BTLeaves:
@@ -5141,6 +5772,7 @@ public enum BlockType
         case BTDropper:
         case BTHopper:
         case BTCactus:
+        case BTFarmland:
             return false;
         }
         return false;
@@ -5235,6 +5867,18 @@ public enum BlockType
         case BTCactus:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTFarmland:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -5382,6 +6026,18 @@ public enum BlockType
         case BTCactus:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTFarmland:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
             return true;
         }
         return false;
@@ -5514,10 +6170,22 @@ public enum BlockType
         case BTBow:
         case BTRedMushroom:
         case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
             return Replaceability.Replace;
         case BTDispenser:
         case BTDropper:
         case BTHopper:
+        case BTFarmland:
             return Replaceability.CanNotGrow;
         case BTCactus:
             if(replacingBlock == BTWood)
@@ -5732,7 +6400,21 @@ public enum BlockType
             return 2;
         case BTRedMushroom:
         case BTBrownMushroom:
-            return 0; // TODO find actual value
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+            return 0;
+        case BTFarmland:
+            return 3;
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
+            return 0;
         }
         return 1e10f;
     }
@@ -5768,5 +6450,44 @@ public enum BlockType
             return 60;
         }
         return 0;
+    }
+
+    protected static TextureAtlas.TextureHandle[] makeLeavesTextures()
+    {
+        Tree.TreeType[] values = Tree.TreeType.values();
+        TextureAtlas.TextureHandle[] retval = new TextureAtlas.TextureHandle[values.length * 2];
+        for(int i = 0; i < values.length; i++)
+        {
+            Image fancyImg = new Image(values[i].leavesImgName);
+            retval[i + values.length] = TextureAtlas.addImage(fancyImg);
+            Image fastImg = new Image(fancyImg);
+            fastImg.setSolidBackground(Color.V(0.25f));
+            retval[i] = TextureAtlas.addImage(fastImg);
+        }
+        return retval;
+    }
+
+    protected static TextureAtlas.TextureHandle[] makeWoodTextures()
+    {
+        Tree.TreeType[] values = Tree.TreeType.values();
+        TextureAtlas.TextureHandle[] retval = new TextureAtlas.TextureHandle[values.length];
+        for(int i = 0; i < values.length; i++)
+        {
+            Image img = new Image(values[i].woodImgName);
+            retval[i] = TextureAtlas.addImage(img);
+        }
+        return retval;
+    }
+
+    protected static TextureAtlas.TextureHandle[] makeSaplingTextures()
+    {
+        Tree.TreeType[] values = Tree.TreeType.values();
+        TextureAtlas.TextureHandle[] retval = new TextureAtlas.TextureHandle[values.length];
+        for(int i = 0; i < values.length; i++)
+        {
+            Image img = new Image(values[i].saplingImgName);
+            retval[i] = TextureAtlas.addImage(img);
+        }
+        return retval;
     }
 }

@@ -420,6 +420,21 @@ public class Image
         return this.h;
     }
 
+    /** change all transparent areas to <code>c</code>
+     * 
+     * @param c
+     *            the new background color */
+    public void setSolidBackground(final Color c)
+    {
+        for(int y = 0; y < getHeight(); y++)
+        {
+            for(int x = 0; x < getWidth(); x++)
+            {
+                setPixel(x, y, getPixel(x, y).compose(c));
+            }
+        }
+    }
+
     private static class ConstantImage extends Image
     {
         public ConstantImage(final Image rt)

@@ -665,7 +665,21 @@ public class Entity implements GameObject
             int x = Math.round(this.position.getX());
             int y = Math.round(this.position.getY());
             int z = Math.round(this.position.getZ());
-            Block b = world.getBlock(x, y - 1, z);
+            Block b = world.getBlock(x, y, z);
+            if(b != null && !b.isReplaceable()
+                    && b.getType() != BlockType.BTEmpty)
+            {
+                b = this.data.block;
+                if(b == null)
+                    b = new Block();
+                world.insertEntity(NewBlock(move_t1.set(this.position)
+                                                   .addAndSet(0.5f, 0.5f, 0.5f),
+                                            b,
+                                            World.vRand(move_t2, 0.1f)));
+                clear();
+                return;
+            }
+            b = world.getBlock(x, y - 1, z);
             if(b == null || b.isSupporting())
             {
                 b = this.data.block;

@@ -16,7 +16,6 @@
  */
 package org.voxels;
 
-
 /** @author jacob */
 public final class Color
 {
@@ -37,7 +36,7 @@ public final class Color
      *            blue intensity
      * @param na
      *            transparency */
-    public Color(byte nr, byte ng, byte nb, byte na)
+    public Color(final byte nr, final byte ng, final byte nb, final byte na)
     {
         this.r = nr;
         this.g = ng;
@@ -51,7 +50,7 @@ public final class Color
      *            green intensity
      * @param nb
      *            blue intensity */
-    public Color(byte nr, byte ng, byte nb)
+    public Color(final byte nr, final byte ng, final byte nb)
     {
         this(nr, ng, nb, (byte)0);
     }
@@ -64,7 +63,7 @@ public final class Color
      *            blue intensity
      * @param na
      *            transparency */
-    public Color(int nr, int ng, int nb, int na)
+    public Color(final int nr, final int ng, final int nb, final int na)
     {
         this((byte)Math.max(Math.min(nr, 0xFF), 0),
              (byte)Math.max(Math.min(ng, 0xFF), 0),
@@ -78,7 +77,7 @@ public final class Color
      *            green intensity
      * @param nb
      *            blue intensity */
-    public Color(int nr, int ng, int nb)
+    public Color(final int nr, final int ng, final int nb)
     {
         this((byte)Math.max(Math.min(nr, 0xFF), 0),
              (byte)Math.max(Math.min(ng, 0xFF), 0),
@@ -88,7 +87,7 @@ public final class Color
 
     /** @param rt
      *            the color to copy */
-    public Color(Color rt)
+    public Color(final Color rt)
     {
         this(rt.r, rt.g, rt.b, rt.a);
     }
@@ -100,7 +99,7 @@ public final class Color
      * @param b
      *            blue intensity
      * @return the created <code>Color</code> */
-    public static Color RGB(int r, int g, int b)
+    public static Color RGB(final int r, final int g, final int b)
     {
         return new Color(r, g, b);
     }
@@ -114,7 +113,8 @@ public final class Color
      * @param a
      *            transparency
      * @return the created <code>Color</code> */
-    public static Color RGBA(int r, int g, int b, int a)
+    public static Color
+        RGBA(final int r, final int g, final int b, final int a)
     {
         return new Color(r, g, b, a);
     }
@@ -126,7 +126,7 @@ public final class Color
      * @param b
      *            blue intensity
      * @return the created <code>Color</code> */
-    public static Color RGB(float r, float g, float b)
+    public static Color RGB(final float r, final float g, final float b)
     {
         return RGB((int)Math.floor(r * 256.0),
                    (int)Math.floor(g * 256.0),
@@ -142,7 +142,10 @@ public final class Color
      * @param a
      *            transparency
      * @return the created <code>Color</code> */
-    public static Color RGBA(float r, float g, float b, float a)
+    public static Color RGBA(final float r,
+                             final float g,
+                             final float b,
+                             final float a)
     {
         return RGBA((int)Math.floor(r * 256.0),
                     (int)Math.floor(g * 256.0),
@@ -153,7 +156,7 @@ public final class Color
     /** @param v
      *            intensity
      * @return the created <code>Color</code> */
-    public static Color V(float v)
+    public static Color V(final float v)
     {
         return RGB(v, v, v);
     }
@@ -163,7 +166,7 @@ public final class Color
      * @param a
      *            transparency
      * @return the created <code>Color</code> */
-    public static Color VA(float v, float a)
+    public static Color VA(final float v, final float a)
     {
         return RGBA(v, v, v, a);
     }
@@ -171,7 +174,7 @@ public final class Color
     /** @param c
      *            color
      * @return red intensity */
-    public static int GetRValue(Color c)
+    public static int GetRValue(final Color c)
     {
         return c.r & 0xFF;
     }
@@ -179,7 +182,7 @@ public final class Color
     /** @param c
      *            color
      * @return green intensity */
-    public static int GetGValue(Color c)
+    public static int GetGValue(final Color c)
     {
         return c.g & 0xFF;
     }
@@ -187,7 +190,7 @@ public final class Color
     /** @param c
      *            color
      * @return blue intensity */
-    public static int GetBValue(Color c)
+    public static int GetBValue(final Color c)
     {
         return c.b & 0xFF;
     }
@@ -195,7 +198,7 @@ public final class Color
     /** @param c
      *            color
      * @return transparency */
-    public static int GetAValue(Color c)
+    public static int GetAValue(final Color c)
     {
         return c.a & 0xFF;
     }
@@ -205,7 +208,7 @@ public final class Color
      * 
      * @param c
      *            color */
-    public static void glColor(Color c)
+    public static void glColor(final Color c)
     {
         Main.opengl.glColor4f(GetRValue(c) / 255.0f,
                               GetGValue(c) / 255.0f,
@@ -218,11 +221,23 @@ public final class Color
      * 
      * @param c
      *            color */
-    public static void glClearColor(Color c)
+    public static void glClearColor(final Color c)
     {
         Main.opengl.glClearColor(GetRValue(c) / 255.0f,
                                  GetGValue(c) / 255.0f,
                                  GetBValue(c) / 255.0f,
                                  0.0f);
+    }
+
+    public Color compose(final Color bkgnd)
+    {
+        int foregroundA = GetAValue(this);
+        return RGBA((GetRValue(this) * (255 - foregroundA) + GetRValue(bkgnd)
+                            * foregroundA) / 255,
+                    (GetGValue(this) * (255 - foregroundA) + GetGValue(bkgnd)
+                            * foregroundA) / 255,
+                    (GetBValue(this) * (255 - foregroundA) + GetBValue(bkgnd)
+                            * foregroundA) / 255,
+                    foregroundA * GetAValue(bkgnd) / 255);
     }
 }

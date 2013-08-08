@@ -30,6 +30,16 @@ import org.voxels.generate.Plant.PlantType;
  * @author jacob */
 public final class Rand
 {
+    private static List<String> makeBiomeNames()
+    {
+        ArrayList<String> biomeNames = new ArrayList<String>();
+        for(int i = 0; i < Biome.values.length; i++)
+            biomeNames.add(Biome.values[i].getName());
+        return Collections.unmodifiableList(biomeNames);
+    }
+
+    public static final List<String> biomeNames = makeBiomeNames();
+
     /** @author jacob */
     public static final class Settings
     {
@@ -37,7 +47,8 @@ public final class Rand
          * 
          */
         public boolean isSuperflat;
-        private static final int version = 0;
+        public String startingBiome;
+        private static final int version = 1;
 
         /**
          * 
@@ -45,6 +56,23 @@ public final class Rand
         public Settings()
         {
             this.isSuperflat = false;
+            this.startingBiome = "";
+        }
+
+        public Settings(final Settings rt)
+        {
+            this.isSuperflat = rt.isSuperflat;
+            this.startingBiome = rt.startingBiome;
+        }
+
+        public boolean isStartingBiomeValid()
+        {
+            for(String biomeName : Rand.biomeNames)
+            {
+                if(this.startingBiome.equals(biomeName))
+                    return true;
+            }
+            return this.startingBiome.equals("");
         }
 
         /** write to a <code>DataOutput</code>
@@ -57,6 +85,8 @@ public final class Rand
         {
             o.writeInt(version);
             o.writeBoolean(this.isSuperflat);
+            o.writeInt(this.startingBiome.length());
+            o.writeChars(this.startingBiome);
         }
 
         private void
@@ -65,6 +95,19 @@ public final class Rand
             if(curVersion != 0)
                 throw new IOException("invalid Rand.Settings version");
             this.isSuperflat = i.readBoolean();
+        }
+
+        private void
+            internalReadVer1(final DataInput i, final int curVersion) throws IOException
+        {
+            if(curVersion != 1)
+                internalReadVer0(i, curVersion);
+            this.isSuperflat = i.readBoolean();
+            int length = i.readInt();
+            StringBuilder sb = new StringBuilder(length);
+            for(int j = 0; j < length; j++)
+                sb.append(i.readChar());
+            this.startingBiome = sb.toString();
         }
 
         /** read from a <code>DataInput</code>
@@ -78,8 +121,28 @@ public final class Rand
         {
             Settings retval = new Settings();
             int curVersion = i.readInt();
-            retval.internalReadVer0(i, curVersion);
+            retval.internalReadVer1(i, curVersion);
             return retval;
+        }
+
+        @Override
+        public boolean equals(final Object o)
+        {
+            if(o == null || !(o instanceof Settings))
+                return false;
+            Settings rt = (Settings)o;
+            if(rt.isSuperflat != this.isSuperflat)
+                return false;
+            if(!rt.startingBiome.equals(this.startingBiome))
+                return false;
+            return true;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Boolean.valueOf(this.isSuperflat).hashCode() + 1271266283
+                    * this.startingBiome.hashCode();
         }
     }
 
@@ -118,6 +181,33 @@ public final class Rand
                 }
             });
             add(new SpacerMenuItem(Color.V(0), this));
+            if(Main.DEBUG)
+            {
+                for(String bn : Rand.biomeNames)
+                {
+                    final String biomeName = bn;
+                    add(new OptionMenuItem("Start In : " + biomeName,
+                                           Color.RGB(0f, 0f, 0f),
+                                           getBackgroundColor(),
+                                           Color.RGB(0f, 0f, 0f),
+                                           Color.RGB(0.0f, 0.0f, 1.0f),
+                                           this)
+                    {
+                        @Override
+                        public void pick()
+                        {
+                            SettingsCreatorMenu.this.settings.startingBiome = biomeName;
+                        }
+
+                        @Override
+                        public boolean isPicked()
+                        {
+                            return SettingsCreatorMenu.this.settings.startingBiome.equals(biomeName);
+                        }
+                    });
+                }
+                add(new SpacerMenuItem(Color.V(0), this));
+            }
             add(new TextMenuItem("Create World",
                                  Color.RGB(0.0f, 0.0f, 0.0f),
                                  getBackgroundColor(),
@@ -170,6 +260,14 @@ public final class Rand
             this.plantChunkHashTableSync[i] = new Object();
     }
 
+    private static boolean biomePasses(final String biome,
+                                       final String expectedBiome)
+    {
+        if(expectedBiome.equals(""))
+            return true;
+        return biome.equals(expectedBiome);
+    }
+
     /** @param settings
      *            the land generator settings
      * @return new land generator */
@@ -186,7 +284,7 @@ public final class Rand
             rockHeight = retval.getRockHeight(0, 0);
         }
         while(rockHeight < WaterHeight
-                || (!retval.getBiomeName(0, 0).equals("Desert") && Main.DEBUG)
+                || !biomePasses(retval.getBiomeName(0, 0), s.startingBiome)
                 || retval.isInCave(0, rockHeight, 0)
                 || retval.getPlant(0, 0, true) != null);
         return retval;
@@ -514,6 +612,12 @@ public final class Rand
             {
                 return Block.NewSand();
             }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 1;
+            }
         },
         ExtremeHills
         {
@@ -554,6 +658,8 @@ public final class Rand
             {
                 if(t == PlantType.OakTree)
                     return 0.002f;
+                if(t == PlantType.Flower)
+                    return 0.01f;
                 return 0f;
             }
 
@@ -598,6 +704,12 @@ public final class Rand
             {
                 return Block.NewDirt();
             }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 0.7f;
+            }
         },
         Taiga
         {
@@ -610,7 +722,7 @@ public final class Rand
             @Override
             public float getTemperature()
             {
-                return 0.7f;
+                return 0.3f;
             }
 
             @Override
@@ -662,7 +774,11 @@ public final class Rand
                 case SpruceTree:
                     return 0.05f;
                 case Cactus:
+                case DeadBush:
+                case Grass:
                     return 0.0f;
+                case Flower:
+                    return 0.01f;
                 }
                 return 0.0f;
             }
@@ -689,6 +805,12 @@ public final class Rand
             public Block getSubSurfaceBlock()
             {
                 return Block.NewDirt();
+            }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 1;
             }
         },
         Tundra
@@ -771,6 +893,12 @@ public final class Rand
             {
                 return Block.NewDirt();
             }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 1;
+            }
         },
         Forest
         {
@@ -828,6 +956,8 @@ public final class Rand
                     return 1 / 20f;
                 if(t == PlantType.BirchTree)
                     return 1 / 30f;
+                if(t == PlantType.Flower)
+                    return 1 / 50f;
                 return 0;
             }
 
@@ -853,6 +983,12 @@ public final class Rand
             public Block getSubSurfaceBlock()
             {
                 return Block.NewDirt();
+            }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 1;
             }
         },
         Desert
@@ -890,7 +1026,7 @@ public final class Rand
             @Override
             public float getHeightFrequency()
             {
-                return 0.01f;
+                return 0.03f;
             }
 
             @Override
@@ -908,7 +1044,9 @@ public final class Rand
             public float getPlantProb(final PlantType t)
             {
                 if(t == PlantType.Cactus)
-                    return 0.03f;
+                    return 0.015f;
+                else if(t == PlantType.DeadBush)
+                    return 0.015f;
                 return 0;
             }
 
@@ -934,6 +1072,12 @@ public final class Rand
             public Block getSubSurfaceBlock()
             {
                 return Block.NewSand();
+            }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 0.5f;
             }
         },
         Plains
@@ -988,6 +1132,10 @@ public final class Rand
             @Override
             public float getPlantProb(final PlantType t)
             {
+                if(t == PlantType.Flower)
+                    return 1 / 25f;
+                if(t == PlantType.Grass)
+                    return 1 / 5f;
                 return 0;
             }
 
@@ -1013,6 +1161,12 @@ public final class Rand
             public Block getSubSurfaceBlock()
             {
                 return Block.NewDirt();
+            }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 1;
             }
         },
         Jungle
@@ -1071,6 +1225,8 @@ public final class Rand
                     return 1 / 20f;
                 if(t == PlantType.OakTree)
                     return 1 / 60f;
+                if(t == PlantType.Flower)
+                    return 1 / 30f;
                 return 0;
             }
 
@@ -1096,6 +1252,12 @@ public final class Rand
             public Block getSubSurfaceBlock()
             {
                 return Block.NewDirt();
+            }
+
+            @Override
+            public float getHeightExponent()
+            {
+                return 1;
             }
         },
         ;
@@ -1126,6 +1288,8 @@ public final class Rand
         public abstract Block getSurfaceBlock();
 
         public abstract Block getSubSurfaceBlock();
+
+        public abstract float getHeightExponent();
     }
 
     private static final class BiomeFactorsChunk
@@ -1254,7 +1418,7 @@ public final class Rand
             {
                 bfc = new BiomeFactorsChunk(cx, cz);
                 initBiomeFactorsChunk(bfc);
-                this.biomeFactorsHashTable[hash] = bfc; // TODO fix
+                this.biomeFactorsHashTable[hash] = bfc;
             }
             return bfc.get(x - cx, z - cz);
         }
@@ -1265,8 +1429,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the biome temperature */
-    @SuppressWarnings("unused")
-    private float getBiomeTemperature(final int x, final int z)
+    public float getBiomeTemperature(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1275,6 +1438,20 @@ public final class Rand
             for(int i = 0; i < factors.length; i++)
             {
                 retval += factors[i] * Biome.values[i].getTemperature();
+            }
+        }
+        return Math.max(Math.min(retval, 1.0f), 0.0f);
+    }
+
+    private float getBiomeHeightExponent(final int x, final int z)
+    {
+        float retval = 0.0f;
+        synchronized(getBiomeFactorsSynchronizeObject(x, z))
+        {
+            float[] factors = getBiomeFactors(x, z);
+            for(int i = 0; i < factors.length; i++)
+            {
+                retval += factors[i] * Biome.values[i].getHeightExponent();
             }
         }
         return Math.max(Math.min(retval, 1.0f), 0.0f);
@@ -1419,8 +1596,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the biome rain fall */
-    @SuppressWarnings("unused")
-    private float getBiomeRainfall(final int x, final int z)
+    public float getBiomeRainfall(final int x, final int z)
     {
         float retval = 0.0f;
         synchronized(getBiomeFactorsSynchronizeObject(x, z))
@@ -1432,6 +1608,93 @@ public final class Rand
             }
         }
         return Math.max(Math.min(retval, 1.0f), 0.0f);
+    }
+
+    private static float
+        interpolate(final float t, final float a, final float b)
+    {
+        return a + t * (b - a);
+    }
+
+    public float getBiomeGrassColorR(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           129f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       190f / 255f,
+                                       20f / 255f));
+    }
+
+    public float getBiomeGrassColorG(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           180f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       183f / 255f,
+                                       220f / 255f));
+    }
+
+    public float getBiomeGrassColorB(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           149f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       84f / 255f,
+                                       0f / 255f));
+    }
+
+    public float getBiomeWaterColorR(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           0f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       0f / 255f,
+                                       0f / 255f));
+    }
+
+    public float getBiomeWaterColorG(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           4f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       160f / 255f,
+                                       228f / 255f));
+    }
+
+    public float getBiomeWaterColorB(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           253f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       212f / 255f,
+                                       194f / 255f));
+    }
+
+    public float getBiomeFoliageColorR(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           96f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       174f / 255f,
+                                       27f / 255f));
+    }
+
+    public float getBiomeFoliageColorG(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           161f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       164f / 255f,
+                                       191f / 255f));
+    }
+
+    public float getBiomeFoliageColorB(final int x, final int z)
+    {
+        return interpolate(getBiomeTemperature(x, z),
+                           123f / 255f,
+                           interpolate(getBiomeRainfall(x, z),
+                                       42f / 255f,
+                                       0f / 255f));
     }
 
     /** @param x
@@ -1496,6 +1759,7 @@ public final class Rand
      * @param z
      *            the z coordinate
      * @return the biome height frequency */
+    @SuppressWarnings("unused")
     private float getBiomeHeightFrequency(final int x, final int z)
     {
         float retval = 0.0f;
@@ -1530,27 +1794,48 @@ public final class Rand
         return y0 * nfx + y1 * fx;
     }
 
+    private final float[] getRockHeightNoise_factors = new float[Biome.values.length];
+
     private float getRockHeightNoise(final int x, final int z)
     {
         float retval = 0.0f;
-        float frequency = getBiomeHeightFrequency(x, z);
-        float amplitude = 1.0f;
         float max = 0.0f;
-        float roughness;
-        roughness = getBiomeRoughness(x, z);
-        roughness = 1.15f + 0.4f * roughness;
-        for(int i = 0; amplitude >= 0.01f; i++)
+        float initRoughness = getBiomeRoughness(x, z);
+        synchronized(this.getRockHeightNoise_factors)
         {
-            retval += getRockHeightNoiseH(x * frequency, z * frequency, i)
-                    * amplitude;
-            max += amplitude;
-            frequency *= roughness;
-            frequency = Math.min(frequency, 1.0f);
-            amplitude /= roughness;
+            float[] factors = this.getRockHeightNoise_factors;
+            synchronized(getBiomeFactorsSynchronizeObject(x, z))
+            {
+                float[] f = getBiomeFactors(x, z);
+                for(int i = 0; i < f.length; i++)
+                    factors[i] = f[i];
+            }
+            for(int biomeIndex = 0; biomeIndex < factors.length; biomeIndex++)
+            {
+                float frequency = Biome.values[biomeIndex].getHeightFrequency();
+                float amplitude = factors[biomeIndex];
+                float roughness;
+                roughness = initRoughness;
+                roughness = 1.15f + 0.4f * roughness;
+                for(int i = 0; amplitude >= 0.01f; i++)
+                {
+                    retval += getRockHeightNoiseH(x * frequency,
+                                                  z * frequency,
+                                                  i) * amplitude;
+                    max += amplitude;
+                    frequency *= roughness;
+                    frequency = Math.min(frequency, 1.0f);
+                    amplitude /= roughness;
+                }
+            }
         }
         retval /= max;
         retval -= 0.5f;
         retval *= 2;
+        if(retval < 0)
+            retval = -(float)Math.pow(-retval, getBiomeHeightExponent(x, z));
+        else
+            retval = (float)Math.pow(retval, getBiomeHeightExponent(x, z));
         retval += 0.5f;
         retval = Math.max(0, Math.min(1, retval));
         retval = retval * retval * (3.0f - 2.0f * retval);
@@ -2312,9 +2597,8 @@ public final class Rand
                                     + PlantBlockKindChunk.size; z++)
                             {
                                 Block retval = c.get(x, y, z);
-                                Block b = plant.getBlock(x - cx,
-                                                         y - rockHeight,
-                                                         z - cz);
+                                Block b = plant.getBlock(x - cx, y - rockHeight
+                                        - 1, z - cz);
                                 if(b == null)
                                     continue;
                                 if(retval == null)

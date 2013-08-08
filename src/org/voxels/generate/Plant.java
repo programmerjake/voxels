@@ -107,6 +107,85 @@ public abstract class Plant
                 return new CactusImp(randSeed);
             }
         },
+        DeadBush
+        {
+            final class Implementation extends Plant
+            {
+                /** @param randSeed
+                 *            the random seed */
+                public Implementation(final float randSeed)
+                {
+                    super(0, 1, DeadBush);
+                    setBlockType(0, 0, 0, BlockType.BTDeadBush);
+                }
+
+                @Override
+                public Block getBlock(final int x, final int y, final int z)
+                {
+                    return getBlockType(x, y, z).make(-1);
+                }
+            }
+
+            @Override
+            public Plant make(final float randSeed)
+            {
+                return new Implementation(randSeed);
+            }
+        },
+        Flower
+        {
+            final class Implementation extends Plant
+            {
+                /** @param randSeed
+                 *            the random seed */
+                public Implementation(final float randSeed)
+                {
+                    super(0, 1, Flower);
+                    setBlockType(0,
+                                 0,
+                                 0,
+                                 (randSeed > 0.3f) ? BlockType.BTDandelion
+                                         : BlockType.BTRose);
+                }
+
+                @Override
+                public Block getBlock(final int x, final int y, final int z)
+                {
+                    return getBlockType(x, y, z).make(-1);
+                }
+            }
+
+            @Override
+            public Plant make(final float randSeed)
+            {
+                return new Implementation(randSeed);
+            }
+        },
+        Grass
+        {
+            final class Implementation extends Plant
+            {
+                /** @param randSeed
+                 *            the random seed */
+                public Implementation(final float randSeed)
+                {
+                    super(0, 1, Grass);
+                    setBlockType(0, 0, 0, BlockType.BTTallGrass);
+                }
+
+                @Override
+                public Block getBlock(final int x, final int y, final int z)
+                {
+                    return getBlockType(x, y, z).make(-1);
+                }
+            }
+
+            @Override
+            public Plant make(final float randSeed)
+            {
+                return new Implementation(randSeed);
+            }
+        },
         ;
         public TreeType toTreeType()
         {

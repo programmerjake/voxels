@@ -25,22 +25,38 @@ import org.voxels.*;
 /** @author jacob */
 public final class Tree extends Plant
 {
+    public static final float defaultBiomeColorR = 91f / 255f;
+    public static final float defaultBiomeColorG = 171f / 255f;
+    public static final float defaultBiomeColorB = 71f / 255f;
+
     /** @author jacob */
     public static enum TreeType
     {
         /**
          * 
          */
-        Oak, /**
+        Oak("leaves.png", "wood.png", "sapling.png"), /**
          * 
          */
-        Birch, /**
+        Birch("birchleaves.png", "birchwood.png", "birchsapling.png"), /**
          * 
          */
-        Spruce, /**
+        Spruce("spruceleaves.png", "sprucewood.png", "sprucesapling.png"), /**
          * 
          */
-        Jungle
+        Jungle("jungleleaves.png", "junglewood.png", "junglesapling.png");
+        public final String leavesImgName;
+        public final String woodImgName;
+        public final String saplingImgName;
+
+        private TreeType(final String leavesImgName,
+                         final String woodImgName,
+                         final String saplingImgName)
+        {
+            this.leavesImgName = leavesImgName;
+            this.woodImgName = woodImgName;
+            this.saplingImgName = saplingImgName;
+        }
     }
 
     private final TreeType treeType;
@@ -258,7 +274,7 @@ public final class Tree extends Plant
         {
         case Birch:
         {
-            final int ysz = 6 + rand.nextInt(8 - 6 + 1);
+            final int ysz = 5 + rand.nextInt(7 - 5 + 1);
             for(int y = 0; y <= ysz; y++)
             {
                 switch(ysz - y)
@@ -309,7 +325,7 @@ public final class Tree extends Plant
         case Jungle:
             if(rand.nextFloat() >= 0.1)
             {
-                final int ysz = 7 + rand.nextInt(10 - 7 + 1);
+                final int ysz = 6 + rand.nextInt(9 - 6 + 1);
                 generateLargeBranchedTree(rand, false, ysz);
             }
             else
@@ -324,7 +340,7 @@ public final class Tree extends Plant
             {
             case 0:
             {
-                final int ysz = 10 + rand.nextInt(13 - 10 + 1);
+                final int ysz = 9 + rand.nextInt(12 - 9 + 1);
                 int leavesHeight = 2 + rand.nextInt(4);
                 for(int y = 0; y <= ysz; y++)
                 {
@@ -353,7 +369,7 @@ public final class Tree extends Plant
             }
             case 1:
             {
-                final int ysz = 10 + rand.nextInt(13 - 10 + 1);
+                final int ysz = 9 + rand.nextInt(12 - 9 + 1);
                 int leavesHeight = ysz - 2 - rand.nextInt(2);
                 for(int y = 0; y <= ysz; y++)
                 {
@@ -378,7 +394,7 @@ public final class Tree extends Plant
             }
             default:
             {
-                final int ysz = 7 + rand.nextInt(9 - 7 + 1);
+                final int ysz = 6 + rand.nextInt(8 - 6 + 1);
                 int leavesHeight = ysz - 2 - rand.nextInt(2);
                 for(int y = 0; y <= ysz; y++)
                 {
@@ -408,7 +424,7 @@ public final class Tree extends Plant
         {
             if(rand.nextFloat() >= 0.1)
             {
-                final int ysz = 7 + rand.nextInt(9 - 7 + 1);
+                final int ysz = 6 + rand.nextInt(8 - 6 + 1);
                 for(int y = 0; y <= ysz - 2; y++)
                 {
                     setBlockType(0, y, 0, BlockType.BTWood);
@@ -425,7 +441,7 @@ public final class Tree extends Plant
             }
             else
             {
-                final int ysz = 15;
+                final int ysz = 14;
                 generateLargeBranchedTree(rand, false, ysz);
             }
         }

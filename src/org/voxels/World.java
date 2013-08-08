@@ -58,8 +58,7 @@ public class World
         setLandGeneratorSettings(final Rand.Settings landGeneratorSettings)
     {
         this.landGeneratorSettings = landGeneratorSettings;
-        this.landGenerator = Rand.create(this.landGenerator.getSeed(),
-                                         this.landGeneratorSettings);
+        this.landGenerator = Rand.create(this.landGeneratorSettings);
     }
 
     /** generate a random <code>float</code>
@@ -1668,6 +1667,7 @@ public class World
         public boolean generated = false;
         public AtomicBoolean busy = new AtomicBoolean(false);
         public Rand landGenerator = null;
+        public Rand.Settings landGeneratorSettings = null;
         private final Thread curThread = new Thread(this, "Chunk Generator");
         public AtomicBoolean needStart = new AtomicBoolean(false);
 
@@ -1734,7 +1734,15 @@ public class World
                 - (this.genChunkY % generateSize + generateSize) % generateSize;
         this.chunkGenerator.cz = this.genChunkZ
                 - (this.genChunkZ % generateSize + generateSize) % generateSize;
-        this.chunkGenerator.landGenerator = this.landGenerator;
+        if(this.chunkGenerator.landGenerator == null
+                || this.chunkGenerator.landGenerator.getSeed() != this.landGenerator.getSeed()
+                || this.chunkGenerator.landGeneratorSettings == null
+                || !this.chunkGenerator.landGeneratorSettings.equals(this.landGeneratorSettings))
+        {
+            this.chunkGenerator.landGeneratorSettings = new Rand.Settings(this.landGeneratorSettings);
+            this.chunkGenerator.landGenerator = Rand.create(this.landGenerator.getSeed(),
+                                                            this.chunkGenerator.landGeneratorSettings);
+        }
         synchronized(this.chunkGenerator.needStart)
         {
             this.chunkGenerator.busy.set(true);
@@ -3115,5 +3123,50 @@ public class World
     {
         return getBiomeName((int)Math.floor(position.getX()),
                             (int)Math.floor(position.getZ()));
+    }
+
+    public float getBiomeGrassColorR(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeGrassColorR(x, z);
+    }
+
+    public float getBiomeGrassColorG(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeGrassColorG(x, z);
+    }
+
+    public float getBiomeGrassColorB(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeGrassColorB(x, z);
+    }
+
+    public float getBiomeWaterColorR(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeWaterColorR(x, z);
+    }
+
+    public float getBiomeWaterColorG(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeWaterColorG(x, z);
+    }
+
+    public float getBiomeWaterColorB(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeWaterColorB(x, z);
+    }
+
+    public float getBiomeFoliageColorR(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeFoliageColorR(x, z);
+    }
+
+    public float getBiomeFoliageColorG(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeFoliageColorG(x, z);
+    }
+
+    public float getBiomeFoliageColorB(final int x, final int z)
+    {
+        return this.landGenerator.getBiomeFoliageColorB(x, z);
     }
 }

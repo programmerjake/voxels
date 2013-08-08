@@ -1857,7 +1857,8 @@ public class Player implements GameObject
                                bdd.makesBlock,
                                toolType);
                     Main.play(Main.destructAudio);
-                    if(bdd.usesTool && toolType != BlockType.ToolType.None)
+                    if(bdd.usesTool && toolType != BlockType.ToolType.None
+                            && toolType != BlockType.ToolType.Hoe)
                     {
                         curHotbar = takeBlock();
                         curHotbar = new Block(curHotbar);
@@ -2691,6 +2692,23 @@ public class Player implements GameObject
                                            this.blockY,
                                            this.blockZ,
                                            newb);
+                            didAnything = true;
+                        }
+                    }
+                    if(newb.getToolType() == ToolType.Hoe)
+                    {
+                        if(oldb.getType() == BlockType.BTGrass
+                                || oldb.getType() == BlockType.BTDirt)
+                        {
+                            oldb = Block.NewFarmland(false);
+                            newb = new Block(newb);
+                            newb.toolUseTool();
+                            // world.AddModNode(blockX, blockY, blockZ, oldb);
+                            // TODO finish
+                            world.setBlock(this.blockX,
+                                           this.blockY,
+                                           this.blockZ,
+                                           oldb);
                             didAnything = true;
                         }
                     }
