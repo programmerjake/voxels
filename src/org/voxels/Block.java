@@ -4501,7 +4501,7 @@ public class Block implements GameObject
         {
             newSunlight = 0;
         }
-        if(this.type == BlockType.BTPiston
+        else if(this.type == BlockType.BTPiston
                 || this.type == BlockType.BTStickyPiston)
         {
             newSunlight = 0;
@@ -10488,7 +10488,6 @@ public class Block implements GameObject
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         case BTSnow:
-        case BTVines:
         case BTWoodAxe:
         case BTStoneAxe:
         case BTIronAxe:
@@ -10737,6 +10736,23 @@ public class Block implements GameObject
                                                                   y + 0.5f,
                                                                   z + 0.5f),
                                                        NewSapling(treeGetTreeType()),
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
+                }
+            }
+            return;
+        }
+        case BTVines:
+        {
+            if(dropItems)
+            {
+                if(toolType == ToolType.Shears)
+                {
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewVines(-1),
                                                        World.vRand(digBlock_t2,
                                                                    0.1f)));
                 }

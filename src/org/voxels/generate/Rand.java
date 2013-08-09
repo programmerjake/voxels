@@ -1069,7 +1069,7 @@ public final class Rand
             @Override
             public float getHeightFrequency()
             {
-                return 0.03f;
+                return 0.01f;
             }
 
             @Override
