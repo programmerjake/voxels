@@ -39,6 +39,8 @@ public enum EntityType
     RemoveBlockIfEqual,
     /** transfers a block */
     TransferItem,
+    /** applies bone meal to a block or puts the bone meal back in a container */
+    ApplyBoneMealOrPutBackInContainer,
     /** used to get <code>EntityType.count</code> */
     Last;
     /** the number of valid entity types */

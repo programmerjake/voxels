@@ -21,6 +21,7 @@ import static org.voxels.World.world;
 
 import java.io.*;
 
+import org.voxels.BlockType.DyeColor;
 import org.voxels.BlockType.ToolLevel;
 import org.voxels.BlockType.ToolType;
 import org.voxels.TextureAtlas.TextureHandle;
@@ -51,6 +52,7 @@ public class Block implements GameObject
         public int destcount = 0;
         public int orientation = -1;
         public double runTime = -1.0;
+        public BlockType.DyeColor dyeColor = DyeColor.None;
 
         public Data()
         {
@@ -77,6 +79,7 @@ public class Block implements GameObject
             this.orientation = rt.orientation;
             this.runTime = rt.runTime;
             this.step = rt.step;
+            this.dyeColor = rt.dyeColor;
         }
     }
 
@@ -1019,6 +1022,99 @@ public class Block implements GameObject
     public static Block NewDiamondHoe()
     {
         return new Block(BlockType.BTDiamondHoe);
+    }
+
+    public static Block NewCocoa(final int stage, final int orientation)
+    {
+        Block retval = new Block(BlockType.BTCocoa);
+        retval.data.intdata = Math.max(0, Math.min(2, stage));
+        retval.data.orientation = Math.max(0, Math.min(3, orientation));
+        return retval;
+    }
+
+    public static Block NewInkSac()
+    {
+        return new Block(BlockType.BTInkSac);
+    }
+
+    public static Block NewRoseRed()
+    {
+        return new Block(BlockType.BTRoseRed);
+    }
+
+    public static Block NewCactusGreen()
+    {
+        return new Block(BlockType.BTCactusGreen);
+    }
+
+    public static Block NewPurpleDye()
+    {
+        return new Block(BlockType.BTPurpleDye);
+    }
+
+    public static Block NewCyanDye()
+    {
+        return new Block(BlockType.BTCyanDye);
+    }
+
+    public static Block NewLightGrayDye()
+    {
+        return new Block(BlockType.BTLightGrayDye);
+    }
+
+    public static Block NewGrayDye()
+    {
+        return new Block(BlockType.BTGrayDye);
+    }
+
+    public static Block NewPinkDye()
+    {
+        return new Block(BlockType.BTPinkDye);
+    }
+
+    public static Block NewLimeDye()
+    {
+        return new Block(BlockType.BTLimeDye);
+    }
+
+    public static Block NewDandelionYellow()
+    {
+        return new Block(BlockType.BTDandelionYellow);
+    }
+
+    public static Block NewLightBlueDye()
+    {
+        return new Block(BlockType.BTLightBlueDye);
+    }
+
+    public static Block NewMagentaDye()
+    {
+        return new Block(BlockType.BTMagentaDye);
+    }
+
+    public static Block NewOrangeDye()
+    {
+        return new Block(BlockType.BTOrangeDye);
+    }
+
+    public static Block NewBoneMeal()
+    {
+        return new Block(BlockType.BTBoneMeal);
+    }
+
+    public static Block NewBone()
+    {
+        return new Block(BlockType.BTBone);
+    }
+
+    public static Block NewWool(final BlockType.DyeColor color)
+    {
+        Block retval = new Block(BlockType.BTWool);
+        if(color == DyeColor.None || color == null)
+            retval.data.dyeColor = DyeColor.BoneMeal;
+        else
+            retval.data.dyeColor = color;
+        return retval;
     }
 
     private static Vector drawFace_t1 = Vector.allocate();
@@ -2539,7 +2635,6 @@ public class Block implements GameObject
         return rs;
     }
 
-    @SuppressWarnings("unused")
     private RenderingStream drawSolid(final RenderingStream rs,
                                       final Matrix blockToWorld,
                                       final int bx,
@@ -3321,7 +3416,6 @@ public class Block implements GameObject
                     g = world.getBiomeFoliageColorG(bx, bz);
                     b = world.getBiomeFoliageColorB(bx, bz);
                 }
-                // TODO finish
                 drawItem(rs,
                          Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, -0.49f)
                                .concatAndSet(Matrix.setToRotateY(draw_t2,
@@ -3710,7 +3804,7 @@ public class Block implements GameObject
                 Matrix rotateMat = Matrix.setToTranslate(draw_rotateMat,
                                                          -0.5f,
                                                          -0.5f,
-                                                         -0.49f)
+                                                         -0.5f)
                                          .concatAndSet(Matrix.setToRotateY(draw_t2,
                                                                            Math.PI
                                                                                    / 2.0
@@ -4120,6 +4214,156 @@ public class Block implements GameObject
                               this.type.textures[this.data.intdata]);
                 break;
             }
+            case BTCocoa:
+            {
+                if(isEntity)
+                    drawImgAsEntity(rs, blockToWorld, this.type.textures[3]);
+                else if(isAsItem)
+                    drawItem(rs,
+                             Matrix.IDENTITY,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             this.type.textures[3],
+                             isEntity,
+                             isAsItem);
+                else
+                {
+                    Matrix rotateMat = Matrix.setToTranslate(draw_rotateMat,
+                                                             -0.5f,
+                                                             -0.5f,
+                                                             -0.5f)
+                                             .concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                                               Math.PI
+                                                                                       / 2.0
+                                                                                       * (1 - this.data.orientation)))
+                                             .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                                 0.5f,
+                                                                                 0.5f,
+                                                                                 0.5f));
+                    TextureAtlas.TextureHandle texture = this.type.textures[this.data.intdata];
+                    drawItem(rs,
+                             Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, 0)
+                                   .concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                                     Math.PI / 2))
+                                   .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                       0.5f,
+                                                                       0.5f,
+                                                                       0.5f))
+                                   .concatAndSet(rotateMat),
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             texture,
+                             isEntity,
+                             isAsItem,
+                             3 / 4f,
+                             1 / 2f,
+                             1f,
+                             1f);
+                    final float xzSize = (4 + 2 * this.data.intdata) / 16f, ySize = (5 + 2 * this.data.intdata) / 16f;
+                    internalDraw(rs,
+                                 DMaskNX,
+                                 Matrix.setToTranslate(draw_t1,
+                                                       0.5f - xzSize / 2f,
+                                                       0,
+                                                       0)
+                                       .concatAndSet(rotateMat),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 texture,
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 DMaskPX,
+                                 Matrix.setToTranslate(draw_t1,
+                                                       -0.5f + xzSize / 2f,
+                                                       0,
+                                                       0)
+                                       .concatAndSet(rotateMat),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 texture,
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 DMaskNZ,
+                                 Matrix.setToTranslate(draw_t1, 0, 0, 1 / 16f)
+                                       .concatAndSet(rotateMat),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 texture,
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 DMaskPZ,
+                                 Matrix.setToTranslate(draw_t1,
+                                                       0,
+                                                       0,
+                                                       -15 / 16f + xzSize)
+                                       .concatAndSet(rotateMat),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 texture,
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 DMaskPY,
+                                 Matrix.setToTranslate(draw_t1, 0, -4 / 16f, 0)
+                                       .concatAndSet(rotateMat),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 texture,
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 DMaskNY,
+                                 Matrix.setToTranslate(draw_t1,
+                                                       0,
+                                                       12 / 16f - ySize,
+                                                       0)
+                                       .concatAndSet(rotateMat),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 texture,
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                }
+                break;
+            }
+            case BTWool:
+                drawSolid(rs,
+                          blockToWorld,
+                          bx,
+                          by,
+                          bz,
+                          false,
+                          isEntity,
+                          isAsItem,
+                          this.data.dyeColor.r,
+                          this.data.dyeColor.g,
+                          this.data.dyeColor.b);
+                break;
             default:
                 break;
             }
@@ -4706,6 +4950,23 @@ public class Block implements GameObject
         case BTWheat:
         case BTFarmland:
         case BTSeeds:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return;
         }
     }
@@ -5089,6 +5350,24 @@ public class Block implements GameObject
                                                World.vRand(move_t2, 0.1f)));
             return retval;
         }
+        case BTCocoa:
+        {
+            Block retval = moveHandleEmptySpaceChangeToFluid(bx, by, bz);
+            if(retval == null)
+            {
+                Block b = world.getBlockEval(bx
+                        + getOrientationDX(this.data.orientation), by
+                        + getOrientationDY(this.data.orientation), bz
+                        + getOrientationDZ(this.data.orientation));
+                if(b != null
+                        && (b.getType() != BlockType.BTWood || b.treeGetTreeType() != TreeType.Jungle))
+                    retval = new Block();
+            }
+            if(retval == null)
+                return null;
+            digBlock(bx, by, bz, true, ToolType.None);
+            return retval;
+        }
         case BTTallGrass:
         {
             Block retval = moveHandleEmptySpaceChangeToFluid(bx, by, bz);
@@ -5223,6 +5502,23 @@ public class Block implements GameObject
                 return NewDirt();
             return null;
         }
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
+            return null;
         }
         return null;
     }
@@ -5528,6 +5824,33 @@ public class Block implements GameObject
             }
             return NewFarmland(isWet);
         }
+        case BTCocoa:
+        {
+            if(this.data.intdata < 2)
+            {
+                Block retval = new Block(this);
+                retval.data.intdata++;
+                return retval;
+            }
+            return null;
+        }
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
+            return null;
         }
         return null;
     }
@@ -6091,6 +6414,23 @@ public class Block implements GameObject
         case BTDandelion:
         case BTRose:
         case BTFarmland:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return null;
         }
         return null;
@@ -6248,7 +6588,7 @@ public class Block implements GameObject
         int dy = getOrientationDY(this.data.orientation);
         int dz = getOrientationDZ(this.data.orientation);
         Vector dir = Vector.allocate(dx, dy, dz);
-        b = b.onDispense(bx + dx, by + dy, bz + dz, dir);
+        b = b.onDispense(bx, by, bz, bx + dx, by + dy, bz + dz, dir);
         if(b != null && b.getType() != BlockType.BTEmpty)
         {
             findEmptySlotLoop: for(int row = 0; row < DISPENSER_DROPPER_ROWS; row++)
@@ -6285,7 +6625,10 @@ public class Block implements GameObject
     private static Vector onDispense_t1 = Vector.allocate();
     private static Vector onDispense_t2 = Vector.allocate();
 
-    private Block onDispense(final int destX,
+    private Block onDispense(final int srcX,
+                             final int srcY,
+                             final int srcZ,
+                             final int destX,
                              final int destY,
                              final int destZ,
                              final Vector dir)
@@ -6349,6 +6692,14 @@ public class Block implements GameObject
             world.insertEntity(Entity.NewPrimedTNT(onDispense_t1.set(destX,
                                                                      destY,
                                                                      destZ), 1));
+            return null;
+        case BTBoneMeal:
+            world.insertEntity(Entity.NewApplyBoneMealOrPutBackInContainer(destX,
+                                                                           destY,
+                                                                           destZ,
+                                                                           srcX,
+                                                                           srcY,
+                                                                           srcZ));
             return null;
         case BTBedrock:
         case BTBlazePowder:
@@ -6442,6 +6793,22 @@ public class Block implements GameObject
         case BTWheat:
         case BTSeeds:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBone:
+        case BTWool:
             world.insertEntity(Entity.NewBlock(onDispense_t1.set(dir)
                                                             .mulAndSet(-(0.5f - 0.25f + 0.05f))
                                                             .addAndSet(destX + 0.5f,
@@ -6764,11 +7131,28 @@ public class Block implements GameObject
         case BTWheat:
         case BTSeeds:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return PushType.DropAsEntity;
         case BTDispenser:
         case BTDropper:
         case BTHopper:
         case BTFarmland:
+        case BTWool:
             return PushType.Pushed;
         }
         return PushType.NonPushable;
@@ -7048,6 +7432,23 @@ public class Block implements GameObject
         case BTDiamondHoe:
         case BTFarmland:
         case BTWheat:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return null;
         case BTRedMushroom:
         case BTBrownMushroom:
@@ -7420,6 +7821,23 @@ public class Block implements GameObject
         case BTRose:
         case BTTallGrass:
         case BTWheat:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return 1;
         }
         return 0;
@@ -7627,7 +8045,55 @@ public class Block implements GameObject
         case BTTallGrass:
         case BTDandelion:
         case BTRose:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return 0;
+        case BTCocoa:
+        {
+            final float xzSize = (4 + 2 * this.data.intdata) / 16f, ySize = (5 + 2 * this.data.intdata) / 16f;
+            final float minX = 0.5f - xzSize / 2f;
+            final float maxX = 0.5f + xzSize / 2f;
+            final float minZ = 1 / 16f;
+            final float maxZ = 1 / 16f + xzSize;
+            final float minY = 12 / 16f - ySize;
+            final float maxY = 12 / 16f;
+            return rayIntersectsBlock(hitpos,
+                                      dir,
+                                      Matrix.setToScale(rayIntersects_t3,
+                                                        maxX - minX,
+                                                        maxY - minY,
+                                                        maxZ - minZ)
+                                            .concatAndSet(Matrix.setToTranslate(rayIntersects_t4,
+                                                                                minX,
+                                                                                minY,
+                                                                                minZ))
+                                            .concatAndSet(Matrix.setToTranslate(rayIntersects_t4,
+                                                                                -0.5f,
+                                                                                -0.5f,
+                                                                                -0.5f))
+                                            .concatAndSet(Matrix.setToRotateY(rayIntersects_t4,
+                                                                              Math.PI
+                                                                                      / 2.0
+                                                                                      * (1 - this.data.orientation)))
+                                            .concatAndSet(Matrix.setToTranslate(rayIntersects_t4,
+                                                                                0.5f,
+                                                                                0.5f,
+                                                                                0.5f)));
+        }
         case BTRedMushroom:
         case BTBrownMushroom:
             return rayIntersectsBlock(hitpos,
@@ -7768,8 +8234,7 @@ public class Block implements GameObject
         case BTCobblestone:
         case BTGrass:
         case BTDirt:
-            draw(rs, blockToWorld, true, false);
-            return rs;
+        case BTCocoa:
         case BTSapling:
         case BTCobweb:
         case BTHopper:
@@ -7781,8 +8246,6 @@ public class Block implements GameObject
         case BTRose:
         case BTDandelion:
         case BTTallGrass:
-            draw(rs, blockToWorld, true, false);
-            return rs;
         case BTBedrock:
         case BTSand:
         case BTGravel:
@@ -7880,6 +8343,7 @@ public class Block implements GameObject
         case BTGoldOre:
         case BTDiamondOre:
         case BTEmeraldOre:
+        case BTWool:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTTorch:
@@ -7917,6 +8381,21 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
         {
             drawImgAsEntity(rs, blockToWorld, this.type.textures[0]);
             return rs;
@@ -8084,6 +8563,7 @@ public class Block implements GameObject
         case BTDropper:
         case BTCactus:
         case BTFarmland:
+        case BTWool:
             drawBlockAsItem(rs, blockToWorld);
             return rs;
         case BTSapling:
@@ -8105,6 +8585,22 @@ public class Block implements GameObject
         case BTShears:
         case BTBucket:
         case BTHopper:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
         {
             draw(rs, blockToWorld, false, true);
             return rs;
@@ -8384,6 +8880,28 @@ public class Block implements GameObject
         }
     }
 
+    private static class BlockDescriptorDyeColor extends
+        BlockDescriptorBlockType
+    {
+        private final DyeColor color;
+
+        @Override
+        public boolean matches(final Block b)
+        {
+            if(b == null)
+                return isEmpty();
+            if(!super.matches(b))
+                return false;
+            return b.dyedGetDyeColor() == this.color;
+        }
+
+        public BlockDescriptorDyeColor(final BlockType bt, final DyeColor color)
+        {
+            super(bt);
+            this.color = color;
+        }
+    }
+
     private static class ReduceStruct
     {
         public final BlockDescriptor array[];
@@ -8398,6 +8916,28 @@ public class Block implements GameObject
             this.array = array;
             this.size = size;
             this.retval = new ReduceDescriptor(b, count);
+        }
+
+        public boolean isShapeless()
+        {
+            return false;
+        }
+    }
+
+    private static class ShapelessReduceStruct extends ReduceStruct
+    {
+        public ShapelessReduceStruct(final BlockDescriptor array[],
+                                     final int size,
+                                     final Block b,
+                                     final int count)
+        {
+            super(array, size, b, count);
+        }
+
+        @Override
+        public boolean isShapeless()
+        {
+            return true;
         }
     }
 
@@ -8889,6 +9429,169 @@ public class Block implements GameObject
             new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
             new BlockDescriptorBlockType(BlockType.BTCobblestone)
         }, 3, NewDispenser(-1), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTRose)
+        }, 1, NewRoseRed(), 2),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTDandelion)
+        }, 1, NewDandelionYellow(), 2),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBone)
+        }, 1, NewBoneMeal(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTRoseRed),
+            new BlockDescriptorBlockType(BlockType.BTDandelionYellow),
+        }, 2, NewOrangeDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLapisLazuli),
+            new BlockDescriptorBlockType(BlockType.BTCactusGreen),
+        }, 2, NewCyanDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLapisLazuli),
+            new BlockDescriptorBlockType(BlockType.BTRoseRed),
+        }, 2, NewPurpleDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTInkSac),
+        }, 2, NewGrayDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTLapisLazuli),
+        }, 2, NewLightBlueDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTRoseRed),
+        }, 2, NewPinkDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTCactusGreen),
+        }, 2, NewLimeDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTPurpleDye),
+            new BlockDescriptorBlockType(BlockType.BTPinkDye),
+        }, 2, NewMagentaDye(), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLapisLazuli),
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTRoseRed),
+            new BlockDescriptorBlockType(BlockType.BTRoseRed),
+        }, 4, NewMagentaDye(), 4),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLapisLazuli),
+            new BlockDescriptorBlockType(BlockType.BTPinkDye),
+            new BlockDescriptorBlockType(BlockType.BTRoseRed),
+        }, 3, NewMagentaDye(), 3),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTInkSac),
+        }, 3, NewLightGrayDye(), 3),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorBlockType(BlockType.BTGrayDye),
+        }, 2, NewLightGrayDye(), 2),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTString),
+            new BlockDescriptorBlockType(BlockType.BTString),
+            new BlockDescriptorBlockType(BlockType.BTString),
+            new BlockDescriptorBlockType(BlockType.BTString)
+        }, 2, NewWool(DyeColor.BoneMeal), 1),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTInkSac),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.InkSac), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTRoseRed),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.RoseRed), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTCactusGreen),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.CactusGreen), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTCocoa),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.CocoaBeans), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLapisLazuli),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.LapisLazuli), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTPurpleDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.Purple), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTCyanDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.Cyan), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLightGrayDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.LightGray), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTGrayDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.Gray), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTPinkDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.Pink), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLimeDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.Lime), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTDandelionYellow),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.DandelionYellow), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTLightBlueDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.LightBlue), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTMagentaDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.Magenta), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTOrangeDye),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.Orange), 2),
+        new ShapelessReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTBoneMeal),
+            new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
+        }, 2, NewWool(DyeColor.BoneMeal), 2),
     };
     private static final int reduceCount = reduceArray.length;
 
@@ -8922,50 +9625,95 @@ public class Block implements GameObject
                 }
             }
         }
+        final boolean[] slotUsed = new boolean[arraySize * arraySize];
         for(int i = 0; i < reduceCount; i++)
         {
             boolean matches = true;
-            if(maxx - minx >= reduceArray[i].size)
-                matches = false;
-            if(maxy - miny >= reduceArray[i].size)
-                matches = false;
-            if(!matches)
-                continue;
-            for(int x = 0; x < reduceArray[i].size; x++)
+            if(reduceArray[i].isShapeless())
             {
-                for(int y = 0; y < reduceArray[i].size; y++)
+                for(int j = 0; j < slotUsed.length; j++)
+                    slotUsed[j] = (array[j] == null);
+                for(int j = 0; j < reduceArray[i].size; j++)
                 {
-                    BlockDescriptor bd = reduceArray[i].array[x
-                            + (reduceArray[i].size - y - 1)
-                            * reduceArray[i].size];
-                    if(!bd.isEmpty())
+                    boolean slotMatches = false;
+                    for(int x = minx; x <= maxx; x++)
                     {
-                        if(x > maxx - minx || y > maxy - miny)
+                        for(int y = miny; y <= maxy; y++)
                         {
-                            matches = false;
-                            break;
+                            if(!slotUsed[x + y * arraySize]
+                                    && reduceArray[i].array[j].matches(array[x
+                                            + y * arraySize]))
+                            {
+                                slotMatches = true;
+                                slotUsed[x + y * arraySize] = true;
+                                break;
+                            }
                         }
-                        if(!bd.matches(array[(x + minx) + arraySize
-                                * (y + miny)]))
+                        if(slotMatches)
+                            break;
+                    }
+                    if(!slotMatches)
+                    {
+                        matches = false;
+                        break;
+                    }
+                }
+                if(matches == true)
+                {
+                    for(int j = 0; j < slotUsed.length; j++)
+                    {
+                        if(!slotUsed[j])
                         {
                             matches = false;
                             break;
                         }
                     }
-                    else
+                }
+            }
+            else
+            {
+                if(maxx - minx >= reduceArray[i].size)
+                    matches = false;
+                if(maxy - miny >= reduceArray[i].size)
+                    matches = false;
+                if(!matches)
+                    continue;
+                for(int x = 0; x < reduceArray[i].size; x++)
+                {
+                    for(int y = 0; y < reduceArray[i].size; y++)
                     {
-                        if(x <= maxx - minx && y <= maxy - miny)
+                        BlockDescriptor bd = reduceArray[i].array[x
+                                + (reduceArray[i].size - y - 1)
+                                * reduceArray[i].size];
+                        if(!bd.isEmpty())
                         {
-                            if(array[(x + minx) + arraySize * (y + miny)] != null)
+                            if(x > maxx - minx || y > maxy - miny)
+                            {
+                                matches = false;
+                                break;
+                            }
+                            if(!bd.matches(array[(x + minx) + arraySize
+                                    * (y + miny)]))
                             {
                                 matches = false;
                                 break;
                             }
                         }
+                        else
+                        {
+                            if(x <= maxx - minx && y <= maxy - miny)
+                            {
+                                if(array[(x + minx) + arraySize * (y + miny)] != null)
+                                {
+                                    matches = false;
+                                    break;
+                                }
+                            }
+                        }
                     }
+                    if(!matches)
+                        break;
                 }
-                if(!matches)
-                    break;
             }
             if(matches)
             {
@@ -9354,6 +10102,7 @@ public class Block implements GameObject
         case BTDropper:
         case BTHopper:
         case BTCactus:
+        case BTWool:
             return solidAdjustPlayerPosition(position, getHeight(), distLimit);
         case BTBlazeRod:
         case BTBlazePowder:
@@ -9384,6 +10133,22 @@ public class Block implements GameObject
         case BTRose:
         case BTSeeds:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return position;
         }
         return null;
@@ -9524,6 +10289,23 @@ public class Block implements GameObject
         case BTWheat:
         case BTSeeds:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return true;
         }
         return false;
@@ -9730,12 +10512,37 @@ public class Block implements GameObject
         case BTDandelion:
         case BTRose:
         case BTWheat:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             if(dropItems)
                 world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
                                                               x + 0.5f,
                                                               y + 0.5f,
                                                               z + 0.5f),
                                                    this.type.make(-1),
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
+            return;
+        case BTWool:
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   NewWool(this.data.dyeColor),
                                                    World.vRand(digBlock_t2,
                                                                0.1f)));
             return;
@@ -9962,6 +10769,30 @@ public class Block implements GameObject
                                                            World.vRand(digBlock_t2,
                                                                        0.1f)));
                     }
+                }
+            }
+            break;
+        }
+        case BTCocoa:
+        {
+            if(dropItems)
+            {
+                int count = 1;
+                if(this.data.intdata >= 2)
+                {
+                    count = 2;
+                    if(World.fRand(0, 1) <= 0.5f)
+                        count = 3;
+                }
+                for(int i = 0; i < count; i++)
+                {
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewCocoa(0, -1),
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
                 }
             }
             break;
@@ -10214,6 +11045,23 @@ public class Block implements GameObject
         case BTFarmland:
         case BTWheat:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return REDSTONE_POWER_NONE;
         case BTRedstoneComparator:
         {
@@ -10373,6 +11221,22 @@ public class Block implements GameObject
         case BTFarmland:
         case BTWheat:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return false;
         case BTBedrock:
         case BTChest:
@@ -10395,6 +11259,7 @@ public class Block implements GameObject
         case BTObsidian:
         case BTDispenser:
         case BTDropper:
+        case BTWool:
             return true;
         }
         return false;
@@ -10677,6 +11542,22 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return false;
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -10723,6 +11604,7 @@ public class Block implements GameObject
         case BTDropper:
         case BTHopper:
         case BTFarmland:
+        case BTWool:
             return true;
         }
         return true;
@@ -10855,6 +11737,21 @@ public class Block implements GameObject
         case BTRose:
         case BTWheat:
         case BTTallGrass:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -10890,6 +11787,7 @@ public class Block implements GameObject
             o.writeByte(this.data.step);
             return;
         case BTWood:
+        case BTCocoa:
             o.writeByte(this.data.intdata);
             o.writeByte(this.data.orientation);
             return;
@@ -11025,6 +11923,11 @@ public class Block implements GameObject
             }
             return;
         }
+        case BTWool:
+        {
+            this.data.dyeColor.write(o);
+            return;
+        }
         }
     }
 
@@ -11075,6 +11978,21 @@ public class Block implements GameObject
         case BTRose:
         case BTWheat:
         case BTTallGrass:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -11290,6 +12208,16 @@ public class Block implements GameObject
                 throw new IOException("Torch orientation is out of range");
             return;
         }
+        case BTCocoa:
+        {
+            this.data.intdata = i.readUnsignedByte();
+            if(this.data.intdata < 0 || this.data.intdata > 2)
+                throw new IOException("cocoa growth stage is out of range");
+            this.data.orientation = i.readUnsignedByte();
+            if(this.data.orientation < 0 || this.data.orientation > 4)
+                throw new IOException("cocoa orientation is out of range");
+            return;
+        }
         case BTStoneButton:
         case BTWoodButton:
         {
@@ -11369,6 +12297,13 @@ public class Block implements GameObject
         case BTFarmland:
         {
             this.data.intdata = i.readBoolean() ? 1 : 0;
+            return;
+        }
+        case BTWool:
+        {
+            this.data.dyeColor = DyeColor.read(i);
+            if(this.data.dyeColor == DyeColor.None)
+                throw new IOException("wool dye color is invalid");
             return;
         }
         }
@@ -12070,6 +13005,21 @@ public class Block implements GameObject
         case BTRose:
         case BTWheat:
         case BTTallGrass:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return true;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -12144,6 +13094,7 @@ public class Block implements GameObject
         case BTLeaves:
             return this.data.intdata == rt.data.intdata;
         case BTWood:
+        case BTCocoa:
             if(this.data.orientation != rt.data.orientation)
                 return false;
             return this.data.intdata == rt.data.intdata;
@@ -12203,6 +13154,8 @@ public class Block implements GameObject
                     return false;
             }
             return true;
+        case BTWool:
+            return this.data.dyeColor == rt.data.dyeColor;
         }
         throw new UnsupportedOperationException();
     }
@@ -12266,6 +13219,21 @@ public class Block implements GameObject
         case BTRose:
         case BTWheat:
         case BTTallGrass:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return hash;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -12332,6 +13300,7 @@ public class Block implements GameObject
         case BTLeaves:
             return hash + 162873468 * this.data.intdata;
         case BTWood:
+        case BTCocoa:
             hash += 126364 * this.data.orientation;
             return hash + 162873468 * this.data.intdata;
         case BTLever:
@@ -12383,6 +13352,8 @@ public class Block implements GameObject
                     hash += 3 * this.data.BlockTypes[i].hashCode();
             }
             return hash;
+        case BTWool:
+            return hash + 129347 * this.data.dyeColor.hashCode();
         }
         throw new UnsupportedOperationException();
     }
@@ -12421,6 +13392,8 @@ public class Block implements GameObject
         case BTRedstoneComparator:
             return BlockType.BTRedstoneComparator.make(orientation,
                                                        forwardorientation);
+        case BTWool:
+            return NewWool(dyedGetDyeColor());
         default:
             return this.type.make(orientation, vieworientation);
         }
@@ -12521,11 +13494,13 @@ public class Block implements GameObject
             case BTStonePressurePlate:
             case BTWoodPressurePlate:
             case BTSnow:
+            case BTCocoa:
+            case BTHopper:
                 return true;
             case BTGrass:
-                return drawSolidDrawsAnything(bx, by, bz);
             case BTDispenser:
             case BTDropper:
+            case BTWool:
                 return drawSolidDrawsAnything(bx, by, bz);
             default:
                 return true;
@@ -12660,6 +13635,22 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return new BlockDigDescriptor(0.0f, true, true);
         case BTChest:
         case BTWorkbench:
@@ -13063,6 +14054,10 @@ public class Block implements GameObject
                 }
             }
             return new BlockDigDescriptor(0.75f, true, true);
+        case BTWool:
+            if(toolType == ToolType.Shears)
+                return new BlockDigDescriptor(0.25f, true, false);
+            return new BlockDigDescriptor(1.2f);
         }
         return null;
     }
@@ -13378,6 +14373,23 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return -1;
         }
         return -1;
@@ -13581,6 +14593,23 @@ public class Block implements GameObject
         case BTFarmland:
         case BTWheat:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return false;
         case BTChest:
         case BTDispenser:
@@ -13703,6 +14732,23 @@ public class Block implements GameObject
         case BTFarmland:
         case BTWheat:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return false;
         case BTChest:
         {
@@ -13897,6 +14943,23 @@ public class Block implements GameObject
         case BTFarmland:
         case BTWheat:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return -1;
         case BTChest:
         {
@@ -14069,6 +15132,23 @@ public class Block implements GameObject
         case BTFarmland:
         case BTWheat:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return null;
         case BTChest:
         {
@@ -14291,6 +15371,23 @@ public class Block implements GameObject
         case BTFarmland:
         case BTWheat:
         case BTTallGrass:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return null;
         case BTChest:
         {
@@ -14412,5 +15509,218 @@ public class Block implements GameObject
     public boolean hopperIsActive()
     {
         return this.data.intdata == 0;
+    }
+
+    public boolean onUseBoneMeal(final int bx, final int by, final int bz)
+    {
+        switch(this.type)
+        {
+        case BTDeleteBlock:
+        case BTSun:
+        case BTMoon:
+        case BTLast:
+            break;
+        case BTBedrock:
+        case BTEmpty:
+            break;
+        case BTBlazePowder:
+        case BTBlazeRod:
+        case BTBone:
+        case BTBoneMeal:
+        case BTBow:
+            break;
+        case BTBrownMushroom:
+        case BTRedMushroom:
+            // TODO finish
+            break;
+        case BTBucket:
+        case BTCactus:
+        case BTCactusGreen:
+        case BTChest:
+        case BTCoal:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTCobweb:
+            break;
+        case BTCocoa:
+        {
+            Block b = new Block(this);
+            b.data.intdata = 2;
+            world.setBlock(bx, by, bz, b);
+            return true;
+        }
+        case BTCyanDye:
+        case BTDandelion:
+        case BTDandelionYellow:
+        case BTDeadBush:
+        case BTDiamond:
+        case BTDiamondAxe:
+        case BTDiamondHoe:
+        case BTDiamondOre:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTDirt:
+        case BTDispenser:
+        case BTDropper:
+        case BTEmerald:
+        case BTEmeraldOre:
+        case BTFarmland:
+        case BTFurnace:
+        case BTGlass:
+            break;
+        case BTGoldAxe:
+        case BTGoldHoe:
+        case BTGoldIngot:
+        case BTGoldOre:
+        case BTGoldPick:
+        case BTGoldShovel:
+            break;
+        case BTGrass:
+        {
+            for(int dx = -5; dx <= 5; dx++)
+            {
+                for(int dy = -3; dy <= 3; dy++)
+                {
+                    for(int dz = -5; dz <= 5; dz++)
+                    {
+                        int x = bx + dx, y = by + dy, z = bz + dz;
+                        Block b = world.getBlockEval(x, y - 1, z);
+                        if(b != null && b.getType() == BlockType.BTGrass)
+                        {
+                            b = world.getBlockEval(x, y, z);
+                            if(b != null && b.getType() == BlockType.BTEmpty)
+                            {
+                                final float tallGrassProb = 8 * 7 / 300f;
+                                final float roseProb = 4 / 300f;
+                                final float dandelionProb = 2 / 300f;
+                                float randV = World.fRand(0, 1);
+                                if(randV <= roseProb)
+                                    world.setBlock(x, y, z, NewRose());
+                                else if(randV <= roseProb + dandelionProb)
+                                    world.setBlock(x, y, z, NewDandelion());
+                                else if(randV <= roseProb + dandelionProb
+                                        + tallGrassProb)
+                                    world.setBlock(x, y, z, NewTallGrass());
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        case BTGravel:
+        case BTGrayDye:
+        case BTGunpowder:
+        case BTHopper:
+        case BTInkSac:
+        case BTIronAxe:
+        case BTIronHoe:
+        case BTIronIngot:
+        case BTIronOre:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLadder:
+        case BTLapisLazuli:
+        case BTLapisLazuliOre:
+        case BTLava:
+        case BTLeaves:
+        case BTLever:
+        case BTLightBlueDye:
+        case BTLightGrayDye:
+        case BTLimeDye:
+        case BTMagentaDye:
+        case BTObsidian:
+        case BTOrangeDye:
+        case BTPinkDye:
+        case BTPiston:
+        case BTPistonHead:
+        case BTPlank:
+        case BTPurpleDye:
+        case BTQuartz:
+        case BTRedstoneBlock:
+        case BTRedstoneComparator:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneOre:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTRedstoneTorchOff:
+        case BTRedstoneTorchOn:
+        case BTRose:
+        case BTRoseRed:
+        case BTSand:
+            break;
+        case BTSapling:
+        {
+            Block b = moveRandom(bx, by, bz);
+            if(b != null)
+                world.setBlock(bx, by, bz, b);
+            return true;
+        }
+        case BTSeeds:
+        {
+            Block b = moveRandom(bx, by, bz);
+            if(b != null)
+                world.setBlock(bx, by, bz, b);
+            return true;
+        }
+        case BTShears:
+        case BTSlime:
+        case BTSnow:
+        case BTStick:
+        case BTStickyPiston:
+        case BTStickyPistonHead:
+        case BTStone:
+        case BTStoneAxe:
+        case BTStoneButton:
+        case BTStoneHoe:
+        case BTStonePick:
+        case BTStonePressurePlate:
+        case BTStoneShovel:
+        case BTString:
+        case BTTNT:
+        case BTTallGrass:
+        case BTTorch:
+        case BTVines:
+        case BTWater:
+        case BTWheat:
+        case BTWood:
+        case BTWoodAxe:
+        case BTWoodButton:
+        case BTWoodHoe:
+        case BTWoodPick:
+        case BTWoodPressurePlate:
+        case BTWoodShovel:
+        case BTWool:
+        case BTWorkbench:
+            break;
+        }
+        return false;
+    }
+
+    public DyeColor dyedGetDyeColor()
+    {
+        switch(this.type)
+        {
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTCocoa:
+        case BTLapisLazuli:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+            return this.type.getDyeColor();
+        default:
+            return this.data.dyeColor;
+        }
     }
 }

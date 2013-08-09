@@ -268,6 +268,18 @@ public final class Rand
         return biome.equals(expectedBiome);
     }
 
+    private static boolean isWaterBiome(final String biomeName)
+    {
+        for(Biome b : Biome.values)
+        {
+            if(b.getName().equals(biomeName))
+            {
+                return b.isWaterBiome();
+            }
+        }
+        return false;
+    }
+
     /** @param settings
      *            the land generator settings
      * @return new land generator */
@@ -276,6 +288,7 @@ public final class Rand
         Settings s = settings;
         if(s == null)
             s = new Settings();
+        boolean isWaterBiome = isWaterBiome(s.startingBiome);
         Rand retval = null;
         int rockHeight;
         do
@@ -283,7 +296,7 @@ public final class Rand
             retval = new Rand(s);
             rockHeight = retval.getRockHeight(0, 0);
         }
-        while(rockHeight < WaterHeight
+        while((rockHeight < WaterHeight && !isWaterBiome)
                 || !biomePasses(retval.getBiomeName(0, 0), s.startingBiome)
                 || retval.isInCave(0, rockHeight, 0)
                 || retval.getPlant(0, 0, true) != null);
@@ -618,6 +631,12 @@ public final class Rand
             {
                 return 1;
             }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return true;
+            }
         },
         ExtremeHills
         {
@@ -709,6 +728,12 @@ public final class Rand
             public float getHeightExponent()
             {
                 return 0.7f;
+            }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return false;
             }
         },
         Taiga
@@ -812,6 +837,12 @@ public final class Rand
             {
                 return 1;
             }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return false;
+            }
         },
         Tundra
         {
@@ -898,6 +929,12 @@ public final class Rand
             public float getHeightExponent()
             {
                 return 1;
+            }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return false;
             }
         },
         Forest
@@ -990,6 +1027,12 @@ public final class Rand
             {
                 return 1;
             }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return false;
+            }
         },
         Desert
         {
@@ -1079,6 +1122,12 @@ public final class Rand
             {
                 return 0.5f;
             }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return false;
+            }
         },
         Plains
         {
@@ -1167,6 +1216,12 @@ public final class Rand
             public float getHeightExponent()
             {
                 return 1;
+            }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return false;
             }
         },
         Jungle
@@ -1259,6 +1314,12 @@ public final class Rand
             {
                 return 1;
             }
+
+            @Override
+            public boolean isWaterBiome()
+            {
+                return false;
+            }
         },
         ;
         public abstract float getRainfall();
@@ -1290,6 +1351,8 @@ public final class Rand
         public abstract Block getSubSurfaceBlock();
 
         public abstract float getHeightExponent();
+
+        public abstract boolean isWaterBiome();
     }
 
     private static final class BiomeFactorsChunk

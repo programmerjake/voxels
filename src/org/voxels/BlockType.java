@@ -1725,6 +1725,12 @@ public enum BlockType
         {
             return 0;
         }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.LapisLazuli;
+        }
     },
     /** lapis lazuli ore block */
     BTLapisLazuliOre(36, true, BlockDrawType.BDTSolid,
@@ -4049,9 +4055,7 @@ public enum BlockType
         @Override
         public BlockType getSmeltResult()
         {
-            if(false)
-                return BTEmpty/*BTCactusGreen*/;
-            return BTEmpty;
+            return BTCactusGreen;
         }
 
         @Override
@@ -4729,8 +4733,839 @@ public enum BlockType
             return ToolLevel.Diamond;
         }
     },
+    BTCocoa(97, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("cocoasmall.png")),
+                TextureAtlas.addImage(new Image("cocoamedium.png")),
+                TextureAtlas.addImage(new Image("cocoalarge.png")),
+                TextureAtlas.addImage(new Image("cocoabeans.png")),
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewCocoa(0, orientation);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.CocoaBeans;
+        }
+    },
+    /** ink sac */
+    BTInkSac(98, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("inksac.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewInkSac();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.InkSac;
+        }
+    },
+    /** rose red */
+    BTRoseRed(99, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("rosered.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewRoseRed();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.RoseRed;
+        }
+    },
+    /** cactus green */
+    BTCactusGreen(100, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("cactusgreen.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewCactusGreen();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.CactusGreen;
+        }
+    },
+    /** purple dye */
+    BTPurpleDye(101, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("purpledye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewPurpleDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.Purple;
+        }
+    },
+    /** cyan dye */
+    BTCyanDye(102, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("cyandye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewCyanDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.Cyan;
+        }
+    },
+    /** light gray dye */
+    BTLightGrayDye(103, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("lightgraydye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewLightGrayDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.LightGray;
+        }
+    },
+    /** gray dye */
+    BTGrayDye(104, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("graydye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewGrayDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.Gray;
+        }
+    },
+    /** pink dye */
+    BTPinkDye(105, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("pinkdye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewPinkDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.Pink;
+        }
+    },
+    /** lime dye */
+    BTLimeDye(106, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("limedye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewLimeDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.Lime;
+        }
+    },
+    /** dandelion yellow */
+    BTDandelionYellow(107, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("dandelionyellow.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewDandelionYellow();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.DandelionYellow;
+        }
+    },
+    /** light blue dye */
+    BTLightBlueDye(108, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("lightbluedye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewLightBlueDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.LightBlue;
+        }
+    },
+    /** magenta dye */
+    BTMagentaDye(109, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("magentadye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewMagentaDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.Magenta;
+        }
+    },
+    /** orange dye */
+    BTOrangeDye(110, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("orangedye.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewOrangeDye();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.Orange;
+        }
+    },
+    /** bone meal */
+    BTBoneMeal(111, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("bonemeal.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewBoneMeal();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public DyeColor getDyeColor()
+        {
+            return DyeColor.BoneMeal;
+        }
+    },
+    /** bone */
+    BTBone(112, false, BlockDrawType.BDTItem, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("bone.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewBone();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** wool */
+    BTWool(113, true, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("wool.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewWool(DyeColor.BoneMeal);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        protected void addToCreativeModeBlockList(final List<Block> list)
+        {
+            for(int i = 0; i < DyeColor.values.length; i++)
+            {
+                if(DyeColor.values[i] == DyeColor.None)
+                    continue;
+                list.add(Block.NewWool(DyeColor.values[i]));
+            }
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(98, false, BlockDrawType.BDTNone, null)
+    BTLast(114, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -5239,6 +6074,27 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+            return 0;
+        case BTInkSac:
+            return 2;
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+            return 0;
+        case BTBone:
+            return 1;
+        case BTWool:
             return 0;
         }
         return 0;
@@ -5368,6 +6224,8 @@ public enum BlockType
         case BTFarmland:
         case BTSeeds:
         case BTTallGrass:
+        case BTCocoa:
+        case BTWool:
             return false;
         case BTWheat:
         case BTWoodHoe:
@@ -5375,6 +6233,21 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return true;
         }
         return false;
@@ -5508,12 +6381,29 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return false;
         case BTDispenser:
         case BTDropper:
         case BTHopper:
         case BTCactus:
         case BTFarmland:
+        case BTWool:
             return true;
         }
         return false;
@@ -5647,12 +6537,29 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return false;
         case BTDispenser:
         case BTDropper:
         case BTHopper:
         case BTCactus:
         case BTFarmland:
+        case BTWool:
             return true;
         }
         return false;
@@ -5732,6 +6639,22 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return true;
         case BTPlank:
         case BTLeaves:
@@ -5773,6 +6696,7 @@ public enum BlockType
         case BTHopper:
         case BTCactus:
         case BTFarmland:
+        case BTWool:
             return false;
         }
         return false;
@@ -5879,6 +6803,23 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -6038,6 +6979,23 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
             return true;
         }
         return false;
@@ -6107,7 +7065,7 @@ public enum BlockType
         case BTLever:
         case BTSlime:
         case BTLeaves:
-            if(replacingBlock == BTVines)
+            if(replacingBlock == BTVines || replacingBlock == BTCocoa)
                 return Replaceability.GrowAround;
             return Replaceability.Replace;
         case BTLava:
@@ -6181,11 +7139,28 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return Replaceability.Replace;
         case BTDispenser:
         case BTDropper:
         case BTHopper:
         case BTFarmland:
+        case BTWool:
             return Replaceability.CanNotGrow;
         case BTCactus:
             if(replacingBlock == BTWood)
@@ -6395,6 +7370,7 @@ public enum BlockType
         case BTCobweb:
             return 20;
         case BTHopper:
+        case BTCocoa:
             return 15;
         case BTCactus:
             return 2;
@@ -6414,7 +7390,24 @@ public enum BlockType
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
             return 0;
+        case BTWool:
+            return 4;
         }
         return 1e10f;
     }
@@ -6489,5 +7482,53 @@ public enum BlockType
             retval[i] = TextureAtlas.addImage(img);
         }
         return retval;
+    }
+
+    public enum DyeColor
+    {
+        InkSac(0x19, 0x19, 0x19),
+        RoseRed(0x99, 0x33, 0x33),
+        CactusGreen(0x66, 0x7F, 0x33),
+        CocoaBeans(0x66, 0x4C, 0x33),
+        LapisLazuli(0x33, 0x4C, 0xB2),
+        Purple(0x7F, 0x3F, 0xB2),
+        Cyan(0x4C, 0x7F, 0x99),
+        LightGray(0x99, 0x99, 0x99),
+        Gray(0x4C, 0x4C, 0x4C),
+        Pink(0xF2, 0x7F, 0xA5),
+        Lime(0x7F, 0xCC, 0x19),
+        DandelionYellow(0xE5, 0xE5, 0x33),
+        LightBlue(0x66, 0x99, 0xD8),
+        Magenta(0xB2, 0x4C, 0xD8),
+        Orange(0xD8, 0x7F, 0x33),
+        BoneMeal(0xFF, 0xFF, 0xFF),
+        None(0, 0, 0);
+        public final float r, g, b;
+        public static final DyeColor[] values = values();
+
+        private DyeColor(final int r, final int g, final int b)
+        {
+            this.r = (float)r / 0xFF;
+            this.g = (float)g / 0xFF;
+            this.b = (float)b / 0xFF;
+        }
+
+        public void write(final DataOutput o) throws IOException
+        {
+            o.writeByte(ordinal());
+        }
+
+        public static DyeColor read(final DataInput i) throws IOException
+        {
+            int v = i.readUnsignedByte();
+            if(v >= values.length)
+                throw new IOException("DyeColor is out of range");
+            return values[v];
+        }
+    }
+
+    public DyeColor getDyeColor()
+    {
+        return DyeColor.None;
     }
 }

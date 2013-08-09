@@ -144,7 +144,7 @@ public abstract class Plant
                     setBlockType(0,
                                  0,
                                  0,
-                                 (randSeed > 0.3f) ? BlockType.BTDandelion
+                                 (randSeed > 0.33333f) ? BlockType.BTDandelion
                                          : BlockType.BTRose);
                 }
 

@@ -1845,8 +1845,6 @@ public class Player implements GameObject
                 {
                     this.deleteAnimTime = -1;
                     this.mouseDownTime = 0;
-                    // TODO finish
-                    // world.addModNode(blockX, blockY, blockZ, new Block());
                     world.setBlock(this.blockX,
                                    this.blockY,
                                    this.blockZ,
@@ -2555,8 +2553,6 @@ public class Player implements GameObject
                                                     transferCount);
             this.dragCount += transferCount;
         }
-        // world.addModNode(blockX, blockY, blockZ, chest);
-        // TODO finish
         world.setBlock(this.blockX, this.blockY, this.blockZ, container);
     }
 
@@ -2686,8 +2682,6 @@ public class Player implements GameObject
                             if(!giveBlock(oldb.getItemInBucket(), false))
                                 dropBlock(oldb.getItemInBucket());
                             newb = new Block();
-                            // world.AddModNode(blockX, blockY, blockZ, newb);
-                            // TODO finish
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
@@ -2703,13 +2697,20 @@ public class Player implements GameObject
                             oldb = Block.NewFarmland(false);
                             newb = new Block(newb);
                             newb.toolUseTool();
-                            // world.AddModNode(blockX, blockY, blockZ, oldb);
-                            // TODO finish
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
                                            oldb);
                             didAnything = true;
+                        }
+                    }
+                    if(newb.getType() == BlockType.BTBoneMeal)
+                    {
+                        if(oldb.onUseBoneMeal(this.blockX,
+                                              this.blockY,
+                                              this.blockZ))
+                        {
+                            return;
                         }
                     }
                     if(!giveBlock(newb, true))
@@ -2757,8 +2758,6 @@ public class Player implements GameObject
                                                     Block.getOrientationFromVector(getMoveForwardVector()));
                     if(newb != null)
                     {
-                        // world.AddModNode(blockX, blockY, blockZ, newb);
-                        // TODO finish
                         world.setBlock(this.blockX,
                                        this.blockY,
                                        this.blockZ,
@@ -2831,8 +2830,6 @@ public class Player implements GameObject
                 {
                     b = Block.NewStoneButton(b.getType().getOnTime(),
                                              b.getOrientation());
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     didAction = true;
                 }
@@ -2840,8 +2837,6 @@ public class Player implements GameObject
                 {
                     b = Block.NewWoodButton(b.getType().getOnTime(),
                                             b.getOrientation());
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     didAction = true;
                 }
@@ -2850,8 +2845,6 @@ public class Player implements GameObject
                 {
                     b = new Block(b);
                     b.redstoneRepeaterStepDelay();
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     didAction = true;
                 }
@@ -2859,8 +2852,6 @@ public class Player implements GameObject
                 {
                     b = new Block(b);
                     b.leverToggle();
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     didAction = true;
                 }
@@ -2873,8 +2864,6 @@ public class Player implements GameObject
                 {
                     b = new Block(b);
                     b.redstoneComparatorToggleSubtractMode();
-                    // world.addModNode(blockX, blockY, blockZ, b);
-                    // TODO finish
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     didAction = true;
                 }
@@ -3057,13 +3046,13 @@ public class Player implements GameObject
                                     }
                                     else
                                     {
-                                        if(!giveBlock(Block.NewBucket(), false))
+                                        if(this.dragType.isItemInBucket()
+                                                && !giveBlock(Block.NewBucket(),
+                                                              false))
                                             dropBlock(Block.NewBucket());
                                     }
                                 }
                             }
-                            // world.addModNode(blockX, blockY, blockZ, b);
-                            // TODO finish
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
@@ -3092,8 +3081,6 @@ public class Player implements GameObject
                                         this.dragType = null;
                                 }
                             }
-                            // world.addModNode(blockX, blockY, blockZ, b);
-                            // TODO finish
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
@@ -3122,8 +3109,6 @@ public class Player implements GameObject
                                 this.dragType = newB;
                             }
                         }
-                        // world.addModNode(blockX, blockY, blockZ, b);
-                        // TODO finish
                         world.setBlock(this.blockX, this.blockY, this.blockZ, b);
                     }
                 }

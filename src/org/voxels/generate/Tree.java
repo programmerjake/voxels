@@ -90,6 +90,91 @@ public final class Tree extends Plant
         return 0;
     }
 
+    private final int positionalRandSeed;
+
+    /** return a random integer x in the range 0 &le; x &lt; <code>limit</code>
+     * 
+     * @param x
+     *            the x coordinate
+     * @param y
+     *            the y coordinate
+     * @param z
+     *            the z coordinate
+     * @param limit
+     *            one more than the maximum return value
+     * @return the random integer */
+    private int positionalRand(final int x,
+                               final int y,
+                               final int z,
+                               final int limit)
+    {
+        if(limit <= 1)
+            return 0;
+        int hash = x * 2304912 + y * 734872381 + z * 842301830
+                + this.positionalRandSeed;
+        final long mask = (1L << 48) - 1;
+        final long multiplier = 0x5DEECE66DL;
+        long v = (hash ^ multiplier) & mask;
+        for(int i = 0; i < 5; i++)
+        {
+            v *= multiplier;
+            v += 0xB;
+            v &= mask;
+        }
+        if(Integer.bitCount(limit) == 1)
+        {
+            v >>= 48 - Integer.numberOfTrailingZeros(limit);
+            v &= limit + 1;
+        }
+        else
+        {
+            v %= limit;
+            if(v < 0)
+                v += limit;
+        }
+        return (int)v;
+    }
+
+    private int getCocoaOrientation(final int x, final int y, final int z)
+    {
+        final BlockType nx, px, nz, pz;
+        nx = getBlockType(x - 1, y, z);
+        px = getBlockType(x + 1, y, z);
+        nz = getBlockType(x, y, z - 1);
+        pz = getBlockType(x, y, z + 1);
+        int oCount = 0;
+        if(nx == BlockType.BTWood)
+            oCount++;
+        if(nz == BlockType.BTWood)
+            oCount++;
+        if(px == BlockType.BTWood)
+            oCount++;
+        if(pz == BlockType.BTWood)
+            oCount++;
+        int oIndex = positionalRand(x, y, z, oCount);
+        if(nx == BlockType.BTWood)
+        {
+            if(oIndex-- == 0)
+                return 0;
+        }
+        if(nz == BlockType.BTWood)
+        {
+            if(oIndex-- == 0)
+                return 1;
+        }
+        if(px == BlockType.BTWood)
+        {
+            if(oIndex-- == 0)
+                return 2;
+        }
+        if(pz == BlockType.BTWood)
+        {
+            if(oIndex-- == 0)
+                return 3;
+        }
+        return -1;
+    }
+
     /** @param x
      *            the block's x coordinate
      * @param y
@@ -109,6 +194,9 @@ public final class Tree extends Plant
             return Block.NewLeaves(this.treeType, 0);
         if(bt == BlockType.BTVines)
             return Block.NewVines(getVinesOrientation(x, y, z));
+        if(bt == BlockType.BTCocoa)
+            return Block.NewCocoa(positionalRand(x, y, z, 3),
+                                  getCocoaOrientation(x, y, z));
         return bt.make(-1);
     }
 
@@ -261,6 +349,36 @@ public final class Tree extends Plant
         }
     }
 
+    private void makeCocoa(final Random rand)
+    {
+        for(int x = -this.XZExtent; x <= this.XZExtent; x++)
+        {
+            for(int y = 0; y <= this.YExtent; y++)
+            {
+                for(int z = -this.XZExtent; z <= this.XZExtent; z++)
+                {
+                    if(getBlockType(x, y, z) != BlockType.BTEmpty)
+                        continue;
+                    if(rand.nextFloat() > 0.2f)
+                        continue;
+                    boolean doAdd = false;
+                    if(getBlockType(x + 1, y, z) == BlockType.BTWood)
+                        doAdd = true;
+                    else if(getBlockType(x - 1, y, z) == BlockType.BTWood)
+                        doAdd = true;
+                    else if(getBlockType(x, y, z + 1) == BlockType.BTWood)
+                        doAdd = true;
+                    else if(getBlockType(x, y, z - 1) == BlockType.BTWood)
+                        doAdd = true;
+                    if(doAdd)
+                    {
+                        setBlockType(x, y, z, BlockType.BTCocoa);
+                    }
+                }
+            }
+        }
+    }
+
     /** @param treeType
      *            the tree type
      * @param t
@@ -334,6 +452,7 @@ public final class Tree extends Plant
                 generateLargeBranchedTree(rand, true, ysz);
             }
             makeVines(rand);
+            makeCocoa(rand);
             break;
         case Spruce:
             switch(rand.nextInt(10))
@@ -446,6 +565,7 @@ public final class Tree extends Plant
             }
         }
         }
+        this.positionalRandSeed = rand.nextInt();
     }
 
     /** generate a tree

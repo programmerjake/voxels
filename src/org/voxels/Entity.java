@@ -219,6 +219,7 @@ public class Entity implements GameObject
             retval.data.block = rt.data.block;
             break;
         case TransferItem:
+        case ApplyBoneMealOrPutBackInContainer:
             retval.data.velocity = Vector.allocate(rt.data.velocity);
             break;
         }
@@ -391,6 +392,7 @@ public class Entity implements GameObject
         case PlaceBlockIfReplaceable:
         case RemoveBlockIfEqual:
         case TransferItem:
+        case ApplyBoneMealOrPutBackInContainer:
             return rs;
         }
         return rs;
@@ -812,6 +814,62 @@ public class Entity implements GameObject
             clear();
             return;
         }
+        case ApplyBoneMealOrPutBackInContainer:
+        {
+            int x = Math.round(this.position.getX());
+            int y = Math.round(this.position.getY());
+            int z = Math.round(this.position.getZ());
+            int cx = Math.round(this.data.velocity.getX());
+            int cy = Math.round(this.data.velocity.getY());
+            int cz = Math.round(this.data.velocity.getZ());
+            Block b = world.getBlockEval(x, y, z);
+            boolean isBoneMealUsed = false;
+            if(b != null)
+            {
+                isBoneMealUsed = b.onUseBoneMeal(x, y, z);
+            }
+            if(!isBoneMealUsed)
+            {
+                b = world.getBlockEval(x, y - 1, z);
+                if(b != null)
+                {
+                    isBoneMealUsed = b.onUseBoneMeal(x, y - 1, z);
+                }
+            }
+            if(!isBoneMealUsed)
+            {
+                Block container = world.getBlockEval(cx, cy, cz);
+                if(container != null)
+                {
+                    Vector orientationVector = Vector.allocate(x, y, z)
+                                                     .subAndSet(cx, cy, cz);
+                    final int orientation = Block.getOrientationFromVector(orientationVector);
+                    orientationVector.free();
+                    if(container.addBlockToContainer(Block.NewBoneMeal(),
+                                                     orientation))
+                    {
+                        isBoneMealUsed = true;
+                    }
+                }
+            }
+            if(!isBoneMealUsed)
+            {
+                Vector t1 = Vector.allocate();
+                Vector t2 = Vector.allocate();
+                Vector dir = Vector.allocate(x, y, z).subAndSet(cx, cy, cz);
+                world.insertEntity(Entity.NewBlock(t1.set(dir)
+                                                     .mulAndSet(-(0.5f - 0.25f + 0.05f))
+                                                     .addAndSet(x + 0.5f,
+                                                                x + 0.5f,
+                                                                x + 0.5f),
+                                                   Block.NewBoneMeal(),
+                                                   World.vRand(t2, 0.2f)
+                                                        .addAndSet(dir)
+                                                        .mulAndSet(5f)));
+            }
+            clear();
+            return;
+        }
         }
     }
 
@@ -858,18 +916,13 @@ public class Entity implements GameObject
             break;
         }
         case Particle:
-            break;
         case FallingBlock:
-            break;
         case PrimedTNT:
-            break;
         case ThrownBlock:
-            break;
         case PlaceBlockIfReplaceable:
-            break;
         case RemoveBlockIfEqual:
-            break;
         case TransferItem:
+        case ApplyBoneMealOrPutBackInContainer:
             break;
         }
     }
@@ -988,6 +1041,7 @@ public class Entity implements GameObject
         case PlaceBlockIfReplaceable:
         case RemoveBlockIfEqual:
         case TransferItem:
+        case ApplyBoneMealOrPutBackInContainer:
             break;
         }
     }
@@ -1156,6 +1210,21 @@ public class Entity implements GameObject
         return retval;
     }
 
+    public static Entity
+        NewApplyBoneMealOrPutBackInContainer(final int cropX,
+                                             final int cropY,
+                                             final int cropZ,
+                                             final int containerX,
+                                             final int containerY,
+                                             final int containerZ)
+    {
+        Vector t = Vector.allocate(cropX, cropY, cropZ);
+        Entity retval = allocate(t,
+                                 EntityType.ApplyBoneMealOrPutBackInContainer);
+        retval.data.velocity = t.set(containerX, containerY, containerZ);
+        return retval;
+    }
+
     private void readPhiTheta(final DataInput i) throws IOException
     {
         this.data.phi = i.readFloat();
@@ -1252,6 +1321,7 @@ public class Entity implements GameObject
             return;
         }
         case TransferItem:
+        case ApplyBoneMealOrPutBackInContainer:
         {
             this.data.velocity = Vector.read(i);
             return;
@@ -1349,6 +1419,7 @@ public class Entity implements GameObject
             return;
         }
         case TransferItem:
+        case ApplyBoneMealOrPutBackInContainer:
         {
             this.data.velocity.write(o);
             return;
