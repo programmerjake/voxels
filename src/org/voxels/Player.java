@@ -1994,17 +1994,10 @@ public class Player implements GameObject
         return 0;
     }
 
-    /** give this player a block
-     * 
-     * @param b
-     *            the block to give
-     * @param setCurrentBlock
-     *            if <code>b</code> should be set as the players currently
-     *            selected block
-     * @return if the block can be given to this player */
-    public boolean giveBlock(final Block b, final boolean setCurrentBlock)
+    private boolean internalGiveBlock(final Block b,
+                                      final boolean setCurrentBlock)
     {
-        if(b == null || b.getType() == BlockType.BTEmpty || Main.isCreativeMode)
+        if(b == null || b.getType() == BlockType.BTEmpty)
             return true;
         if(giveBlock(b, 1, Block.CHEST_ROWS, this.selectionX) > 0)
             return true;
@@ -2024,6 +2017,21 @@ public class Player implements GameObject
             }
         }
         return false;
+    }
+
+    /** give this player a block
+     * 
+     * @param b
+     *            the block to give
+     * @param setCurrentBlock
+     *            if <code>b</code> should be set as the players currently
+     *            selected block
+     * @return if the block can be given to this player */
+    public boolean giveBlock(final Block b, final boolean setCurrentBlock)
+    {
+        if(Main.isCreativeMode)
+            return true;
+        return internalGiveBlock(b, setCurrentBlock);
     }
 
     /** @return the block taken from this player or <code>null</code> */
@@ -3478,7 +3486,7 @@ public class Player implements GameObject
         {
             this.deleteAnimTime = -1;
             for(int i = 0; i < this.dragCount; i++)
-                if(!giveBlock(this.dragType, false))
+                if(!internalGiveBlock(this.dragType, false))
                     dropBlock(this.dragType);
             this.state = State.Normal;
             for(int x = 0; x < this.workbenchSize; x++)
@@ -3487,8 +3495,8 @@ public class Player implements GameObject
                 {
                     if(this.workbench[x + this.workbenchSize * y] == null)
                         continue;
-                    if(!giveBlock(this.workbench[x + this.workbenchSize * y],
-                                  false))
+                    if(!internalGiveBlock(this.workbench[x + this.workbenchSize
+                            * y], false))
                         dropBlock(this.workbench[x + this.workbenchSize * y]);
                     this.workbench[x + this.workbenchSize * y] = null;
                 }
@@ -3502,7 +3510,7 @@ public class Player implements GameObject
         {
             this.deleteAnimTime = -1;
             for(int i = 0; i < this.dragCount; i++)
-                if(!giveBlock(this.dragType, false))
+                if(!internalGiveBlock(this.dragType, false))
                     dropBlock(this.dragType);
             this.state = State.Normal;
             this.wasPaused = true;
@@ -3512,7 +3520,7 @@ public class Player implements GameObject
         {
             this.deleteAnimTime = -1;
             for(int i = 0; i < this.dragCount; i++)
-                if(!giveBlock(this.dragType, false))
+                if(!internalGiveBlock(this.dragType, false))
                     dropBlock(this.dragType);
             this.state = State.Normal;
             this.wasPaused = true;
