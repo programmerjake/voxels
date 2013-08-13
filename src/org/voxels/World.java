@@ -16,8 +16,7 @@
  */
 package org.voxels;
 
-import static org.voxels.Color.RGB;
-import static org.voxels.Color.glClearColor;
+import static org.voxels.Color.*;
 import static org.voxels.Matrix.glLoadMatrix;
 import static org.voxels.PlayerList.players;
 
@@ -1037,20 +1036,52 @@ public class World
     }
 
     private int sunlightFactor = 15; // integer between 0 and 15
-    private float timeOfDay = 0.5f;
+    private float timeOfDay = 0.3f;
 
     private static Color getBackgroundColor(final float timeOfDay)
     {
-        float intensity = 0.7f - 0.8f * (float)Math.cos(timeOfDay * 2.0
-                * Math.PI);
+        float seconds = 20.0f * 60.0f * timeOfDay;
+        final float secondsPerLightlevel = 10.0f;
+        final int nightLight = 4, dayLight = 15;
+        final float secondsForDawn = (dayLight - nightLight)
+                * secondsPerLightlevel;
+        final float secondsForDusk = (dayLight - nightLight)
+                * secondsPerLightlevel;
+        float sunlightFactor;
+        if(seconds < 5.0f * 60.0f - secondsForDawn)
+        {
+            sunlightFactor = nightLight;
+        }
+        else if(seconds < 5.0f * 60.0f)
+        {
+            float brightness = (secondsForDawn + seconds - 5.0f * 60.0f)
+                    / secondsPerLightlevel;
+            sunlightFactor = brightness + nightLight;
+        }
+        else if(seconds < 15.0f * 60.0f)
+        {
+            sunlightFactor = 15;
+        }
+        else if(seconds < 15.0f * 60.0f + secondsForDusk)
+        {
+            float brightness = (secondsForDusk + 15.0f * 60.0f - seconds)
+                    / secondsPerLightlevel;
+            sunlightFactor = brightness + nightLight;
+        }
+        else
+            sunlightFactor = nightLight;
+        float intensity = 1.5f * (sunlightFactor - nightLight)
+                / (dayLight - nightLight);
         if(intensity < 0.0f)
             intensity = 0.0f;
+        if(intensity > 1.5f)
+            intensity = 1.5f;
         if(intensity > 1.0f)
             return RGB(intensity - 1.0f, intensity - 1.0f, 1.0f);
         return RGB(0.0f, 0.0f, intensity);
     }
 
-    private Color backgroundColor = getBackgroundColor(0.5f);
+    private Color backgroundColor = getBackgroundColor(0.3f);
 
     private void setSunlightFactor()
     {
@@ -1311,11 +1342,37 @@ public class World
         }
     }
 
+    private static List<Vector> makeStars()
+    {
+        final int starCount = 200;
+        List<Vector> stars = new ArrayList<Vector>(starCount);
+        Random rand = new Random(0);
+        Vector v = Vector.allocate();
+        for(int i = 0; i < starCount; i++)
+        {
+            do
+            {
+                v.set(rand.nextFloat() * 2 - 1,
+                      rand.nextFloat() * 2 - 1,
+                      rand.nextFloat() * 2 - 1);
+            }
+            while(v.abs_squared() > 1 || v.abs_squared() < 0.0001f);
+            v.normalizeAndSet();
+            stars.add(v.getImmutable());
+        }
+        v.free();
+        return Collections.unmodifiableList(stars);
+    }
+
+    private static final List<Vector> stars = makeStars();
     private Vector draw_t1 = Vector.allocate();
     private Vector draw_t2 = Vector.allocate();
     private Vector draw_cameraPos = Vector.allocate();
     private Matrix draw_t3 = new Matrix();
+    private Matrix draw_t4 = new Matrix();
     private Vector draw_chunkCenter = Vector.allocate();
+    private static TextureAtlas.TextureHandle starImg = TextureAtlas.addImage(new Image("star.png"));
+    private static TextureAtlas.TextureHandle sunsetGlow = TextureAtlas.addImage(new Image("sunsetglow.png"));
 
     /** draw the world
      * 
@@ -1369,6 +1426,67 @@ public class World
                                       .render());
         }
         Main.opengl.glPopMatrix();
+        if(getSunAtHorizonFactor() > 0)
+        {
+            float t = getSunAtHorizonFactor();
+            float nt = 1 - t;
+            float glowR = GetRValueF(this.backgroundColor) * nt + 205 / 255f
+                    * t;
+            float glowG = GetGValueF(this.backgroundColor) * nt + 98 / 255f * t;
+            float glowB = GetBValueF(this.backgroundColor) * nt + 62 / 255f * t;
+            Matrix tform = Matrix.setToRotateZ(this.draw_t3, Math.PI
+                    * (0.5 + Math.floor(2 * this.timeOfDay)));
+            RenderingStream.free(Block.drawImgAsBlock(RenderingStream.allocate()
+                                                                     .concatMatrix(Matrix.setToScale(this.draw_t4,
+                                                                                                     60))
+                                                                     .concatMatrix(Matrix.removeTranslate(this.draw_t4,
+                                                                                                          worldToCamera)),
+                                                      Matrix.setToTranslate(this.draw_t4,
+                                                                            -0.5f,
+                                                                            -0.5f,
+                                                                            -0.5f)
+                                                            .concatAndSet(tform),
+                                                      sunsetGlow,
+                                                      true,
+                                                      true,
+                                                      glowR,
+                                                      glowG,
+                                                      glowB)
+                                      .render());
+        }
+        float starFactor = 1 - Math.min(1,
+                                        GetBValueF(this.backgroundColor) * 2f);
+        float nStarFactor = 1 - starFactor;
+        float starR = GetRValueF(this.backgroundColor) * nStarFactor
+                + starFactor;
+        float starG = GetGValueF(this.backgroundColor) * nStarFactor
+                + starFactor;
+        float starB = GetBValueF(this.backgroundColor) * nStarFactor
+                + starFactor;
+        if(starFactor > 0)
+        {
+            RenderingStream starRenderingStream = RenderingStream.allocate();
+            for(Vector v : stars)
+            {
+                Vector starPos = Vector.allocate(v);
+                Matrix.setToRotateZ(this.draw_t3, -Math.PI * 2 * this.timeOfDay)
+                      .apply(starPos, starPos);
+                Vector p = worldToCamera.applyToNormal(this.draw_t1, starPos)
+                                        .mulAndSet(50f);
+                Block.drawImgAsEntity(starRenderingStream,
+                                      Matrix.setToTranslate(this.draw_t4, p)
+                                            .concatAndSet(Matrix.setToScale(this.draw_t3,
+                                                                            20f / 50f)),
+                                      starImg,
+                                      true,
+                                      starR,
+                                      starG,
+                                      starB);
+                starPos.free();
+            }
+            starRenderingStream.render();
+            RenderingStream.free(starRenderingStream);
+        }
         Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
         for(int i = 0; i < Chunk.drawPhaseCount; i++)
             rs[i].setMatrix(worldToCamera);
@@ -2031,7 +2149,7 @@ public class World
         this.curTime += Main.getFrameDuration();
         final float dayDuration = 20.0f * 60.0f;
         setTimeOfDay(this.timeOfDay + (float)Main.getFrameDuration()
-                / dayDuration);
+                / dayDuration * (Main.DEBUG ? 1 : 1));// TODO finish
         addParticles();
         moveEntities();
         checkAllTimedInvalidates();
@@ -3168,5 +3286,41 @@ public class World
     public float getBiomeFoliageColorB(final int x, final int z)
     {
         return this.landGenerator.getBiomeFoliageColorB(x, z);
+    }
+
+    public float getTimeOfDay()
+    {
+        return this.timeOfDay;
+    }
+
+    public boolean isNightTime()
+    {
+        if(this.timeOfDay < 0.3f || this.timeOfDay > 0.7f)
+            return true;
+        return false;
+    }
+
+    public boolean isDayTime()
+    {
+        return !isNightTime();
+    }
+
+    public void setToDawn()
+    {
+        setTimeOfDay(0.3f);
+    }
+
+    public float getSunAtHorizonFactor()
+    {
+        float v = 2.0f * (float)Math.abs(-0.1f
+                + Math.cos(Math.PI * 2 * this.timeOfDay));
+        if(v >= 1)
+            return 0;
+        return 1 - v;
+    }
+
+    public int getLandHeight(final int x, final int z)
+    {
+        return this.landGenerator.getRockHeight(x, z);
     }
 }

@@ -203,6 +203,38 @@ public final class Color
         return c.a & 0xFF;
     }
 
+    /** @param c
+     *            color
+     * @return red intensity */
+    public static float GetRValueF(final Color c)
+    {
+        return (float)(c.r & 0xFF) / 0xFF;
+    }
+
+    /** @param c
+     *            color
+     * @return green intensity */
+    public static float GetGValueF(final Color c)
+    {
+        return (float)(c.g & 0xFF) / 0xFF;
+    }
+
+    /** @param c
+     *            color
+     * @return blue intensity */
+    public static float GetBValueF(final Color c)
+    {
+        return (float)(c.b & 0xFF) / 0xFF;
+    }
+
+    /** @param c
+     *            color
+     * @return transparency */
+    public static float GetAValueF(final Color c)
+    {
+        return (float)(c.a & 0xFF) / 0xFF;
+    }
+
     /** call glColor3* <BR/>
      * ignores <code>c</code>'s transparency
      * 

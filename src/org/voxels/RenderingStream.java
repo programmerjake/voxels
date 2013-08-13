@@ -127,7 +127,7 @@ public class RenderingStream
     private MatrixNode matrixStack = null;
     private int trianglePoint = -1;
 
-    public void clear()
+    public RenderingStream clear()
     {
         this.trianglesUsed = 0;
         this.next = null;
@@ -140,6 +140,7 @@ public class RenderingStream
         this.matrixStack = allocMatrix();
         this.matrixStack.next = null;
         this.trianglePoint = -1;
+        return this;
     }
 
     /**
@@ -329,46 +330,48 @@ public class RenderingStream
         return this.matrixStack.mat;
     }
 
-    /**
-	 * 
-	 */
-    public void pushMatrixStack()
+    /** @return this */
+    public RenderingStream pushMatrixStack()
     {
         Matrix oldMat = this.matrixStack.mat;
         MatrixNode newNode = allocMatrix();
         Matrix.set(newNode.mat, oldMat);
         newNode.next = this.matrixStack;
         this.matrixStack = newNode;
+        return this;
     }
 
     /** @param mat
-     *            the matrix to set to */
-    public void setMatrix(final Matrix mat)
+     *            the matrix to set to
+     * @return this */
+    public RenderingStream setMatrix(final Matrix mat)
     {
         if(mat == null)
             throw new NullPointerException();
         Matrix.set(this.matrixStack.mat, mat);
+        return this;
     }
 
     /** @param mat
-     *            the matrix to concat to */
-    public void concatMatrix(final Matrix mat)
+     *            the matrix to concat to
+     * @return this */
+    public RenderingStream concatMatrix(final Matrix mat)
     {
         if(mat == null)
             throw new NullPointerException();
         mat.concat(this.matrixStack.mat, this.matrixStack.mat);
+        return this;
     }
 
-    /**
-	 * 
-	 */
-    public void popMatrixStack()
+    /** @return this */
+    public RenderingStream popMatrixStack()
     {
         if(this.matrixStack.next == null)
             throw new IllegalStateException("can not pop the last matrix off the stack");
         MatrixNode node = this.matrixStack;
         this.matrixStack = this.matrixStack.next;
         freeMatrix(node);
+        return this;
     }
 
     /** @param rs

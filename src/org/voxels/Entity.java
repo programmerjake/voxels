@@ -762,6 +762,12 @@ public class Entity implements GameObject
                 newPos.addAndSet(deltaPos);
             }
             Vector adjustedNewPos = getNearestEmptySpot(tntItemSize, newPos);
+            if(adjustedNewPos != null
+                    && Vector.sub(move_t1, adjustedNewPos, newPos).abs() > 0.8f)
+            {
+                adjustedNewPos.free();
+                adjustedNewPos = null;
+            }
             if(adjustedNewPos == null)
             {
                 world.addExplosion(x, y, z, TNTStrength);
@@ -994,17 +1000,19 @@ public class Entity implements GameObject
         {
             final float impact = 3
                     * (1.0f - Vector.sub(this.explode_t1, this.position, pos)
-                                    .abs() / explosionRadius)
-                    * getBoxExposure(Vector.sub(this.explode_t1,
+                                    .addAndSet(0.5f, 0.5f, 0.5f)
+                                    .abs()
+                            / explosionRadius)
+                    * getBoxExposure(Vector.add(this.explode_t1,
                                                 this.position,
-                                                0.125f,
-                                                0.125f,
-                                                0.125f),
+                                                0.5f - tntItemSize,
+                                                0.5f - tntItemSize,
+                                                0.5f - tntItemSize),
                                      Vector.add(this.explode_t2,
                                                 this.position,
-                                                0.125f,
-                                                0.125f,
-                                                0.125f),
+                                                0.5f + tntItemSize,
+                                                0.5f + tntItemSize,
+                                                0.5f + tntItemSize),
                                      pos);
             if(impact <= 0)
                 return;
@@ -1018,17 +1026,19 @@ public class Entity implements GameObject
         {
             final float impact = 3
                     * (1.0f - Vector.sub(this.explode_t1, this.position, pos)
-                                    .abs() / explosionRadius)
-                    * getBoxExposure(Vector.sub(this.explode_t1,
+                                    .addAndSet(0.5f, 0.5f, 0.5f)
+                                    .abs()
+                            / explosionRadius)
+                    * getBoxExposure(Vector.add(this.explode_t1,
                                                 this.position,
-                                                0.125f,
-                                                0.125f,
-                                                0.125f),
+                                                0.5f - tntItemSize,
+                                                0.5f - tntItemSize,
+                                                0.5f - tntItemSize),
                                      Vector.add(this.explode_t2,
                                                 this.position,
-                                                0.125f,
-                                                0.125f,
-                                                0.125f),
+                                                0.5f + tntItemSize,
+                                                0.5f + tntItemSize,
+                                                0.5f + tntItemSize),
                                      pos);
             if(impact <= 0)
                 return;

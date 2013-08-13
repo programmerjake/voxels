@@ -86,39 +86,40 @@ public class Player implements GameObject
 	 */
     public Player()
     {
-        Block b;
-        int count = 0;
-        final int yoffset = World.Depth - 5;
-        this.position.setY(-yoffset);
-        for(;;)
-        {
-            b = world.getBlockEval((int)Math.floor(this.position.getX()),
-                                   (int)Math.floor(this.position.getY() + 1
-                                           + yoffset),
-                                   (int)Math.floor(this.position.getZ()));
-            while(b == null)
-            {
-                world.flagGenerate((int)Math.floor(this.position.getX()),
-                                   (int)Math.floor(this.position.getY() + 1
-                                           + yoffset),
-                                   (int)Math.floor(this.position.getZ()));
-                world.generateChunks();
-                b = world.getBlockEval((int)Math.floor(this.position.getX()),
-                                       (int)Math.floor(this.position.getY() + 1
-                                               + yoffset),
-                                       (int)Math.floor(this.position.getZ()));
-                if(b == null)
-                    Thread.yield();
-            }
-            if(b.isPlaceableWhileInside())
-            {
-                if(++count >= 2 + yoffset)
-                    break;
-            }
-            else
-                count = 0;
-            this.position.setY(this.position.getY() + 1.0f);
-        }
+        // Block b;
+        // int count = 0;
+        // final int yoffset = World.Depth - 5;
+        // this.position.setY(-yoffset);
+        // for(;;)
+        // {
+        // b = world.getBlockEval((int)Math.floor(this.position.getX()),
+        // (int)Math.floor(this.position.getY() + 1
+        // + yoffset),
+        // (int)Math.floor(this.position.getZ()));
+        // while(b == null)
+        // {
+        // world.flagGenerate((int)Math.floor(this.position.getX()),
+        // (int)Math.floor(this.position.getY() + 1
+        // + yoffset),
+        // (int)Math.floor(this.position.getZ()));
+        // world.generateChunks();
+        // b = world.getBlockEval((int)Math.floor(this.position.getX()),
+        // (int)Math.floor(this.position.getY() + 1
+        // + yoffset),
+        // (int)Math.floor(this.position.getZ()));
+        // if(b == null)
+        // Thread.yield();
+        // }
+        // if(b.isPlaceableWhileInside())
+        // {
+        // if(++count >= 2 + yoffset)
+        // break;
+        // }
+        // else
+        // count = 0;
+        // this.position.setY(this.position.getY() + 1.0f);
+        // }
+        this.position.setY(PlayerHeight + 0.201f + world.getLandHeight(0, 0));
     }
 
     private Player(final Vector position)
@@ -2881,6 +2882,15 @@ public class Player implements GameObject
                     this.dragCount = 0;
                     this.dragType = null;
                     didAction = true;
+                }
+                else if(b != null
+                        && (b.getType() == BlockType.BTBed || b.getType() == BlockType.BTBedFoot))
+                {
+                    if(world.isNightTime())
+                    {
+                        world.setToDawn();
+                        didAction = true;
+                    }
                 }
                 if(didAction)
                     Main.play(Main.clickAudio);

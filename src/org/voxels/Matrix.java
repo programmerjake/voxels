@@ -958,6 +958,28 @@ public class Matrix
                            + rt.elements[3 + 2 * 4]);
     }
 
+    public static Matrix removeTranslate(final Matrix dest, final Matrix src)
+    {
+        return set(dest,
+                   src.elements[0 + 0 * 4],
+                   src.elements[1 + 0 * 4],
+                   src.elements[2 + 0 * 4],
+                   0,
+                   src.elements[0 + 1 * 4],
+                   src.elements[1 + 1 * 4],
+                   src.elements[2 + 1 * 4],
+                   0,
+                   src.elements[0 + 2 * 4],
+                   src.elements[1 + 2 * 4],
+                   src.elements[2 + 2 * 4],
+                   0);
+    }
+
+    public Matrix removeTranslateAndSet()
+    {
+        return removeTranslate(this, this);
+    }
+
     @Override
     public String toString()
     {

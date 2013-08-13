@@ -165,7 +165,7 @@ public final class Main
         opengl.glEnable(opengl.GL_BLEND());
         opengl.glCullFace(opengl.GL_BACK());
         opengl.glFrontFace(opengl.GL_CCW());
-        opengl.glAlphaFunc(opengl.GL_LESS(), 0.85f);
+        opengl.glAlphaFunc(opengl.GL_LESS(), 0.95f);
         opengl.glBlendFunc(opengl.GL_ONE_MINUS_SRC_ALPHA(),
                            opengl.GL_SRC_ALPHA());
         opengl.glTexEnvi(opengl.GL_TEXTURE_ENV(),
@@ -856,25 +856,26 @@ public final class Main
                         return Main.DEBUG;
                     }
                 });
-                add(new CheckMenuItem("Use Vertex Arrays\nand a Texture Atlas",
-                                      Color.RGB(0f, 0f, 0f),
-                                      getBackgroundColor(),
-                                      Color.RGB(0f, 0f, 0f),
-                                      Color.RGB(0.0f, 0.0f, 1.0f),
-                                      this)
-                {
-                    @Override
-                    public void setChecked(final boolean checked)
-                    {
-                        RenderingStream.USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = checked;
-                    }
-
-                    @Override
-                    public boolean isChecked()
-                    {
-                        return RenderingStream.USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS;
-                    }
-                });
+                // add(new
+                // CheckMenuItem("Use Vertex Arrays\nand a Texture Atlas",
+                // Color.RGB(0f, 0f, 0f),
+                // getBackgroundColor(),
+                // Color.RGB(0f, 0f, 0f),
+                // Color.RGB(0.0f, 0.0f, 1.0f),
+                // this)
+                // {
+                // @Override
+                // public void setChecked(final boolean checked)
+                // {
+                // RenderingStream.USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = checked;
+                // }
+                //
+                // @Override
+                // public boolean isChecked()
+                // {
+                // return RenderingStream.USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS;
+                // }
+                // });
                 add(new CheckMenuItem("Creative Mode",
                                       Color.RGB(0f, 0f, 0f),
                                       getBackgroundColor(),
@@ -894,30 +895,6 @@ public final class Main
                         return Main.isCreativeMode;
                     }
                 });
-                if(Main.didLoad)
-                {
-                    add(new TextMenuItem("Change Time To Morning",
-                                         Color.RGB(0.0f, 0.0f, 0.0f),
-                                         getBackgroundColor(),
-                                         Color.RGB(0.0f, 0.0f, 0.0f),
-                                         Color.RGB(0.0f, 0.0f, 1.0f),
-                                         this)
-                    {
-                        @Override
-                        public void onMouseOver(final float mouseX,
-                                                final float mouseY)
-                        {
-                            select();
-                        }
-
-                        @Override
-                        public void onClick(final float mouseX,
-                                            final float mouseY)
-                        {
-                            world.setTimeOfDay(0.3f);
-                        }
-                    });
-                }
                 add(new SpacerMenuItem(Color.V(0), this));
                 add(new CheckMenuItem("Fancy Graphics",
                                       Color.RGB(0f, 0f, 0f),

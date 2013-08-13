@@ -5564,8 +5564,113 @@ public enum BlockType
             }
         }
     },
+    /** bed */
+    BTBed(114, false, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("bedhead.png")),
+        TextureAtlas.addImage(new Image("beditem.png"))
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewBed(orientation);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            if(Block.getOrientationDX(orientation) != 0
+                    || Block.getOrientationDZ(orientation) != 0)
+                return make(orientation);
+            return make(vieworientation);
+        }
+    },
+    /** bed foot */
+    BTBedFoot(115, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("bedend.png")),
+                TextureAtlas.addImage(new Image("beditem.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewBed(orientation);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            if(Block.getOrientationDX(orientation) != 0
+                    || Block.getOrientationDZ(orientation) != 0)
+                return make(orientation);
+            return make(vieworientation);
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(114, false, BlockDrawType.BDTNone, null)
+    BTLast(116, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -6096,6 +6201,9 @@ public enum BlockType
             return 1;
         case BTWool:
             return 0;
+        case BTBed:
+        case BTBedFoot:
+            return 0;
         }
         return 0;
     }
@@ -6226,6 +6334,8 @@ public enum BlockType
         case BTTallGrass:
         case BTCocoa:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return false;
         case BTWheat:
         case BTWoodHoe:
@@ -6397,6 +6507,8 @@ public enum BlockType
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTBed:
+        case BTBedFoot:
             return false;
         case BTDispenser:
         case BTDropper:
@@ -6560,6 +6672,8 @@ public enum BlockType
         case BTCactus:
         case BTFarmland:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return true;
         }
         return false;
@@ -6697,6 +6811,8 @@ public enum BlockType
         case BTCactus:
         case BTFarmland:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return false;
         }
         return false;
@@ -6820,6 +6936,7 @@ public enum BlockType
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -6828,6 +6945,7 @@ public enum BlockType
         case BTStickyPistonHead:
         case BTRedstoneDustOn:
         case BTRedstoneTorchOn:
+        case BTBedFoot:
             return false;
         }
         return false;
@@ -6996,6 +7114,8 @@ public enum BlockType
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return true;
         }
         return false;
@@ -7161,6 +7281,8 @@ public enum BlockType
         case BTHopper:
         case BTFarmland:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return Replaceability.CanNotGrow;
         case BTCactus:
             if(replacingBlock == BTWood)
@@ -7408,6 +7530,9 @@ public enum BlockType
             return 0;
         case BTWool:
             return 4;
+        case BTBed:
+        case BTBedFoot:
+            return 1;
         }
         return 1e10f;
     }

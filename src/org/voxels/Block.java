@@ -1117,6 +1117,20 @@ public class Block implements GameObject
         return retval;
     }
 
+    public static Block NewBed(final int orientation)
+    {
+        Block retval = new Block(BlockType.BTBed);
+        retval.data.orientation = Math.max(0, Math.min(3, orientation));
+        return retval;
+    }
+
+    public static Block NewBedFoot(final int orientation)
+    {
+        Block retval = new Block(BlockType.BTBedFoot);
+        retval.data.orientation = Math.max(0, Math.min(3, orientation));
+        return retval;
+    }
+
     private static Vector drawFace_t1 = Vector.allocate();
     private static Vector drawFace_t2 = Vector.allocate();
 
@@ -1507,6 +1521,54 @@ public class Block implements GameObject
                  isEntity,
                  isAsItem,
                  false);
+        return rs;
+    }
+
+    private static RenderingStream drawItem(final RenderingStream rs,
+                                            final Matrix localToBlock,
+                                            final Matrix blockToWorld,
+                                            final int bx,
+                                            final int by,
+                                            final int bz,
+                                            final TextureHandle img,
+                                            final boolean isEntity,
+                                            final boolean isAsItem,
+                                            final boolean isGlowing,
+                                            final float r,
+                                            final float g,
+                                            final float b)
+    {
+        Matrix localToWorld = localToBlock.concat(drawItem_localToWorld,
+                                                  blockToWorld);
+        Vector p1 = localToWorld.apply(drawItem_p1, Vector.ZERO);
+        Vector p2 = localToWorld.apply(drawItem_p2, Vector.X);
+        Vector p3 = localToWorld.apply(drawItem_p3, Vector.Y);
+        Vector p4 = localToWorld.apply(drawItem_p4, Vector.XY);
+        final float minu = 0, maxu = 1, minv = 0, maxv = 1;
+        drawFace(rs,
+                 img,
+                 p1,
+                 p2,
+                 p4,
+                 p3,
+                 minu,
+                 minv,
+                 maxu,
+                 minv,
+                 maxu,
+                 maxv,
+                 minu,
+                 maxv,
+                 bx,
+                 by,
+                 bz,
+                 true,
+                 isEntity,
+                 isAsItem,
+                 isGlowing,
+                 r,
+                 g,
+                 b);
         return rs;
     }
 
@@ -4364,6 +4426,67 @@ public class Block implements GameObject
                           this.data.dyeColor.g,
                           this.data.dyeColor.b);
                 break;
+            case BTBed:
+            case BTBedFoot:
+            {
+                if(isAsItem)
+                {
+                    drawItem(rs,
+                             Matrix.IDENTITY,
+                             blockToWorld,
+                             bx,
+                             by,
+                             bz,
+                             this.type.textures[1],
+                             isEntity,
+                             isAsItem);
+                }
+                else if(isEntity)
+                {
+                    drawImgAsEntity(rs, blockToWorld, this.type.textures[1]);
+                }
+                else
+                {
+                    Matrix rotateMat = Matrix.setToTranslate(draw_rotateMat,
+                                                             -0.5f,
+                                                             -0.5f,
+                                                             -0.5f)
+                                             .concatAndSet(Matrix.setToRotateY(draw_t2,
+                                                                               Math.PI
+                                                                                       / 2.0
+                                                                                       * ((this.type == BlockType.BTBed ? 3
+                                                                                               : 1) - this.data.orientation)))
+                                             .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                                 0.5f,
+                                                                                 0.5f,
+                                                                                 0.5f));
+                    internalDraw(rs,
+                                 DMaskNX | DMaskPX | DMaskNY | DMaskNZ
+                                         | DMaskPZ,
+                                 rotateMat,
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[0],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    internalDraw(rs,
+                                 DMaskPY,
+                                 Matrix.setToTranslate(draw_t1, 0, -0.5f, 0)
+                                       .concatAndSet(rotateMat),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[0],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                }
+                break;
+            }
             default:
                 break;
             }
@@ -4967,6 +5090,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return;
         }
     }
@@ -5057,6 +5182,25 @@ public class Block implements GameObject
         }
     }
 
+    private Block
+        moveHandleMakeBedPart(final int bx, final int by, final int bz)
+    {
+        for(int orientation = 0; orientation <= 3; orientation++)
+        {
+            Block b = world.getBlockEval(bx + getOrientationDX(orientation), by
+                    + getOrientationDY(orientation), bz
+                    + getOrientationDZ(orientation));
+            if(b == null)
+                continue;
+            if(b.getType() == BlockType.BTBedFoot)
+            {
+                if(b.data.orientation == getNegOrientation(orientation))
+                    return NewBed(orientation);
+            }
+        }
+        return null;
+    }
+
     private static Vector move_t1 = Vector.allocate();
     private static Vector move_t2 = Vector.allocate();
 
@@ -5081,6 +5225,12 @@ public class Block implements GameObject
         case BTBedrock:
             return null;
         case BTEmpty:
+        {
+            Block retval = moveHandleMakeBedPart(bx, by, bz);
+            if(retval != null)
+                return retval;
+            return moveHandleEmptySpaceChangeToFluid(bx, by, bz);
+        }
         case BTStoneButton:
         case BTWoodButton:
         case BTLever:
@@ -5142,6 +5292,9 @@ public class Block implements GameObject
         case BTLava:
         case BTWater:
         {
+            Block retval = moveHandleMakeBedPart(bx, by, bz);
+            if(retval != null)
+                return retval;
             Block px = world.getBlockEval(bx + 1, by, bz);
             Block nx = world.getBlockEval(bx - 1, by, bz);
             Block py = world.getBlockEval(bx, by + 1, bz);
@@ -5464,7 +5617,6 @@ public class Block implements GameObject
         case BTDiamondHoe:
             break;
         case BTDeadBush:
-        case BTSnow:
         {
             Block retval = moveHandleEmptySpaceChangeToFluid(bx, by, bz);
             if(retval != null)
@@ -5473,9 +5625,24 @@ public class Block implements GameObject
                 return new Block();
             return null;
         }
+        case BTSnow:
+        {
+            Block retval = moveHandleMakeBedPart(bx, by, bz);
+            if(retval != null)
+                return retval;
+            retval = moveHandleEmptySpaceChangeToFluid(bx, by, bz);
+            if(retval != null)
+                return retval;
+            if(!isBlockSupported(bx, by, bz, 4))
+                return new Block();
+            return null;
+        }
         case BTVines:
         {
-            Block retval = moveHandleEmptySpaceChangeToFluid(bx, by, bz);
+            Block retval = moveHandleMakeBedPart(bx, by, bz);
+            if(retval != null)
+                return retval;
+            retval = moveHandleEmptySpaceChangeToFluid(bx, by, bz);
             if(retval != null)
                 return retval;
             if(isBlockSupported(bx, by, bz, this.data.orientation))
@@ -5519,6 +5686,31 @@ public class Block implements GameObject
         case BTBone:
         case BTWool:
             return null;
+        case BTBed:
+        case BTBedFoot:
+        {
+            Block b = world.getBlockEval(bx
+                    + getOrientationDX(this.data.orientation), by
+                    + getOrientationDY(this.data.orientation), bz
+                    + getOrientationDZ(this.data.orientation));
+            if(b == null)
+                return null;
+            if((b.getType() != BlockType.BTBed && b.getType() != BlockType.BTBedFoot)
+                    || b.data.orientation != getNegOrientation(this.data.orientation)
+                    || b.getType() == this.type)
+            {
+                if(b.getType().isReplaceable()
+                        && this.type == BlockType.BTBedFoot)
+                    return null;
+                world.insertEntity(Entity.NewBlock(Vector.set(move_t1,
+                                                              bx + 0.5f,
+                                                              by + 0.5f,
+                                                              bz + 0.5f),
+                                                   NewBed(-1),
+                                                   World.vRand(move_t2, 0.1f)));
+                return new Block();
+            }
+        }
         }
         return null;
     }
@@ -5850,6 +6042,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return null;
         }
         return null;
@@ -6431,6 +6625,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return null;
         }
         return null;
@@ -6809,6 +7005,8 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             world.insertEntity(Entity.NewBlock(onDispense_t1.set(dir)
                                                             .mulAndSet(-(0.5f - 0.25f + 0.05f))
                                                             .addAndSet(destX + 0.5f,
@@ -7091,6 +7289,8 @@ public class Block implements GameObject
             return PushType.Pushed;
         case BTPistonHead:
         case BTStickyPistonHead:
+        case BTBed:
+        case BTBedFoot:
             return PushType.NonPushable;
         case BTSlime:
         case BTGunpowder:
@@ -7449,6 +7649,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return null;
         case BTRedMushroom:
         case BTBrownMushroom:
@@ -7524,15 +7726,15 @@ public class Block implements GameObject
         hz = Vector.mul(rayIntersectsBlock_hz, dir, vt.getZ()).addAndSet(orig);
         if(hx.getX() >= -eps && hx.getX() <= 1 + eps && hx.getY() >= -eps
                 && hx.getY() <= 1 + eps && hx.getZ() >= -eps
-                && hx.getZ() <= 1 + eps)
+                && hx.getZ() <= 1 + eps && vt.getX() > -eps)
             return vt.getX();
         if(hy.getX() >= -eps && hy.getX() <= 1 + eps && hy.getY() >= -eps
                 && hy.getY() <= 1 + eps && hy.getZ() >= -eps
-                && hy.getZ() <= 1 + eps)
+                && hy.getZ() <= 1 + eps && vt.getY() > -eps)
             return vt.getY();
         if(hz.getX() >= -eps && hz.getX() <= 1 + eps && hz.getY() >= -eps
                 && hz.getY() <= 1 + eps && hz.getZ() >= -eps
-                && hz.getZ() <= 1 + eps)
+                && hz.getZ() <= 1 + eps && vt.getZ() > -eps)
             return vt.getZ();
         return -1;
     }
@@ -7839,6 +8041,9 @@ public class Block implements GameObject
         case BTBone:
         case BTWool:
             return 1;
+        case BTBed:
+        case BTBedFoot:
+            return 0.5f;
         }
         return 0;
     }
@@ -7887,6 +8092,8 @@ public class Block implements GameObject
         case BTSnow:
         case BTFarmland:
         case BTSeeds:
+        case BTBed:
+        case BTBedFoot:
         {
             float height = getHeight();
             if(hitpos.getY() <= height)
@@ -7897,7 +8104,8 @@ public class Block implements GameObject
             Vector p = Vector.add(rayIntersects_t1,
                                   pos,
                                   Vector.mul(rayIntersects_t2, dir, t));
-            if(p.getX() < 0 || p.getX() > 1 || p.getZ() < 0 || p.getZ() > 1)
+            if(p.getX() < 0 || p.getX() > 1 || p.getZ() < 0 || p.getZ() > 1
+                    || t < -1e-5)
                 return -1;
             return t;
         }
@@ -8157,6 +8365,72 @@ public class Block implements GameObject
                         false);
     }
 
+    public static RenderingStream drawImgAsEntity(final RenderingStream rs,
+                                                  final Matrix blockToWorld,
+                                                  final TextureHandle img,
+                                                  final boolean isGlowing,
+                                                  final float r,
+                                                  final float g,
+                                                  final float b)
+    {
+        return drawItem(rs,
+                        drawImgAsEntity_mat,
+                        blockToWorld,
+                        0,
+                        0,
+                        0,
+                        img,
+                        true,
+                        false,
+                        isGlowing,
+                        r,
+                        g,
+                        b);
+    }
+
+    private static final Block drawImgAsBlock_b = NewStone();
+    private static final Block drawImgAsBlock_bGlow = NewSun();
+
+    public static RenderingStream drawImgAsBlock(final RenderingStream rs,
+                                                 final Matrix blockToWorld,
+                                                 final TextureHandle img,
+                                                 final boolean doubleSided,
+                                                 final boolean isGlowing,
+                                                 final float r,
+                                                 final float g,
+                                                 final float b)
+    {
+        if(isGlowing)
+            return drawImgAsBlock_bGlow.internalDraw(rs,
+                                                     0x3F,
+                                                     Matrix.IDENTITY,
+                                                     blockToWorld,
+                                                     0,
+                                                     0,
+                                                     0,
+                                                     img,
+                                                     doubleSided,
+                                                     true,
+                                                     false,
+                                                     r,
+                                                     g,
+                                                     b);
+        return drawImgAsBlock_b.internalDraw(rs,
+                                             0x3F,
+                                             Matrix.IDENTITY,
+                                             blockToWorld,
+                                             0,
+                                             0,
+                                             0,
+                                             img,
+                                             doubleSided,
+                                             true,
+                                             false,
+                                             r,
+                                             g,
+                                             b);
+    }
+
     /** @param rs
      *            the rendering stream
      * @param blockToWorld
@@ -8256,6 +8530,8 @@ public class Block implements GameObject
         case BTWorkbench:
         case BTFurnace:
         case BTPlank:
+        case BTBed:
+        case BTBedFoot:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTStick:
@@ -8601,6 +8877,8 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTBed:
+        case BTBedFoot:
         {
             draw(rs, blockToWorld, false, true);
             return rs;
@@ -9516,82 +9794,94 @@ public class Block implements GameObject
         {
             new BlockDescriptorBlockType(BlockType.BTInkSac),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.InkSac), 2),
+        }, 2, NewWool(DyeColor.InkSac), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTRoseRed),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.RoseRed), 2),
+        }, 2, NewWool(DyeColor.RoseRed), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTCactusGreen),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.CactusGreen), 2),
+        }, 2, NewWool(DyeColor.CactusGreen), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTCocoa),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.CocoaBeans), 2),
+        }, 2, NewWool(DyeColor.CocoaBeans), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTLapisLazuli),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.LapisLazuli), 2),
+        }, 2, NewWool(DyeColor.LapisLazuli), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTPurpleDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.Purple), 2),
+        }, 2, NewWool(DyeColor.Purple), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTCyanDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.Cyan), 2),
+        }, 2, NewWool(DyeColor.Cyan), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTLightGrayDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.LightGray), 2),
+        }, 2, NewWool(DyeColor.LightGray), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTGrayDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.Gray), 2),
+        }, 2, NewWool(DyeColor.Gray), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTPinkDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.Pink), 2),
+        }, 2, NewWool(DyeColor.Pink), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTLimeDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.Lime), 2),
+        }, 2, NewWool(DyeColor.Lime), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTDandelionYellow),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.DandelionYellow), 2),
+        }, 2, NewWool(DyeColor.DandelionYellow), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTLightBlueDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.LightBlue), 2),
+        }, 2, NewWool(DyeColor.LightBlue), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTMagentaDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.Magenta), 2),
+        }, 2, NewWool(DyeColor.Magenta), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTOrangeDye),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.Orange), 2),
+        }, 2, NewWool(DyeColor.Orange), 1),
         new ShapelessReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTBoneMeal),
             new BlockDescriptorDyeColor(BlockType.BTWool, DyeColor.BoneMeal),
-        }, 2, NewWool(DyeColor.BoneMeal), 2),
+        }, 2, NewWool(DyeColor.BoneMeal), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTWool),
+            new BlockDescriptorBlockType(BlockType.BTWool),
+            new BlockDescriptorBlockType(BlockType.BTWool),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank),
+            new BlockDescriptorBlockType(BlockType.BTPlank)
+        }, 3, NewBed(-1), 1),
     };
     private static final int reduceCount = reduceArray.length;
 
@@ -10103,6 +10393,8 @@ public class Block implements GameObject
         case BTHopper:
         case BTCactus:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return solidAdjustPlayerPosition(position, getHeight(), distLimit);
         case BTBlazeRod:
         case BTBlazePowder:
@@ -10306,6 +10598,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return true;
         }
         return false;
@@ -10841,6 +11135,30 @@ public class Block implements GameObject
             }
             break;
         }
+        case BTBed:
+        case BTBedFoot:
+        {
+            if(dropItems)
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   this.type.make(-1),
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
+            int bx = getOrientationDX(this.data.orientation) + x;
+            int by = getOrientationDY(this.data.orientation) + y;
+            int bz = getOrientationDZ(this.data.orientation) + z;
+            Block b = world.getBlockEval(bx, by, bz);
+            if(b == null)
+                return;
+            if((b.getType() != BlockType.BTBed && b.getType() != BlockType.BTBedFoot)
+                    || b.data.orientation != getNegOrientation(this.data.orientation)
+                    || b.getType() == this.type)
+                return;
+            world.setBlock(bx, by, bz, new Block());
+            return;
+        }
         case BTPiston:
         case BTStickyPiston:
         {
@@ -11078,6 +11396,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return REDSTONE_POWER_NONE;
         case BTRedstoneComparator:
         {
@@ -11253,6 +11573,8 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTBed:
+        case BTBedFoot:
             return false;
         case BTBedrock:
         case BTChest:
@@ -11574,6 +11896,8 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTBed:
+        case BTBedFoot:
             return false;
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -11913,6 +12237,8 @@ public class Block implements GameObject
         }
         case BTPistonHead:
         case BTStickyPistonHead:
+        case BTBed:
+        case BTBedFoot:
         {
             o.writeByte(this.data.orientation);
             return;
@@ -12320,6 +12646,14 @@ public class Block implements GameObject
             this.data.dyeColor = DyeColor.read(i);
             if(this.data.dyeColor == DyeColor.None)
                 throw new IOException("wool dye color is invalid");
+            return;
+        }
+        case BTBed:
+        case BTBedFoot:
+        {
+            this.data.orientation = i.readUnsignedByte();
+            if(this.data.orientation < 0 || this.data.orientation > 3)
+                throw new IOException("bed orientation is out of range");
             return;
         }
         }
@@ -13125,6 +13459,8 @@ public class Block implements GameObject
             return this.data.intdata == rt.data.intdata;
         case BTPistonHead:
         case BTStickyPistonHead:
+        case BTBed:
+        case BTBedFoot:
             return this.data.orientation == rt.data.orientation;
         case BTRedstoneDustOff:
         case BTRedstoneDustOn:
@@ -13328,6 +13664,8 @@ public class Block implements GameObject
             return hash + 162873468 * this.data.intdata;
         case BTPistonHead:
         case BTStickyPistonHead:
+        case BTBed:
+        case BTBedFoot:
             hash += 126364 * this.data.orientation;
             return hash;
         case BTRedstoneDustOff:
@@ -13394,7 +13732,18 @@ public class Block implements GameObject
         switch(this.type)
         {
         case BTWood:
-            return NewWood(treeGetTreeType(), orientation);
+        {
+            int o;
+            if(orientation < 0 || orientation >= 6)
+                o = 0;
+            else if(Block.getOrientationDX(orientation) != 0)
+                o = 1;
+            else if(Block.getOrientationDY(orientation) != 0)
+                o = 0;
+            else
+                o = 2;
+            return NewWood(treeGetTreeType(), o);
+        }
         case BTLeaves:
             return NewLeaves(treeGetTreeType());
         case BTPlank:
@@ -13410,6 +13759,9 @@ public class Block implements GameObject
                                                        forwardorientation);
         case BTWool:
             return NewWool(dyedGetDyeColor());
+        case BTBed:
+        case BTBedFoot:
+            return NewBedFoot(forwardorientation);
         default:
             return this.type.make(orientation, vieworientation);
         }
@@ -13512,6 +13864,8 @@ public class Block implements GameObject
             case BTSnow:
             case BTCocoa:
             case BTHopper:
+            case BTBed:
+            case BTBedFoot:
                 return true;
             case BTGrass:
             case BTDispenser:
@@ -14074,6 +14428,9 @@ public class Block implements GameObject
             if(toolType == ToolType.Shears)
                 return new BlockDigDescriptor(0.25f, true, false);
             return new BlockDigDescriptor(1.2f);
+        case BTBed:
+        case BTBedFoot:
+            return new BlockDigDescriptor(0.3f);
         }
         return null;
     }
@@ -14406,6 +14763,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return -1;
         }
         return -1;
@@ -14626,6 +14985,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return false;
         case BTChest:
         case BTDispenser:
@@ -14765,6 +15126,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return false;
         case BTChest:
         {
@@ -14976,6 +15339,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return -1;
         case BTChest:
         {
@@ -15165,6 +15530,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return null;
         case BTChest:
         {
@@ -15404,6 +15771,8 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTBed:
+        case BTBedFoot:
             return null;
         case BTChest:
         {
@@ -15709,6 +16078,8 @@ public class Block implements GameObject
         case BTWoodShovel:
         case BTWool:
         case BTWorkbench:
+        case BTBed:
+        case BTBedFoot:
             break;
         }
         return false;
