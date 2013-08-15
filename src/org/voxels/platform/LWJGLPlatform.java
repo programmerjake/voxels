@@ -77,7 +77,7 @@ public class LWJGLPlatform implements Platform
         return this.opengl;
     }
 
-    private Mouse mouse = new LWJGLMouseAdapter();
+    private LWJGLMouseAdapter mouse = new LWJGLMouseAdapter();
 
     @Override
     public Mouse getMouse()
@@ -309,6 +309,7 @@ public class LWJGLPlatform implements Platform
             org.lwjgl.input.Keyboard.enableRepeatEvents(true);
             if(!AL.isCreated())
                 AL.create();
+            this.mouse.init();
         }
         catch(LWJGLException e)
         {

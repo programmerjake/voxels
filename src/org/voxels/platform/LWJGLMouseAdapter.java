@@ -23,6 +23,7 @@ public class LWJGLMouseAdapter implements Mouse
 {
     private boolean lastEventWasLeftButtonDown = false;
     private boolean isLeftTranslatedToRight = false;
+    private boolean canUseAltForRightClick = false;
 
     @Override
     public float getEventX()
@@ -40,7 +41,8 @@ public class LWJGLMouseAdapter implements Mouse
     public int getEventButtonIndex()
     {
         int button = org.lwjgl.input.Mouse.getEventButton();
-        if(button == BUTTON_LEFT && this.isLeftTranslatedToRight)
+        if(button == BUTTON_LEFT && this.isLeftTranslatedToRight
+                && this.canUseAltForRightClick)
             return BUTTON_RIGHT;
         return button;
     }
@@ -72,7 +74,7 @@ public class LWJGLMouseAdapter implements Mouse
     @Override
     public boolean isButtonDown(final int bIndex)
     {
-        if(this.isLeftTranslatedToRight)
+        if(this.isLeftTranslatedToRight && this.canUseAltForRightClick)
         {
             if(bIndex == BUTTON_RIGHT)
                 return org.lwjgl.input.Mouse.isButtonDown(BUTTON_LEFT);
@@ -96,9 +98,9 @@ public class LWJGLMouseAdapter implements Mouse
         if(button == BUTTON_LEFT
                 && (org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU) || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU))
                 && (!this.lastEventWasLeftButtonDown || isDown))
-            this.isLeftTranslatedToRight = true;
+            this.isLeftTranslatedToRight = this.canUseAltForRightClick;
         else if(button == BUTTON_LEFT && isDown)
-            eventWasLeftButtonDown = true;
+            eventWasLeftButtonDown = this.canUseAltForRightClick;
         this.lastEventWasLeftButtonDown = eventWasLeftButtonDown;
         return true;
     }
@@ -115,5 +117,18 @@ public class LWJGLMouseAdapter implements Mouse
     public float getDragThreshold()
     {
         return 4;
+    }
+
+    public void init()
+    {
+        this.canUseAltForRightClick = System.getProperty("os.name")
+                                            .equals("Mac OS")
+                || System.getProperty("os.name").equals("Mac OS X");
+        if(org.lwjgl.input.Mouse.getButtonCount() <= 1)
+            this.canUseAltForRightClick = true;
+    }
+
+    public LWJGLMouseAdapter()
+    {
     }
 }

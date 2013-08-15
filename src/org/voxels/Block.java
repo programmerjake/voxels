@@ -22,6 +22,7 @@ import static org.voxels.World.world;
 import java.io.*;
 
 import org.voxels.BlockType.DyeColor;
+import org.voxels.BlockType.Flammability;
 import org.voxels.BlockType.ToolLevel;
 import org.voxels.BlockType.ToolType;
 import org.voxels.TextureAtlas.TextureHandle;
@@ -1129,6 +1130,23 @@ public class Block implements GameObject
         Block retval = new Block(BlockType.BTBedFoot);
         retval.data.orientation = Math.max(0, Math.min(3, orientation));
         return retval;
+    }
+
+    public static Block NewFire(final int weakness)
+    {
+        Block retval = new Block(BlockType.BTFire);
+        retval.data.intdata = Math.max(0, Math.min(15, weakness));
+        return retval;
+    }
+
+    public static Block NewFlint()
+    {
+        return new Block(BlockType.BTFlint);
+    }
+
+    public static Block NewFlintAndSteel()
+    {
+        return new Block(BlockType.BTFlintAndSteel);
     }
 
     private static Vector drawFace_t1 = Vector.allocate();
@@ -4487,6 +4505,136 @@ public class Block implements GameObject
                 }
                 break;
             }
+            case BTFire:
+            {
+                // TODO finish
+                boolean drawCenter = false, drawNX = false, drawNZ = false, drawPX = false, drawPZ = false;
+                if(isAsItem)
+                {
+                    drawNZ = true;
+                }
+                else if(isEntity)
+                {
+                    drawCenter = true;
+                    drawNX = true;
+                    drawNZ = true;
+                    drawPX = true;
+                    drawPZ = true;
+                }
+                else
+                {
+                    Block nx = world.getBlockEval(bx - 1, by, bz);
+                    Block px = world.getBlockEval(bx + 1, by, bz);
+                    Block ny = world.getBlockEval(bx, by - 1, bz);
+                    Block nz = world.getBlockEval(bx, by, bz - 1);
+                    Block pz = world.getBlockEval(bx, by, bz + 1);
+                    if(ny == null
+                            || ny.getFlammability(true) != Flammability.NotFlammable)
+                    {
+                        drawCenter = true;
+                        drawNX = true;
+                        drawNZ = true;
+                        drawPX = true;
+                        drawPZ = true;
+                    }
+                    else
+                    {
+                        if(nx != null
+                                && nx.getFlammability(false) != Flammability.NotFlammable)
+                            drawNX = true;
+                        if(px != null
+                                && px.getFlammability(false) != Flammability.NotFlammable)
+                            drawPX = true;
+                        if(nz != null
+                                && nz.getFlammability(false) != Flammability.NotFlammable)
+                            drawNZ = true;
+                        if(pz != null
+                                && pz.getFlammability(false) != Flammability.NotFlammable)
+                            drawPZ = true;
+                        if(!drawNX && !drawPX && !drawNZ && !drawPZ
+                                && (ny == null || ny.isSolid()))
+                        {
+                            drawCenter = true;
+                            drawNX = true;
+                            drawNZ = true;
+                            drawPX = true;
+                            drawPZ = true;
+                        }
+                    }
+                }
+                int frame;
+                final int frameCount = 8;
+                {
+                    double t = world.getCurTime() * 2f;
+                    t -= Math.floor(t);
+                    frame = (int)Math.floor(t * frameCount);
+                    if(frame > frameCount - 1)
+                        frame = frameCount - 1;
+                }
+                TextureHandle texture = this.type.textures[frame];
+                TextureHandle blockTexture = this.type.textures[frame
+                        + frameCount];
+                if(drawCenter)
+                    drawSim3D(rs,
+                              Matrix.IDENTITY,
+                              blockToWorld,
+                              bx,
+                              by,
+                              bz,
+                              isEntity,
+                              isAsItem,
+                              texture);
+                final float spacing = 1 / 32f;
+                if(drawNX)
+                    internalDraw(rs,
+                                 DMaskNX,
+                                 Matrix.setToTranslate(draw_t1, spacing, 0, 0),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 blockTexture,
+                                 true,
+                                 isEntity,
+                                 isAsItem);
+                if(drawNZ)
+                    internalDraw(rs,
+                                 DMaskNZ,
+                                 Matrix.setToTranslate(draw_t1, 0, 0, spacing),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 blockTexture,
+                                 true,
+                                 isEntity,
+                                 isAsItem);
+                if(drawPX)
+                    internalDraw(rs,
+                                 DMaskPX,
+                                 Matrix.setToTranslate(draw_t1, -spacing, 0, 0),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 blockTexture,
+                                 true,
+                                 isEntity,
+                                 isAsItem);
+                if(drawPZ)
+                    internalDraw(rs,
+                                 DMaskPZ,
+                                 Matrix.setToTranslate(draw_t1, 0, 0, -spacing),
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 blockTexture,
+                                 true,
+                                 isEntity,
+                                 isAsItem);
+                break;
+            }
             default:
                 break;
             }
@@ -4721,16 +4869,22 @@ public class Block implements GameObject
                         this.light);
     }
 
+    private long curDisplayListValidTag = -1;
+
     /** gets the lighting array <BR/>
      * not thread safe
      * 
      * @param sunlightFactor
      *            used to check for the right array to return
+     * @param displayListValidTag
+     *            used to check for the right array to return
      * @return the lighting array for <code>sunlightFactor</code> or null if
      *         there isn't one */
-    public int[] getLightingArray(final int sunlightFactor)
+    public int[] getLightingArray(final int sunlightFactor,
+                                  final long displayListValidTag)
     {
-        if(sunlightFactor != this.curSunlightFactor)
+        if(sunlightFactor != this.curSunlightFactor
+                || displayListValidTag != this.curDisplayListValidTag)
             return null;
         return this.lighting;
     }
@@ -4743,14 +4897,19 @@ public class Block implements GameObject
      * @param sunlightFactor
      *            used to check for the right array to return in
      *            <code>getLightingArray</code>
-     * @see #getLightingArray(int sunlightFactor) */
-    public void
-        setLightingArray(final int lighting[], final int sunlightFactor)
+     * @param displayListValidTag
+     *            used to check for the right array to return in
+     *            <code>getLightingArray</code>
+     * @see #getLightingArray(int sunlightFactor, long displayListValidTag) */
+    public void setLightingArray(final int lighting[],
+                                 final int sunlightFactor,
+                                 final long displayListValidTag)
     {
         if(lighting != null && lighting.length != 8)
             throw new IllegalArgumentException("new lighting array is wrong length");
         this.lighting = lighting;
         this.curSunlightFactor = sunlightFactor;
+        this.curDisplayListValidTag = displayListValidTag;
     }
 
     /** @return true if this block generates particles
@@ -4817,7 +4976,6 @@ public class Block implements GameObject
         case BTSapling:
         case BTBedrock:
         case BTWater:
-        case BTLava:
         case BTSand:
         case BTGravel:
         case BTWood:
@@ -5092,7 +5250,14 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFlint:
+        case BTFlintAndSteel:
             return;
+        case BTFire:
+        case BTLava:
+        {
+            // TODO finish adding fire particles
+        }
         }
     }
 
@@ -5199,6 +5364,11 @@ public class Block implements GameObject
             }
         }
         return null;
+    }
+
+    public BlockType.Flammability getFlammability(final boolean isTopBurning)
+    {
+        return this.type.getFlammability(isTopBurning);
     }
 
     private static Vector move_t1 = Vector.allocate();
@@ -5589,7 +5759,6 @@ public class Block implements GameObject
         case BTStickyPistonHead:
         case BTSlime:
         case BTGunpowder:
-        case BTTNT:
         case BTBlazeRod:
         case BTBlazePowder:
         case BTStonePressurePlate:
@@ -5686,6 +5855,24 @@ public class Block implements GameObject
         case BTBone:
         case BTWool:
             return null;
+        case BTTNT:
+        {
+            for(int o = 0; o <= 4; o++)
+            {
+                Block b = world.getBlockEval(bx + getOrientationDX(o), by
+                        + getOrientationDY(o), bz + getOrientationDZ(o));
+                if(b == null)
+                    continue;
+                if(b.getType() == BlockType.BTFire)
+                {
+                    world.insertEntity(Entity.NewPrimedTNT(move_t1.set(bx,
+                                                                       by,
+                                                                       bz), 1));
+                    return new Block();
+                }
+            }
+            return null;
+        }
         case BTBed:
         case BTBedFoot:
         {
@@ -5710,9 +5897,138 @@ public class Block implements GameObject
                                                    World.vRand(move_t2, 0.1f)));
                 return new Block();
             }
+            return null;
         }
+        case BTFire:
+        {
+            Block retval = moveHandleEmptySpaceChangeToFluid(bx, by, bz);
+            if(retval == null)
+                retval = moveHandleMakeBedPart(bx, by, bz);
+            if(retval != null)
+                return retval;
+            return null;
+        }
+        case BTFlint:
+        case BTFlintAndSteel:
+            return null;
         }
         return null;
+    }
+
+    private boolean fireHasBurningSource(final int bx,
+                                         final int by,
+                                         final int bz,
+                                         final int orientation)
+    {
+        Block b = world.getBlockEval(bx + getOrientationDX(orientation), by
+                + getOrientationDY(orientation), bz
+                + getOrientationDZ(orientation));
+        if(b == null)
+            return false;
+        return b.getFlammability(orientation == 4
+                && this.type == BlockType.BTFire) != Flammability.NotFlammable;
+    }
+
+    private boolean fireHasBurningSource(final int bx,
+                                         final int by,
+                                         final int bz)
+    {
+        for(int orientation = 0; orientation <= 4; orientation++)
+            if(fireHasBurningSource(bx, by, bz, orientation))
+                return true;
+        return false;
+    }
+
+    public static final float fireSpeed = 1 / 20f;
+
+    public void moveFire(final int bx, final int by, final int bz)
+    {
+        if(this.type == BlockType.BTFire)
+        {
+            int weakness = this.data.intdata;
+            if(weakness < 15 && World.fRand(0, 4) < 1)
+                weakness++;
+            Block ny = world.getBlockEval(bx, by - 1, bz);
+            if(ny != null
+                    && ny.getFlammability(true) != Flammability.BurnForever)
+            {
+                if((weakness < 3 && !fireHasBurningSource(bx, by, bz))
+                        || (weakness == 15
+                                && !fireHasBurningSource(bx, by, bz, 4) && World.fRand(0,
+                                                                                       4) < 1))
+                {
+                    world.setBlock(bx, by, bz, new Block());
+                    return;
+                }
+            }
+            for(int orientation = 0; orientation < 6; orientation++)
+            {
+                final int chance = getOrientationDY(orientation) != 0 ? 250
+                        : 300;
+                final int x = bx + getOrientationDX(orientation);
+                final int y = by + getOrientationDY(orientation);
+                final int z = bz + getOrientationDZ(orientation);
+                Block b = world.getBlockEval(x, y, z);
+                if(b != null
+                        && b.getFlammability(orientation == 4) == Flammability.BurnUp
+                        && World.fRand(0, chance) < 25)
+                {
+                    if(World.fRand(0, weakness + 10) < 5
+                            && b.fireHasBurningSource(x, y, z))
+                    {
+                        world.setBlock(x,
+                                       y,
+                                       z,
+                                       Block.NewFire(Math.min(15,
+                                                              weakness
+                                                                      + (World.fRand(0,
+                                                                                     5) < 4 ? 1
+                                                                              : 0))));
+                        world.invalidate(x, y, z);
+                    }
+                    else
+                        world.setBlock(x, y, z, new Block());
+                }
+            }
+            for(int dx = -1; dx <= 1; dx++)
+            {
+                for(int dy = -1; dy <= 4; dy++)
+                {
+                    for(int dz = -1; dz <= 1; dz++)
+                    {
+                        if(dx == 0 && dy == 0 && dz == 0)
+                            continue;
+                        int x = bx + dx, y = by + dy, z = bz + dz;
+                        Block b = world.getBlockEval(x, y, z);
+                        if(b == null || b.getType() != BlockType.BTEmpty)
+                            continue;
+                        if(!b.fireHasBurningSource(x, y, z))
+                            continue;
+                        int chanceFactor = 100;
+                        if(dy > 1)
+                            chanceFactor = dy * 100;
+                        int netChance = 44 / (weakness + 30);
+                        if(netChance <= 0)
+                            continue;
+                        if(Math.floor(World.fRand(0, chanceFactor)) > netChance)
+                            continue;
+                        world.setBlock(x,
+                                       y,
+                                       z,
+                                       Block.NewFire(Math.min(15,
+                                                              weakness
+                                                                      + (World.fRand(0,
+                                                                                     5) < 4 ? 1
+                                                                              : 0))));
+                        world.invalidate(x, y, z);
+                    }
+                }
+            }
+            if(weakness != this.data.intdata)
+                world.setBlock(bx, by, bz, NewFire(weakness));
+            world.invalidate(bx, by, bz);
+        }
+        // TODO finish fire
     }
 
     /** called to evaluate random moves
@@ -5737,6 +6053,36 @@ public class Block implements GameObject
             return null;
         case BTEmpty:
         {
+            if(fireHasBurningSource(bx, by, bz))
+            {
+                for(int dx = -1; dx <= 1; dx++)
+                {
+                    for(int dz = -1; dz <= 1; dz++)
+                    {
+                        Block b = world.getBlockEval(bx + dx, by - 1, bz + dz);
+                        if(b == null)
+                            continue;
+                        if(b.getType() == BlockType.BTLava)
+                            return NewFire(0);
+                        if(b.getType() == BlockType.BTEmpty)
+                        {
+                            int x = bx + dx, y = by - 1, z = bz + dz;
+                            for(int dx2 = -1; dx2 <= 1; dx2++)
+                            {
+                                for(int dz2 = -1; dz2 <= 1; dz2++)
+                                {
+                                    b = world.getBlockEval(x + dx2, y - 1, z
+                                            + dz2);
+                                    if(b == null)
+                                        continue;
+                                    if(b.getType() == BlockType.BTLava)
+                                        return NewFire(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Block py = world.getBlockEval(bx, by + 1, bz);
             Block ny = world.getBlockEval(bx, by - 1, bz);
             if(py != null)
@@ -6044,6 +6390,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return null;
         }
         return null;
@@ -6627,6 +6976,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return null;
         }
         return null;
@@ -7007,6 +7359,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             world.insertEntity(Entity.NewBlock(onDispense_t1.set(dir)
                                                             .mulAndSet(-(0.5f - 0.25f + 0.05f))
                                                             .addAndSet(destX + 0.5f,
@@ -7313,6 +7668,7 @@ public class Block implements GameObject
         case BTSnow:
         case BTVines:
         case BTDeadBush:
+        case BTFire:
             return PushType.Remove;
         case BTRedstoneComparator:
         case BTQuartz:
@@ -7353,6 +7709,8 @@ public class Block implements GameObject
         case BTHopper:
         case BTFarmland:
         case BTWool:
+        case BTFlint:
+        case BTFlintAndSteel:
             return PushType.Pushed;
         }
         return PushType.NonPushable;
@@ -7651,6 +8009,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return null;
         case BTRedMushroom:
         case BTBrownMushroom:
@@ -8040,6 +8401,9 @@ public class Block implements GameObject
         case BTBoneMeal:
         case BTBone:
         case BTWool:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return 1;
         case BTBed:
         case BTBedFoot:
@@ -8063,11 +8427,20 @@ public class Block implements GameObject
      *            the origin of the ray
      * @param hitpos
      *            the place where the ray hits the unit box this block is in
+     * @param bx
+     *            the block's x coordinate
+     * @param by
+     *            the block's y coordinate
+     * @param bz
+     *            the block's z coordinate
      * @return >= 0 if the ray intersects this block */
     public float rayIntersects(final Vector dir,
                                final Vector invdir,
                                final Vector pos,
-                               final Vector hitpos)
+                               final Vector hitpos,
+                               final int bx,
+                               final int by,
+                               final int bz)
     {
         switch(this.type)
         {
@@ -8311,6 +8684,66 @@ public class Block implements GameObject
                                                                                 3 / 8f,
                                                                                 0,
                                                                                 3 / 8f)));
+        case BTFire:
+        {
+            // TODO finish
+            boolean drawCenter = false, drawNX = false, drawNZ = false, drawPX = false, drawPZ = false;
+            {
+                Block nx = world.getBlockEval(bx - 1, by, bz);
+                Block px = world.getBlockEval(bx + 1, by, bz);
+                Block ny = world.getBlockEval(bx, by - 1, bz);
+                Block nz = world.getBlockEval(bx, by, bz - 1);
+                Block pz = world.getBlockEval(bx, by, bz + 1);
+                if(ny == null
+                        || ny.getFlammability(true) != Flammability.NotFlammable)
+                {
+                    drawCenter = true;
+                    drawNX = true;
+                    drawNZ = true;
+                    drawPX = true;
+                    drawPZ = true;
+                }
+                else
+                {
+                    if(nx != null
+                            && nx.getFlammability(false) != Flammability.NotFlammable)
+                        drawNX = true;
+                    if(px != null
+                            && px.getFlammability(false) != Flammability.NotFlammable)
+                        drawPX = true;
+                    if(nz != null
+                            && nz.getFlammability(false) != Flammability.NotFlammable)
+                        drawNZ = true;
+                    if(pz != null
+                            && pz.getFlammability(false) != Flammability.NotFlammable)
+                        drawPZ = true;
+                    if(!drawNX && !drawPX && !drawNZ && !drawPZ
+                            && (ny == null || ny.isSolid()))
+                    {
+                        drawCenter = true;
+                        drawNX = true;
+                        drawNZ = true;
+                        drawPX = true;
+                        drawPZ = true;
+                    }
+                }
+            }
+            if(drawCenter)
+                return 0;
+            int exitSide = getRayExitSide(hitpos, dir);
+            if(drawNX && exitSide == 0)
+                return getRayExitDist(hitpos, dir);
+            if(drawNZ && exitSide == 1)
+                return getRayExitDist(hitpos, dir);
+            if(drawPX && exitSide == 2)
+                return getRayExitDist(hitpos, dir);
+            if(drawPZ && exitSide == 3)
+                return getRayExitDist(hitpos, dir);
+            return -1;
+        }
+        case BTFlint:
+        case BTFlintAndSteel:
+            return 0;
         }
         return -1;
     }
@@ -8532,6 +8965,7 @@ public class Block implements GameObject
         case BTPlank:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTStick:
@@ -8672,6 +9106,8 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFlint:
+        case BTFlintAndSteel:
         {
             drawImgAsEntity(rs, blockToWorld, this.type.textures[0]);
             return rs;
@@ -8879,6 +9315,7 @@ public class Block implements GameObject
         case BTBone:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
         {
             draw(rs, blockToWorld, false, true);
             return rs;
@@ -9017,6 +9454,8 @@ public class Block implements GameObject
         case BTDiamondHoe:
         case BTSeeds:
         case BTWheat:
+        case BTFlint:
+        case BTFlintAndSteel:
         {
             draw(rs, blockToWorld, false, true);
             return rs;
@@ -9882,6 +10321,13 @@ public class Block implements GameObject
             new BlockDescriptorBlockType(BlockType.BTPlank),
             new BlockDescriptorBlockType(BlockType.BTPlank)
         }, 3, NewBed(-1), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTFlint)
+        }, 2, NewFlintAndSteel(), 1),
     };
     private static final int reduceCount = reduceArray.length;
 
@@ -10441,6 +10887,9 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return position;
         }
         return null;
@@ -10600,6 +11049,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return true;
         }
         return false;
@@ -10751,7 +11203,6 @@ public class Block implements GameObject
         case BTGoldPick:
         case BTGoldShovel:
         case BTGoldOre:
-        case BTGravel:
         case BTIronIngot:
         case BTIronOre:
         case BTIronPick:
@@ -10781,7 +11232,6 @@ public class Block implements GameObject
         case BTBlazePowder:
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
-        case BTSnow:
         case BTWoodAxe:
         case BTStoneAxe:
         case BTIronAxe:
@@ -10820,6 +11270,8 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFlint:
+        case BTFlintAndSteel:
             if(dropItems)
                 world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
                                                               x + 0.5f,
@@ -11222,6 +11674,43 @@ public class Block implements GameObject
                                                                0.1f)));
             return;
         }
+        case BTSnow:
+        {
+            if(dropItems && toolType == ToolType.Shovel)
+                world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                              x + 0.5f,
+                                                              y + 0.5f,
+                                                              z + 0.5f),
+                                                   this.type.make(-1),
+                                                   World.vRand(digBlock_t2,
+                                                               0.1f)));
+            return;
+        }
+        case BTFire:
+            return;
+        case BTGravel:
+        {
+            if(dropItems)
+            {
+                if(World.fRand(0, 10) < 1)
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewFlint(),
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
+                else
+                    world.insertEntity(Entity.NewBlock(Vector.set(digBlock_t1,
+                                                                  x + 0.5f,
+                                                                  y + 0.5f,
+                                                                  z + 0.5f),
+                                                       NewGravel(),
+                                                       World.vRand(digBlock_t2,
+                                                                   0.1f)));
+            }
+            return;
+        }
         }
     }
 
@@ -11398,6 +11887,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return REDSTONE_POWER_NONE;
         case BTRedstoneComparator:
         {
@@ -11575,6 +12067,9 @@ public class Block implements GameObject
         case BTBone:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return false;
         case BTBedrock:
         case BTChest:
@@ -11898,6 +12393,9 @@ public class Block implements GameObject
         case BTBone:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return false;
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -12092,6 +12590,7 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFlint:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -12114,12 +12613,14 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTFlintAndSteel:
             o.writeShort(this.data.intdata);
             return;
         case BTPlank:
         case BTSapling:
         case BTSeeds:
         case BTFarmland:
+        case BTFire:
             o.writeByte(this.data.intdata);
             return;
         case BTLeaves:
@@ -12335,6 +12836,7 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFlint:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -12357,6 +12859,7 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTFlintAndSteel:
             this.data.intdata = i.readUnsignedShort();
             if(this.data.intdata >= this.type.getDurability())
                 throw new IOException("tool use count out of range");
@@ -12600,6 +13103,7 @@ public class Block implements GameObject
         case BTStonePressurePlate:
         case BTWoodPressurePlate:
         case BTSnow:
+        case BTFire:
         {
             this.data.intdata = i.readUnsignedByte();
             return;
@@ -13370,6 +13874,7 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFlint:
             return true;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -13390,6 +13895,7 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTFlintAndSteel:
             return toolGetUseCount() == rt.toolGetUseCount();
         case BTChest:
         {
@@ -13436,6 +13942,7 @@ public class Block implements GameObject
         case BTWater:
         case BTSeeds:
         case BTFarmland:
+        case BTFire:
             return this.data.intdata == rt.data.intdata;
         case BTSapling:
             if(this.data.intdata != rt.data.intdata)
@@ -13586,6 +14093,7 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFlint:
             return hash;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -13606,6 +14114,7 @@ public class Block implements GameObject
         case BTIronHoe:
         case BTGoldHoe:
         case BTDiamondHoe:
+        case BTFlintAndSteel:
             return hash + 21743678 * toolGetUseCount();
         case BTChest:
         {
@@ -13641,6 +14150,7 @@ public class Block implements GameObject
         case BTWater:
         case BTSeeds:
         case BTFarmland:
+        case BTFire:
             return hash + 12643 * this.data.intdata;
         case BTSapling:
         {
@@ -13866,6 +14376,7 @@ public class Block implements GameObject
             case BTHopper:
             case BTBed:
             case BTBedFoot:
+            case BTFire:
                 return true;
             case BTGrass:
             case BTDispenser:
@@ -14021,7 +14532,11 @@ public class Block implements GameObject
         case BTOrangeDye:
         case BTBoneMeal:
         case BTBone:
+        case BTFlint:
+        case BTFlintAndSteel:
             return new BlockDigDescriptor(0.0f, true, true);
+        case BTFire:
+            return new BlockDigDescriptor(0.0f, false, false);
         case BTChest:
         case BTWorkbench:
             if(toolType == ToolType.Axe)
@@ -14765,6 +15280,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return -1;
         }
         return -1;
@@ -14987,6 +15505,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return false;
         case BTChest:
         case BTDispenser:
@@ -15128,6 +15649,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return false;
         case BTChest:
         {
@@ -15341,6 +15865,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return -1;
         case BTChest:
         {
@@ -15532,6 +16059,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return null;
         case BTChest:
         {
@@ -15773,6 +16303,9 @@ public class Block implements GameObject
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             return null;
         case BTChest:
         {
@@ -16080,6 +16613,9 @@ public class Block implements GameObject
         case BTWorkbench:
         case BTBed:
         case BTBedFoot:
+        case BTFire:
+        case BTFlint:
+        case BTFlintAndSteel:
             break;
         }
         return false;

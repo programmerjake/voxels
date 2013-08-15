@@ -59,7 +59,7 @@ public final class Main
     }
 
     /** the program's version */
-    public static final String Version = "0.2.2";
+    public static final String Version = "0.3.1";
     /** true if this program is running as a server */
     public static boolean isServer = false;
     /** true if this program is the debug version */
@@ -796,6 +796,12 @@ public final class Main
         {
             return fileFromIndex(this.curFile);
         }
+
+        @Override
+        protected void drawBackground(final Matrix tform)
+        {
+            super.drawTextBackground(this.isSave ? "Save" : "Load", tform);
+        }
     }
 
     private static File runFileSave()
@@ -895,6 +901,28 @@ public final class Main
                         return Main.isCreativeMode;
                     }
                 });
+                add(new CheckMenuItem("Fast Time",
+                                      Color.RGB(0f, 0f, 0f),
+                                      getBackgroundColor(),
+                                      Color.RGB(0f, 0f, 0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public void setChecked(final boolean checked)
+                    {
+                        if(Main.DEBUG)
+                            World.useFastTime = checked;
+                    }
+
+                    @Override
+                    public boolean isChecked()
+                    {
+                        if(!Main.DEBUG)
+                            return false;
+                        return World.useFastTime;
+                    }
+                });
                 add(new SpacerMenuItem(Color.V(0), this));
                 add(new CheckMenuItem("Fancy Graphics",
                                       Color.RGB(0f, 0f, 0f),
@@ -907,6 +935,7 @@ public final class Main
                     public void setChecked(final boolean checked)
                     {
                         Main.FancyGraphics = checked;
+                        world.invalidateLightingArrays();
                     }
 
                     @Override

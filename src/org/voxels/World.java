@@ -389,7 +389,14 @@ public class World
 
     private enum EvalType
     {
-        General, Redstone, RedstoneFirst, Lighting, Particles, Pistons, Last;
+        General,
+        Redstone,
+        RedstoneFirst,
+        Lighting,
+        Particles,
+        Pistons,
+        Fire,
+        Last;
         public static final EvalType[] values = values();
     }
 
@@ -568,7 +575,7 @@ public class World
         insertEvalNode(et, x, y, z, null);
     }
 
-    private void invalidate(final int x, final int y, final int z)
+    public void invalidate(final int x, final int y, final int z)
     {
         if(y < -Depth || y >= Height)
             return;
@@ -637,21 +644,23 @@ public class World
     private void checkAllTimedInvalidates()
     {
         double deltatime = Main.getFrameDuration();
-        TimedInvalidate head = null;
-        for(TimedInvalidate i = this.timedInvalidateHead; i != null; i = i.next)
         {
-            i.advanceTime(deltatime);
-            if(i.isReady())
+            TimedInvalidate head = null;
+            for(TimedInvalidate i = this.timedInvalidateHead; i != null; i = i.next)
             {
-                invalidate(i.x, i.y, i.z);
+                i.advanceTime(deltatime);
+                if(i.isReady())
+                {
+                    invalidate(i.x, i.y, i.z);
+                }
+                else
+                {
+                    i.next = head;
+                    head = i;
+                }
             }
-            else
-            {
-                i.next = head;
-                head = i;
-            }
+            this.timedInvalidateHead = head;
         }
-        this.timedInvalidateHead = head;
     }
 
     private void addParticleGen(final int x, final int y, final int z)
@@ -790,7 +799,9 @@ public class World
                     Block b = getBlock(x + dx, y + dy, z + dz);
                     if(b == null)
                         continue;
-                    b.setLightingArray(null, this.sunlightFactor);
+                    b.setLightingArray(null,
+                                       this.sunlightFactor,
+                                       this.displayListValidTag);
                     internalSetBlock(x + dx, y + dy, z + dz, b);
                 }
             }
@@ -1629,8 +1640,9 @@ public class World
             {
                 0, 0, 0, 0, 0, 0, 0, 0
             };
-        if(b.getLightingArray(this.sunlightFactor) != null)
-            return b.getLightingArray(this.sunlightFactor);
+        if(b.getLightingArray(this.sunlightFactor, this.displayListValidTag) != null)
+            return b.getLightingArray(this.sunlightFactor,
+                                      this.displayListValidTag);
         int l[] = this.getLightingArray_l;
         boolean o[] = this.getLightingArray_o;
         for(int dx = 0; dx < 3; dx++)
@@ -1723,7 +1735,7 @@ public class World
                 }
             }
         }
-        b.setLightingArray(fl, this.sunlightFactor);
+        b.setLightingArray(fl, this.sunlightFactor, this.displayListValidTag);
         return fl;
     }
 
@@ -2077,6 +2089,20 @@ public class World
         }
     }
 
+    private void moveFire()
+    {
+        EvalNode node = removeAllEvalNodes(EvalType.Fire);
+        while(node != null)
+        {
+            Block b = getBlockEval(node.x, node.y, node.z);
+            if(b != null)
+                b.moveFire(node.x, node.y, node.z);
+            EvalNode freeMe = node;
+            node = node.listnext;
+            freeMe.free();
+        }
+    }
+
     private static final float redstoneMovePeriod = 0.1f;
     private static final float generalMovePeriod = 0.25f;
     private float redstoneMoveTimeLeft = redstoneMovePeriod;
@@ -2089,6 +2115,7 @@ public class World
         {
             this.generalMoveTimeLeft += generalMovePeriod;
             moveGeneral();
+            moveFire();
         }
         this.redstoneMoveTimeLeft -= (float)Main.getFrameDuration();
         if(this.redstoneMoveTimeLeft <= 0)
@@ -2122,9 +2149,8 @@ public class World
     {
         for(Chunk node = this.chunksHead; node != null; node = node.listnext)
         {
-            int count;
-            count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size * 3f
-                    / 16f / 16f / 16f + fRand(0.0f, 1.0f));
+            int count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size
+                    * 3f / 16f / 16f / 16f + fRand(0.0f, 1.0f));
             for(int i = 0; i < count; i++)
             {
                 int x = node.orgx + (int)Math.floor(fRand(0.0f, Chunk.size));
@@ -2142,6 +2168,7 @@ public class World
     }
 
     private double curTime = 0.0;
+    public static boolean useFastTime = false;
 
     /** moves everything in this world except the players */
     public void move()
@@ -2149,7 +2176,7 @@ public class World
         this.curTime += Main.getFrameDuration();
         final float dayDuration = 20.0f * 60.0f;
         setTimeOfDay(this.timeOfDay + (float)Main.getFrameDuration()
-                / dayDuration * (Main.DEBUG ? 1 : 1));// TODO finish
+                / dayDuration * ((Main.DEBUG && useFastTime) ? 20 : 1));
         addParticles();
         moveEntities();
         checkAllTimedInvalidates();
@@ -2339,7 +2366,10 @@ public class World
                                                              pos,
                                                              ix,
                                                              iy,
-                                                             iz));
+                                                             iz),
+                                                  ix,
+                                                  iy,
+                                                  iz);
         // int i = 0;
         while(b != null
                 && (b.getType() == BlockType.BTEmpty
@@ -2438,7 +2468,10 @@ public class World
                                                                  pos,
                                                                  ix,
                                                                  iy,
-                                                                 iz));
+                                                                 iz),
+                                                      ix,
+                                                      iy,
+                                                      iz);
         }
         totalt += Math.max(0, rayIntersectsRetval);
         if(b != null)
@@ -2694,7 +2727,7 @@ public class World
         o.writeInt(timedInvalidateCount);
         if(timedInvalidateCount > 0)
         {
-            Main.pushProgress(EvalTypeCount, 1.0f / timedInvalidateCount);
+            Main.pushProgress(EvalTypeCount, 0.5f / timedInvalidateCount);
             int progress = 0;
             for(TimedInvalidate ti = world.timedInvalidateHead; ti != null; ti = ti.next)
             {
@@ -2719,7 +2752,14 @@ public class World
     public static void read(final DataInput i) throws IOException
     {
         int v = i.readInt();
-        if(v != fileVersion)
+        readVer2(i, v);
+        return;
+    }
+
+    private static void
+        readVer2(final DataInput i, final int v) throws IOException
+    {
+        if(v != 2)
         {
             readVer1(i, v);
             return;
@@ -3322,5 +3362,10 @@ public class World
     public int getLandHeight(final int x, final int z)
     {
         return this.landGenerator.getRockHeight(x, z);
+    }
+
+    public void invalidateLightingArrays()
+    {
+        this.displayListValidTag++;
     }
 }

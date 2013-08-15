@@ -1856,8 +1856,7 @@ public class Player implements GameObject
                                bdd.makesBlock,
                                toolType);
                     Main.play(Main.destructAudio);
-                    if(bdd.usesTool && toolType != BlockType.ToolType.None
-                            && toolType != BlockType.ToolType.Hoe)
+                    if(bdd.usesTool && toolType.diggingUsesTool())
                     {
                         curHotbar = takeBlock();
                         curHotbar = new Block(curHotbar);
@@ -2705,11 +2704,25 @@ public class Player implements GameObject
                         {
                             oldb = Block.NewFarmland(false);
                             newb = new Block(newb);
-                            newb.toolUseTool();
+                            if(!newb.toolUseTool())
+                                newb = null;
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
                                            oldb);
+                            didAnything = true;
+                        }
+                    }
+                    if(newb.getToolType() == ToolType.FlintAndSteel)
+                    {
+                        if(oldb.getType() == BlockType.BTTNT)
+                        {
+                            oldb.TNTExplode(this.blockX,
+                                            this.blockY,
+                                            this.blockZ);
+                            newb = new Block(newb);
+                            if(!newb.toolUseTool())
+                                newb = null;
                             didAnything = true;
                         }
                     }
@@ -2756,6 +2769,24 @@ public class Player implements GameObject
                         if(oldb == null)
                             return;
                     }
+                }
+                if(getCurrentHotbarBlock() != null
+                        && getCurrentHotbarBlock().getType() == BlockType.BTFlintAndSteel)
+                {
+                    Block newb = takeBlock();
+                    if(newb != null)
+                    {
+                        world.setBlock(this.blockX,
+                                       this.blockY,
+                                       this.blockZ,
+                                       Block.NewFire(0));
+                        newb = new Block(newb);
+                        if(!newb.toolUseTool())
+                            newb = null;
+                        if(!giveBlock(newb, true))
+                            dropBlock(newb);
+                    }
+                    return;
                 }
                 if(canPlaceBlock(oldb, this.blockX, this.blockY, this.blockZ))
                 {
