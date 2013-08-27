@@ -26,6 +26,7 @@ import org.lwjgl.openal.AL;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.newdawn.slick.openal.AudioLoader;
+import org.newdawn.slick.openal.SoundStore;
 import org.voxels.*;
 
 /** @author jacob */
@@ -265,6 +266,7 @@ public class LWJGLPlatform implements Platform
     public void update()
     {
         Display.update();
+        AudioLoader.update();
     }
 
     @Override
@@ -373,5 +375,17 @@ public class LWJGLPlatform implements Platform
     public int getScreenHeight()
     {
         return Display.getHeight();
+    }
+
+    @Override
+    public Audio loadAudioStream(final String name) throws IOException
+    {
+        org.newdawn.slick.openal.Audio retval = SoundStore.get()
+                                                          .getOggStream("res"
+                                                                  + File.separator
+                                                                  + name);
+        if(retval == null)
+            return null;
+        return new LWJGLAudioAdapter(retval);
     }
 }

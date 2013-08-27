@@ -16,13 +16,10 @@
  */
 package org.voxels.generate;
 
-import static org.voxels.PlayerList.players;
-
 import java.io.*;
-import java.util.*;
+import java.util.Random;
 
 import org.voxels.*;
-import org.voxels.Vector;
 import org.voxels.generate.Plant.PlantType;
 
 /** Land generator
@@ -30,19 +27,28 @@ import org.voxels.generate.Plant.PlantType;
  * @author jacob */
 public final class Rand
 {
-    private static List<String> makeBiomeNames()
+    public static int getBiomeCount()
     {
-        ArrayList<String> biomeNames = new ArrayList<String>();
-        for(int i = 0; i < Biome.values.length; i++)
-            biomeNames.add(Biome.values[i].getName());
-        return Collections.unmodifiableList(biomeNames);
+        return Biome.values.length;
     }
 
-    public static final List<String> biomeNames = makeBiomeNames();
+    public static String getBiomeName(final int index)
+    {
+        return Biome.values[index].getName();
+    }
 
     /** @author jacob */
-    public static final class Settings
+    public static final class Settings implements Allocatable
     {
+        private static final Allocator<Settings> allocator = new Allocator<Settings>()
+        {
+            @SuppressWarnings("synthetic-access")
+            @Override
+            protected Settings allocateInternal()
+            {
+                return new Settings();
+            }
+        };
         /**
          * 
          */
@@ -50,26 +56,42 @@ public final class Rand
         public String startingBiome;
         private static final int version = 1;
 
+        private Settings()
+        {
+        }
+
         /**
          * 
          */
-        public Settings()
+        private Settings init()
         {
             this.isSuperflat = false;
             this.startingBiome = "";
+            return this;
         }
 
-        public Settings(final Settings rt)
+        private Settings init(final Settings rt)
         {
             this.isSuperflat = rt.isSuperflat;
             this.startingBiome = rt.startingBiome;
+            return this;
+        }
+
+        public static Settings allocate()
+        {
+            return allocator.allocate().init();
+        }
+
+        public static Settings allocate(final Settings rt)
+        {
+            return allocator.allocate().init(rt);
         }
 
         public boolean isStartingBiomeValid()
         {
-            for(String biomeName : Rand.biomeNames)
+            for(int index = 0; index < Rand.getBiomeCount(); index++)
             {
-                if(this.startingBiome.equals(biomeName))
+                if(this.startingBiome.equals(Rand.getBiomeName(index)))
                     return true;
             }
             return this.startingBiome.equals("");
@@ -119,7 +141,7 @@ public final class Rand
          *             the exception thrown */
         public static Settings read(final DataInput i) throws IOException
         {
-            Settings retval = new Settings();
+            Settings retval = allocator.allocate().init();
             int curVersion = i.readInt();
             retval.internalReadVer1(i, curVersion);
             return retval;
@@ -144,6 +166,18 @@ public final class Rand
             return Boolean.valueOf(this.isSuperflat).hashCode() + 1271266283
                     * this.startingBiome.hashCode();
         }
+
+        @Override
+        public Settings dup()
+        {
+            return allocate(this);
+        }
+
+        @Override
+        public void free()
+        {
+            allocator.free(this);
+        }
     }
 
     /** @author jacob */
@@ -160,7 +194,7 @@ public final class Rand
         public SettingsCreatorMenu()
         {
             super(Color.V(0.75f));
-            this.settings = new Settings();
+            this.settings = Settings.allocate();
             add(new CheckMenuItem("Superflat",
                                   Color.RGB(0f, 0f, 0f),
                                   getBackgroundColor(),
@@ -183,9 +217,9 @@ public final class Rand
             add(new SpacerMenuItem(Color.V(0), this));
             if(Main.DEBUG)
             {
-                for(String bn : Rand.biomeNames)
+                for(int index = 0; index < Rand.getBiomeCount(); index++)
                 {
-                    final String biomeName = bn;
+                    final String biomeName = Rand.getBiomeName(index);
                     add(new OptionMenuItem("Start In : " + biomeName,
                                            Color.RGB(0f, 0f, 0f),
                                            getBackgroundColor(),
@@ -236,28 +270,70 @@ public final class Rand
         }
     }
 
-    private final int seed;
-    /**
-     * 
-     */
-    public final boolean isSuperflat;
-
-    private Rand(final int seed, final Settings settings)
+    Rand()
     {
-        this.seed = seed;
-        this.isSuperflat = settings.isSuperflat;
         this.plantChunkHashTableSync = new Object[hashPrime];
         for(int i = 0; i < hashPrime; i++)
             this.plantChunkHashTableSync[i] = new Object();
     }
 
-    private Rand(final Settings settings)
+    private static final Allocator<Rand> allocator = new Allocator<Rand>(10)
     {
-        this.seed = new Random().nextInt();
+        @Override
+        protected Rand allocateInternal()
+        {
+            return new Rand();
+        }
+    };
+    private int seed;
+    /**
+     * 
+     */
+    public boolean isSuperflat;
+
+    private Rand init(final int seed, final Settings settings)
+    {
+        this.seed = seed;
         this.isSuperflat = settings.isSuperflat;
-        this.plantChunkHashTableSync = new Object[hashPrime];
-        for(int i = 0; i < hashPrime; i++)
-            this.plantChunkHashTableSync[i] = new Object();
+        return this;
+    }
+
+    private static final Random init_rand = new Random();
+
+    private Rand init(final Settings settings)
+    {
+        this.seed = init_rand.nextInt();
+        this.isSuperflat = settings.isSuperflat;
+        return this;
+    }
+
+    public static Rand allocate(final int seed, final Settings settings)
+    {
+        return allocator.allocate().init(seed, settings);
+    }
+
+    public static Rand allocate(final Settings settings)
+    {
+        return allocator.allocate().init(settings);
+    }
+
+    private void clear()
+    {
+        clearHashTable();
+        clearBiomeFactorsHashTable();
+        clearBiomeNameMap();
+        clearRockChunkHashTable();
+        clearLavaNodeHashTable();
+        clearCaveChunkHashTable();
+        clearInCaveChunkHashTable();
+        clearPlantChunkHashTable();
+        clearPlantBlockKindChunkHashTable();
+    }
+
+    public void free()
+    {
+        clear();
+        allocator.free(this);
     }
 
     private static boolean biomePasses(final String biome,
@@ -287,19 +363,24 @@ public final class Rand
     {
         Settings s = settings;
         if(s == null)
-            s = new Settings();
+            s = Settings.allocate();
+        else
+            s = s.dup();
         boolean isWaterBiome = isWaterBiome(s.startingBiome);
         Rand retval = null;
         int rockHeight;
         do
         {
-            retval = new Rand(s);
+            if(retval != null)
+                retval.free();
+            retval = allocate(s);
             rockHeight = retval.getRockHeight(0, 0);
         }
         while((rockHeight < WaterHeight && !isWaterBiome)
                 || !biomePasses(retval.getBiomeName(0, 0), s.startingBiome)
                 || retval.isInCave(0, rockHeight, 0)
                 || retval.getPlant(0, 0, true) != null);
+        s.free();
         return retval;
     }
 
@@ -312,8 +393,12 @@ public final class Rand
     {
         Settings s = settings;
         if(s == null)
-            s = new Settings();
-        return new Rand(seed, s);
+            s = Settings.allocate();
+        else
+            s = s.dup();
+        Rand retval = allocate(seed, s);
+        s.free();
+        return retval;
     }
 
     /** @return this land generator's seed */
@@ -355,7 +440,24 @@ public final class Rand
         }
     }
 
-    private Node[] hashTable = new Node[hashPrime];
+    private final Node[] hashTable = new Node[hashPrime];
+    private static final Allocator<Node> nodeAllocator = new Allocator<Node>()
+    {
+        @Override
+        protected Node allocateInternal()
+        {
+            return new Node();
+        }
+    };
+
+    private void clearHashTable()
+    {
+        for(int i = 0; i < this.hashTable.length; i++)
+        {
+            nodeAllocator.free(this.hashTable[i]);
+            this.hashTable[i] = null;
+        }
+    }
 
     private int genHash(final int x, final int y, final int z, final int rc)
     {
@@ -366,7 +468,7 @@ public final class Rand
         return (int)retval;
     }
 
-    private Object genRandSyncObj = new Object();
+    private final Object genRandSyncObj = new Object();
 
     private float genRand(final int x, final int y, final int z, final int w)
     {
@@ -399,7 +501,7 @@ public final class Rand
             }
             float retval = randv * (1.0f / (mask + 1));
             if(this.hashTable[hash] == null)
-                this.hashTable[hash] = new Node();
+                this.hashTable[hash] = nodeAllocator.allocate();
             this.hashTable[hash].x = x;
             this.hashTable[hash].y = y;
             this.hashTable[hash].z = z;
@@ -1358,17 +1460,41 @@ public final class Rand
     private static final class BiomeFactorsChunk
     {
         public static final int size = 16; // must be power of 2
-        public final float[][] biomeFactors = new float[size * size][];
-        public final int cx, cz;
-
-        public BiomeFactorsChunk(final int cx, final int cz)
+        private static final Allocator<BiomeFactorsChunk> allocator = new Allocator<Rand.BiomeFactorsChunk>()
         {
-            this.cx = cx;
-            this.cz = cz;
-            for(int i = 0; i < size * size; i++)
+            @SuppressWarnings("synthetic-access")
+            @Override
+            protected BiomeFactorsChunk allocateInternal()
             {
-                this.biomeFactors[i] = null;
+                return new BiomeFactorsChunk();
             }
+        };
+        private static final Allocator<float[]> biomeFactorsAllocator = new Allocator<float[]>()
+        {
+            @Override
+            protected float[] allocateInternal()
+            {
+                return new float[Biome.values.length];
+            }
+        };
+        public final float[][] biomeFactors = new float[size * size][];
+        public int cx, cz;
+
+        private BiomeFactorsChunk()
+        {
+        }
+
+        public static float[] allocateBiomeFactorsArray()
+        {
+            return biomeFactorsAllocator.allocate();
+        }
+
+        public static BiomeFactorsChunk allocate(final int cx, final int cz)
+        {
+            BiomeFactorsChunk retval = allocator.allocate();
+            retval.cx = cx;
+            retval.cz = cz;
+            return retval;
         }
 
         public float[] get(final int x, final int z)
@@ -1380,16 +1506,25 @@ public final class Rand
         {
             this.biomeFactors[x + size * z] = v;
         }
+
+        public void free()
+        {
+            for(int i = 0; i < size * size; i++)
+            {
+                biomeFactorsAllocator.free(this.biomeFactors[i]);
+                this.biomeFactors[i] = null;
+            }
+            allocator.free(this);
+        }
     }
 
     private void initBiomeFactorsChunk(final BiomeFactorsChunk bfc)
     {
-        Integer[] indirArray = new Integer[Biome.values.length];
         for(int x = 0; x < BiomeFactorsChunk.size; x++)
         {
             for(int z = 0; z < BiomeFactorsChunk.size; z++)
             {
-                final float[] biomeFactors = new float[Biome.values.length];
+                final float[] biomeFactors = BiomeFactorsChunk.allocateBiomeFactorsArray();
                 float rainfall = getInternalBiomeRainfall(bfc.cx + x, bfc.cz
                         + z);
                 float temperature = getInternalBiomeTemperature(bfc.cx + x,
@@ -1414,32 +1549,6 @@ public final class Rand
                     biomeFactors[i] *= biomeFactors[i];
                     biomeFactors[i] *= biomeFactors[i];
                 }
-                for(int i = 0; i < biomeFactors.length; i++)
-                {
-                    indirArray[i] = Integer.valueOf(i);
-                }
-                Arrays.sort(indirArray, new Comparator<Integer>()
-                {
-                    @Override
-                    public int compare(final Integer o1, final Integer o2) // sort
-                                                                           // in
-                    // descending
-                    // order
-                    {
-                        int v1 = o1.intValue(), v2 = o2.intValue();
-                        float f1 = biomeFactors[v1], f2 = biomeFactors[v2];
-                        if(f1 < f2)
-                            return 1;
-                        if(f1 == f2)
-                            return 0;
-                        return -1;
-                    }
-                });
-                final int keepCount = 20000;
-                for(int i = keepCount; i < indirArray.length; i++)
-                {
-                    biomeFactors[indirArray[i].intValue()] = 0.0f;
-                }
                 {
                     float sum = 0.0f;
                     for(int i = 0; i < biomeFactors.length; i++)
@@ -1453,6 +1562,17 @@ public final class Rand
     }
 
     private final BiomeFactorsChunk[] biomeFactorsHashTable = new BiomeFactorsChunk[hashPrime];
+
+    private void clearBiomeFactorsHashTable()
+    {
+        for(int i = 0; i < hashPrime; i++)
+        {
+            if(this.biomeFactorsHashTable[i] != null)
+                this.biomeFactorsHashTable[i].free();
+            this.biomeFactorsHashTable[i] = null;
+        }
+    }
+
     private final Object[] biomeFactorsHashTableSync;
     {
         this.biomeFactorsHashTableSync = new Object[hashPrime];
@@ -1479,11 +1599,14 @@ public final class Rand
             BiomeFactorsChunk bfc = this.biomeFactorsHashTable[hash];
             if(bfc == null || bfc.cx != cx || bfc.cz != cz)
             {
-                bfc = new BiomeFactorsChunk(cx, cz);
+                bfc = BiomeFactorsChunk.allocate(cx, cz);
                 initBiomeFactorsChunk(bfc);
+                if(this.biomeFactorsHashTable[hash] != null)
+                    this.biomeFactorsHashTable[hash].free();
                 this.biomeFactorsHashTable[hash] = bfc;
             }
-            return bfc.get(x - cx, z - cz);
+            float[] factors = bfc.get(x - cx, z - cz);
+            return factors;
         }
     }
 
@@ -1539,20 +1662,39 @@ public final class Rand
         return Math.max(Math.min(retval, 1.0f), 0.0f);
     }
 
-    private static final class XZPosition
+    private static final class XZPosition implements Allocatable
     {
         public int x, z;
-
-        public XZPosition(final int x, final int z)
+        private static final Allocator<XZPosition> allocator = new Allocator<Rand.XZPosition>()
         {
-            this.x = x;
-            this.z = z;
+            @Override
+            protected XZPosition allocateInternal()
+            {
+                return new XZPosition();
+            }
+        };
+
+        XZPosition()
+        {
         }
 
-        public XZPosition(final XZPosition rt)
+        public static XZPosition allocate(final int x, final int z)
         {
-            this.x = rt.x;
-            this.z = rt.z;
+            XZPosition retval = allocator.allocate();
+            retval.x = x;
+            retval.z = z;
+            return retval;
+        }
+
+        public static XZPosition allocate(final XZPosition rt)
+        {
+            return allocate(rt.x, rt.z);
+        }
+
+        @Override
+        public void free()
+        {
+            allocator.free(this);
         }
 
         @Override
@@ -1569,9 +1711,60 @@ public final class Rand
         {
             return this.x + 63485 * this.z;
         }
+
+        @Override
+        public Allocatable dup()
+        {
+            return allocate(this);
+        }
     }
 
-    private Map<XZPosition, String> biomeNameMap = new HashMap<XZPosition, String>();
+    private static final class StringWrapper implements Allocatable
+    {
+        private static final Allocator<StringWrapper> allocator = new Allocator<Rand.StringWrapper>()
+        {
+            @Override
+            protected StringWrapper allocateInternal()
+            {
+                return new StringWrapper();
+            }
+        };
+        public String value;
+
+        public StringWrapper()
+        {
+        }
+
+        @Override
+        public void free()
+        {
+            this.value = null;
+            allocator.free(this);
+        }
+
+        @Override
+        public StringWrapper dup()
+        {
+            StringWrapper retval = allocator.allocate();
+            retval.value = this.value;
+            return retval;
+        }
+
+        public static StringWrapper allocate(final String value)
+        {
+            StringWrapper retval = allocator.allocate();
+            retval.value = value;
+            return retval;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private final AllocatorHashMap<XZPosition, StringWrapper> biomeNameMap = (AllocatorHashMap<XZPosition, StringWrapper>)AllocatorHashMap.allocate();
+
+    private void clearBiomeNameMap()
+    {
+        this.biomeNameMap.clear();
+    }
 
     private String internalGetBiomeName(final int x, final int z)
     {
@@ -1630,8 +1823,6 @@ public final class Rand
         }
     }
 
-    private XZPosition getBiomeName_t1 = new XZPosition(0, 0);
-
     /** @param x
      *            the x coordinate
      * @param z
@@ -1641,15 +1832,17 @@ public final class Rand
     {
         synchronized(this.biomeNameMap)
         {
-            XZPosition p = this.getBiomeName_t1;
-            p.x = x;
-            p.z = z;
-            String retval = this.biomeNameMap.get(p);
+            XZPosition p = XZPosition.allocate(x, z);
+            StringWrapper sw = this.biomeNameMap.get(p);
+            String retval = (sw == null ? null : sw.value);
             if(retval == null)
             {
                 retval = internalGetBiomeName(x, z);
-                this.biomeNameMap.put(new XZPosition(p), retval);
+                sw = StringWrapper.allocate(retval);
+                this.biomeNameMap.put(p, sw);
+                sw.free();
             }
+            p.free();
             return retval;
         }
     }
@@ -1905,11 +2098,11 @@ public final class Rand
         return retval;
     }
 
-    private static class RockChunk
+    private static final class RockChunk
     {
         public int cx, cz;
         public final static int size = 4;
-        private int y[] = new int[size * size];
+        private final int y[] = new int[size * size];
 
         public RockChunk()
         {
@@ -1926,7 +2119,24 @@ public final class Rand
         }
     }
 
-    private RockChunk[] rockChunkHashTable = new RockChunk[hashPrime];
+    private static final Allocator<RockChunk> rockChunkAllocator = new Allocator<RockChunk>()
+    {
+        @Override
+        protected RockChunk allocateInternal()
+        {
+            return new RockChunk();
+        }
+    };
+    private final RockChunk[] rockChunkHashTable = new RockChunk[hashPrime];
+
+    private void clearRockChunkHashTable()
+    {
+        for(int i = 0; i < hashPrime; i++)
+        {
+            rockChunkAllocator.free(this.rockChunkHashTable[i]);
+            this.rockChunkHashTable[i] = null;
+        }
+    }
 
     private int internalGetRockHeight(final int x, final int z)
     {
@@ -1990,7 +2200,8 @@ public final class Rand
             RockChunk retval = this.rockChunkHashTable[hash];
             if(retval == null || retval.cx != cx || retval.cz != cz)
             {
-                retval = new RockChunk();
+                rockChunkAllocator.free(retval);
+                retval = rockChunkAllocator.allocate();
                 this.rockChunkHashTable[hash] = retval;
                 retval.cx = cx;
                 retval.cz = cz;
@@ -2031,7 +2242,7 @@ public final class Rand
         return false;
     }
 
-    private class LavaNode
+    private static final class LavaNode
     {
         public static final int size = 16;
         public static final int minLakeSize = 10;
@@ -2040,6 +2251,10 @@ public final class Rand
         public static final int minHeight = 1 - World.Depth;
         private int lakeSize[] = new int[size * size];
         public int cx, cz;
+
+        public LavaNode()
+        {
+        }
 
         public void setLakeSize(final int x, final int z, final int v)
         {
@@ -2051,16 +2266,26 @@ public final class Rand
             return this.lakeSize[x + size * z];
         }
 
-        public LavaNode(final int cx, final int cz)
+        public LavaNode init(final int cx, final int cz)
         {
             this.cx = cx;
             this.cz = cz;
+            return this;
         }
     }
 
+    private static final Allocator<LavaNode> lavaNodeAllocator = new Allocator<Rand.LavaNode>()
+    {
+        @Override
+        protected LavaNode allocateInternal()
+        {
+            return new LavaNode();
+        }
+    };
+
     private LavaNode makeLavaNode(final int cx, final int cz)
     {
-        LavaNode retval = new LavaNode(cx, cz);
+        LavaNode retval = lavaNodeAllocator.allocate().init(cx, cz);
         final float lakeProbability = 0.05f
                 / (LavaNode.maxLakeSize * LavaNode.maxLakeSize) * 16f
                 / (float)Math.PI;
@@ -2084,12 +2309,22 @@ public final class Rand
 
     private LavaNode[] lavaNodeHashTable = new LavaNode[hashPrime];
 
+    private void clearLavaNodeHashTable()
+    {
+        for(int i = 0; i < hashPrime; i++)
+        {
+            lavaNodeAllocator.free(this.lavaNodeHashTable[i]);
+            this.lavaNodeHashTable[i] = null;
+        }
+    }
+
     private synchronized LavaNode getLavaNode(final int cx, final int cz)
     {
         int hash = getChunkHash(cx, cz);
         LavaNode node = this.lavaNodeHashTable[hash];
         if(node == null || node.cx != cx || node.cz != cz)
         {
+            lavaNodeAllocator.free(node);
             node = makeLavaNode(cx, cz);
             this.lavaNodeHashTable[hash] = node;
         }
@@ -2157,12 +2392,20 @@ public final class Rand
 
     private static class CaveChunk
     {
+        private static final Allocator<CaveChunk> allocator = new Allocator<Rand.CaveChunk>()
+        {
+            @Override
+            protected CaveChunk allocateInternal()
+            {
+                return new CaveChunk();
+            }
+        };
         public static final int size = 4;
         public int cx, cz;
-        private CaveType caves[] = new CaveType[size * size];
-        private int y[] = new int[size * size];
-        private int r[] = new int[size * size];
-        private Vector dir[] = new Vector[size * size];
+        private final CaveType caves[] = new CaveType[size * size];
+        private final int y[] = new int[size * size];
+        private final int r[] = new int[size * size];
+        private final Vector dir[] = new Vector[size * size];
 
         public CaveType getCave(final int x, final int z)
         {
@@ -2199,17 +2442,49 @@ public final class Rand
             this.r[x + size * z] = r;
         }
 
-        public void setDir(final int x, final int z, final Vector dir)
+        public void setDir(final int x, final int z, final Vector dir)// hand
+                                                                      // over
+                                                                      // dir to
+                                                                      // this
         {
-            this.dir[x + size * z] = Vector.allocate(dir);
+            if(this.dir[x + size * z] != null)
+                this.dir[x + size * z].free();
+            this.dir[x + size * z] = dir;
         }
 
         public CaveChunk()
         {
         }
+
+        public static CaveChunk allocate()
+        {
+            return allocator.allocate();
+        }
+
+        public void free()
+        {
+            for(int i = 0; i < this.dir.length; i++)
+            {
+                if(this.dir[i] != null)
+                    this.dir[i].free();
+                this.dir[i] = null;
+            }
+            allocator.free(this);
+        }
     }
 
-    private CaveChunk caveChunkHashTable[] = new CaveChunk[hashPrime];
+    private final CaveChunk caveChunkHashTable[] = new CaveChunk[hashPrime];
+
+    private void clearCaveChunkHashTable()
+    {
+        for(int i = 0; i < hashPrime; i++)
+        {
+            if(this.caveChunkHashTable[i] != null)
+                this.caveChunkHashTable[i].free();
+            this.caveChunkHashTable[i] = null;
+        }
+    }
+
     private static final int caveMaxSize = 80;
 
     void fillCaveChunk(final CaveChunk cc)
@@ -2258,7 +2533,9 @@ public final class Rand
         {
             return node;
         }
-        node = new CaveChunk();
+        if(node != null)
+            node.free();
+        node = CaveChunk.allocate();
         node.cx = cx;
         node.cz = cz;
         this.caveChunkHashTable[hash] = node;
@@ -2268,8 +2545,16 @@ public final class Rand
 
     private static class InCaveChunk
     {
+        private static final Allocator<InCaveChunk> allocator = new Allocator<Rand.InCaveChunk>()
+        {
+            @Override
+            protected InCaveChunk allocateInternal()
+            {
+                return new InCaveChunk();
+            }
+        };
         public static final int size = 4;
-        private boolean v[] = new boolean[size * size * size];
+        private final boolean v[] = new boolean[size * size * size];
         public int cx, cy, cz;
 
         private void setInCave(final int x,
@@ -2280,12 +2565,14 @@ public final class Rand
             this.v[x + size * (y + size * z)] = v;
         }
 
-        private static Vector InCaveChunk_t1 = Vector.allocate();
+        public InCaveChunk()
+        {
+        }
 
-        public InCaveChunk(final int cx,
-                           final int cy,
-                           final int cz,
-                           final Rand rand)
+        private InCaveChunk init(final int cx,
+                                 final int cy,
+                                 final int cz,
+                                 final Rand rand)
         {
             this.cx = cx;
             this.cy = cy;
@@ -2335,7 +2622,7 @@ public final class Rand
                                 case Cylinder3:
                                 case Cylinder4:
                                 {
-                                    dir = InCaveChunk_t1.set(dir);
+                                    dir = Vector.allocate(dir);
                                     dir.setY(1 / 3f);
                                     dir = dir.normalizeAndSet();
                                     Vector p = dir.mulAndSet(0.95f * dir.dot(dx,
@@ -2344,6 +2631,7 @@ public final class Rand
                                                   .subAndSet(dx, dy, dz);
                                     if(p.abs() < r / 16.0f)
                                         newValue = true;
+                                    dir.free();
                                     break;
                                 }
                                 }
@@ -2353,15 +2641,41 @@ public final class Rand
                     }
                 }
             }
+            return this;
+        }
+
+        public static InCaveChunk allocate(final int cx,
+                                           final int cy,
+                                           final int cz,
+                                           final Rand rand)
+        {
+            return allocator.allocate().init(cx, cy, cz, rand);
         }
 
         public boolean isInCave(final int x, final int y, final int z)
         {
             return this.v[x + size * (y + size * z)];
         }
+
+        public void free()
+        {
+            for(int i = 0; i < this.v.length; i++)
+                this.v[i] = false;
+            allocator.free(this);
+        }
     }
 
-    private InCaveChunk inCaveChunkHashTable[] = new InCaveChunk[hashPrime];
+    private final InCaveChunk inCaveChunkHashTable[] = new InCaveChunk[hashPrime];
+
+    private void clearInCaveChunkHashTable()
+    {
+        for(int i = 0; i < hashPrime; i++)
+        {
+            if(this.inCaveChunkHashTable[i] != null)
+                this.inCaveChunkHashTable[i].free();
+            this.inCaveChunkHashTable[i] = null;
+        }
+    }
 
     private synchronized InCaveChunk getInCaveChunk(final int cx,
                                                     final int cy,
@@ -2373,7 +2687,9 @@ public final class Rand
         {
             return node;
         }
-        node = new InCaveChunk(cx, cy, cz, this);
+        if(node != null)
+            node.free();
+        node = InCaveChunk.allocate(cx, cy, cz, this);
         this.inCaveChunkHashTable[hash] = node;
         return node;
     }
@@ -2396,18 +2712,36 @@ public final class Rand
 
     private static class PlantChunk
     {
+        private static final Allocator<PlantChunk> allocator = new Allocator<Rand.PlantChunk>()
+        {
+            @Override
+            protected PlantChunk allocateInternal()
+            {
+                return new PlantChunk();
+            }
+        };
         public static final int size = 4;
         public int cx, cz;
         private Plant plant[] = new Plant[size * size];
         public PlantChunk next;
 
-        public PlantChunk(final int cx, final int cz)
+        public PlantChunk()
+        {
+        }
+
+        private PlantChunk init(final int cx, final int cz)
         {
             this.cx = cx;
             this.cz = cz;
             for(int i = size * size - 1; i >= 0; i--)
                 this.plant[i] = null;
             this.next = null;
+            return this;
+        }
+
+        public static PlantChunk allocate(final int cx, final int cz)
+        {
+            return allocator.allocate().init(cx, cz);
         }
 
         public Plant get(final int x, final int z)
@@ -2417,7 +2751,22 @@ public final class Rand
 
         public void set(final int x, final int z, final Plant plant)
         {
-            this.plant[x + z * size] = plant;
+            int i = x + z * size;
+            if(this.plant[i] != null)
+                this.plant[i].free();
+            this.plant[i] = plant;
+        }
+
+        public void free()
+        {
+            for(int i = size * size - 1; i >= 0; i--)
+            {
+                if(this.plant[i] != null)
+                    this.plant[i].free();
+                this.plant[i] = null;
+            }
+            this.next = null;
+            allocator.free(this);
         }
     }
 
@@ -2446,14 +2795,7 @@ public final class Rand
     private synchronized PlantChunk makePlantChunk(final int cx, final int cz)
     {
         float[] plantCount = new float[PlantType.values().length];
-        PlantChunk pc = new PlantChunk(cx, cz);
-        for(int x = 0; x < PlantChunk.size; x++)
-        {
-            for(int z = 0; z < PlantChunk.size; z++)
-            {
-                pc.set(x, z, null);
-            }
-        }
+        PlantChunk pc = PlantChunk.allocate(cx, cz);
         getPlantCount(cx + PlantChunk.size / 2,
                       cz + PlantChunk.size / 2,
                       plantCount);
@@ -2536,8 +2878,19 @@ public final class Rand
         return retval;
     }
 
-    private PlantChunk[] plantChunkHashTable = new PlantChunk[hashPrime];
-    private Object[] plantChunkHashTableSync;
+    private final PlantChunk[] plantChunkHashTable = new PlantChunk[hashPrime];
+
+    private void clearPlantChunkHashTable()
+    {
+        for(int i = 0; i < hashPrime; i++)
+        {
+            if(this.plantChunkHashTable[i] != null)
+                this.plantChunkHashTable[i].free();
+            this.plantChunkHashTable[i] = null;
+        }
+    }
+
+    private final Object[] plantChunkHashTableSync;
 
     private Plant getPlant(final int x, final int z, final boolean make)
     {
@@ -2604,15 +2957,37 @@ public final class Rand
 
     private static class PlantBlockKindChunk
     {
+        private static final Allocator<PlantBlockKindChunk> allocator = new Allocator<Rand.PlantBlockKindChunk>()
+        {
+            @Override
+            protected PlantBlockKindChunk allocateInternal()
+            {
+                return new PlantBlockKindChunk();
+            }
+        };
         public static final int size = 4;
         public int cx, cy, cz;
-        private Block v[] = new Block[size * size * size];
+        private final Block v[] = new Block[size * size * size];
 
-        public PlantBlockKindChunk(final int cx, final int cy, final int cz)
+        public PlantBlockKindChunk()
+        {
+        }
+
+        private PlantBlockKindChunk init(final int cx,
+                                         final int cy,
+                                         final int cz)
         {
             this.cx = cx;
             this.cy = cy;
             this.cz = cz;
+            return this;
+        }
+
+        public static PlantBlockKindChunk allocate(final int cx,
+                                                   final int cy,
+                                                   final int cz)
+        {
+            return allocator.allocate().init(cx, cy, cz);
         }
 
         public Block get(final int x_in, final int y_in, final int z_in)
@@ -2632,11 +3007,35 @@ public final class Rand
             int x = x_in - this.cx;
             int y = y_in - this.cy;
             int z = z_in - this.cz;
-            this.v[x + size * (y + size * z)] = v;
+            int i = x + size * (y + size * z);
+            if(this.v[i] != null)
+                this.v[i].free();
+            this.v[i] = v;
+        }
+
+        public void free()
+        {
+            for(int i = 0; i < this.v.length; i++)
+            {
+                if(this.v[i] != null)
+                    this.v[i].free();
+                this.v[i] = null;
+            }
+            allocator.free(this);
         }
     }
 
-    private PlantBlockKindChunk plantBlockKindChunkHashTable[] = new PlantBlockKindChunk[hashPrime];
+    private final PlantBlockKindChunk plantBlockKindChunkHashTable[] = new PlantBlockKindChunk[hashPrime];
+
+    private void clearPlantBlockKindChunkHashTable()
+    {
+        for(int i = 0; i < hashPrime; i++)
+        {
+            if(this.plantBlockKindChunkHashTable[i] != null)
+                this.plantBlockKindChunkHashTable[i].free();
+            this.plantBlockKindChunkHashTable[i] = null;
+        }
+    }
 
     private synchronized void
         fillPlantBlockKindChunk(final PlantBlockKindChunk c)
@@ -2667,7 +3066,14 @@ public final class Rand
                                 if(retval == null)
                                     retval = b;
                                 else if(retval.getReplaceability(b.getType()) == BlockType.Replaceability.Replace)
+                                {
                                     retval = b;
+                                }
+                                else
+                                {
+                                    b.free();
+                                    retval = retval.dup();
+                                }
                                 c.put(x, y, z, retval);
                             }
                         }
@@ -2686,12 +3092,21 @@ public final class Rand
         {
             return node;
         }
-        node = new PlantBlockKindChunk(cx, cy, cz);
+        if(node != null)
+            node.free();
+        node = PlantBlockKindChunk.allocate(cx, cy, cz);
         fillPlantBlockKindChunk(node);
         this.plantBlockKindChunkHashTable[hash] = node;
         return node;
     }
 
+    /** @param x
+     *            the x coordinate
+     * @param y
+     *            the y coordinate
+     * @param z
+     *            the z coordinate
+     * @return new block or null */
     private synchronized Block getTreeBlockKind(final int x,
                                                 final int y,
                                                 final int z)
@@ -2704,6 +3119,8 @@ public final class Rand
                 % PlantBlockKindChunk.size;
         PlantBlockKindChunk c = getPlantBlockKindChunk(cx, cy, cz);
         Block retval = c.get(x, y, z);
+        if(retval != null)
+            return Block.allocate(retval);
         return retval;
     }
 
@@ -2713,6 +3130,13 @@ public final class Rand
         public static final int count = values().length;
     }
 
+    /** @param x
+     *            the x coordinate
+     * @param y
+     *            the y coordinate
+     * @param z
+     *            the z coordinate
+     * @return new block */
     private Block getCaveDecoration(final int x, final int y, final int z)
     {
         final float genBlockProb = 0.1f;
@@ -2721,7 +3145,7 @@ public final class Rand
         int type = (int)Math.floor(ftype);
         if(type >= DecorationType.count)
         {
-            return new Block();
+            return Block.NewEmpty();
         }
         switch(DecorationType.values()[type])
         {
@@ -2729,7 +3153,7 @@ public final class Rand
         {
             if(isInCave(x, y - 1, z))
             {
-                return new Block();
+                return Block.NewEmpty();
             }
             if(ftype - type > 0.5f)
                 return Block.NewBrownMushroom();
@@ -2745,26 +3169,29 @@ public final class Rand
                     againstWallCount++;
             if(againstWallCount >= 2)
                 return Block.NewCobweb();
-            return new Block();
+            return Block.NewEmpty();
         }
         case Torch:
         {
             if(isInCave(x, y - 1, z))
             {
-                return new Block();
+                return Block.NewEmpty();
             }
             return Block.NewTorch(4);
         }
         case Chest:
         {
             if(isInCave(x, y - 1, z))
-                return new Block();
+                return Block.NewEmpty();
             if(ftype - type > 0.25)
-                return new Block();
+                return Block.NewEmpty();
             Block retval = Block.NewChest();
             int i = 0;
-            for(BlockType.AddedBlockDescriptor d : BlockType.getAllCaveChestBlocks(y))
+            final int caveChestBlocksSize = BlockType.getAllCaveChestBlocksSize(y);
+            for(int caveChestBlocksIndex = 0; caveChestBlocksIndex < caveChestBlocksSize; caveChestBlocksIndex++)
             {
+                BlockType.AddedBlockDescriptor d = BlockType.getAllCaveChestBlocksItem(y,
+                                                                                       caveChestBlocksIndex);
                 int count = (int)Math.floor(genRand(x,
                                                     i++,
                                                     z,
@@ -2785,12 +3212,9 @@ public final class Rand
             return retval;
         }
         default:
-            return new Block();
+            return Block.NewEmpty();
         }
     }
-
-    private static boolean didSetPos = false;
-    private static Vector genChunk_t1 = Vector.allocate();
 
     /** generates a chunk
      * 
@@ -2802,46 +3226,16 @@ public final class Rand
      *            chunk z coordinate
      * @param chunkSize
      *            chunk size
-     * @return the generated chunk */
-    @SuppressWarnings("unused")
+     * @return the new generated chunk */
     public GeneratedChunk genChunk(final int cx,
                                    final int cy,
                                    final int cz,
                                    final int chunkSize)
     {
-        GeneratedChunk generatedChunk = new GeneratedChunk(chunkSize,
-                                                           cx,
-                                                           cy,
-                                                           cz);
-        if(false)
-        {
-            if(!didSetPos)
-            {
-                players.front().setPosition(genChunk_t1.set(0.5f, 1.0f, 0.5f));
-                didSetPos = true;
-            }
-            for(int x = cx; x < cx + chunkSize; x++)
-            {
-                for(int y = cy; y < cy + chunkSize; y++)
-                {
-                    for(int z = cz; z < cz + chunkSize; z++)
-                    {
-                        if(x * x + y * y + z * z >= 5 * 5 && (x != 0 || z != 0))
-                            generatedChunk.setBlock(x, y, z, Block.NewStone());
-                        else if(x * x / 2 + y * y + z * z / 2 < 1 * 1
-                                && (x != 0 || z != 0 || true))
-                            generatedChunk.setBlock(x,
-                                                    y,
-                                                    z,
-                                                    Block.NewWater(4 + x * z
-                                                            * 3));
-                        else
-                            generatedChunk.setBlock(x, y, z, new Block());
-                    }
-                }
-            }
-            return generatedChunk;
-        }
+        GeneratedChunk generatedChunk = GeneratedChunk.allocate(chunkSize,
+                                                                cx,
+                                                                cy,
+                                                                cz);
         for(int x = cx; x < cx + chunkSize; x++)
         {
             for(int z = cz; z < cz + chunkSize; z++)
@@ -2863,7 +3257,7 @@ public final class Rand
                     else if(isLava(x, y, z))
                         block = Block.NewStationaryLava();
                     // else if(isOverLava(x, z) && y <= 5 + LavaNode.maxHeight)
-                    // block = new Block();
+                    // block = Block.NewEmpty();
                     else if(y <= rockHeight && waterInArea(x, y, z))
                     {
                         if(isInCave(x, y - 1, z))
@@ -2935,18 +3329,27 @@ public final class Rand
                     {
                         Block tb = getTreeBlockKind(x, y, z);
                         if(tb == null)
-                            tb = new Block();
+                            tb = Block.NewEmpty();
                         if(tb.getType() == BlockType.BTEmpty)
                         {
                             Block tb2 = getTreeBlockKind(x, y - 1, z);
                             if(tb2 != null
                                     && tb2.getType() == BlockType.BTEmpty)
+                            {
+                                tb2.free();
                                 tb2 = null;
+                            }
                             if((tb2 != null || (y == rockHeight + 1 && !isInCave(x,
                                                                                  y - 1,
                                                                                  z)))
                                     && getBiomeSnow(x, z) > 0.5f)
+                            {
+                                if(tb != null)
+                                    tb.free();
                                 tb = Block.NewSnow(1);
+                            }
+                            if(tb2 != null)
+                                tb2.free();
                         }
                         block = tb;
                     }

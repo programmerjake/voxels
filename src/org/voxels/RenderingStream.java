@@ -18,8 +18,10 @@ package org.voxels;
 
 import java.nio.FloatBuffer;
 
+import org.voxels.TextureAtlas.TextureHandle;
+
 /** @author jacob */
-public class RenderingStream
+public final class RenderingStream
 {
     private static class MatrixNode
     {
@@ -28,7 +30,7 @@ public class RenderingStream
 
         public MatrixNode()
         {
-            this.mat = Matrix.setToIdentity(new Matrix());
+            this.mat = Matrix.allocate(Matrix.IDENTITY);
             this.next = null;
         }
     }
@@ -531,5 +533,214 @@ public class RenderingStream
                 Main.opengl.glEnd();
         }
         return this;
+    }
+
+    private static final class SortPolygonNode
+    {
+        SortPolygonNode()
+        {
+        }
+
+        private static final Allocator<SortPolygonNode> allocator = new Allocator<RenderingStream.SortPolygonNode>()
+        {
+            @Override
+            protected SortPolygonNode allocateInternal()
+            {
+                return new SortPolygonNode();
+            }
+        };
+        public SortPolygonNode next;
+        public float x1, y1, z1, u1, v1, r1, g1, b1, a1;
+        public float x2, y2, z2, u2, v2, r2, g2, b2, a2;
+        public float x3, y3, z3, u3, v3, r3, g3, b3, a3;
+
+        private SortPolygonNode init(final SortPolygonNode next)
+        {
+            this.next = next;
+            return this;
+        }
+
+        public static SortPolygonNode allocate(final SortPolygonNode next)
+        {
+            return allocator.allocate().init(next);
+        }
+
+        public void free()
+        {
+            this.next = null;
+            allocator.free(this);
+        }
+    }
+
+    private static final class SortTextureNode
+    {
+        SortTextureNode()
+        {
+        }
+
+        private static final Allocator<SortTextureNode> allocator = new Allocator<RenderingStream.SortTextureNode>()
+        {
+            @Override
+            protected SortTextureNode allocateInternal()
+            {
+                return new SortTextureNode();
+            }
+        };
+        public SortTextureNode hashnext;
+        public SortTextureNode listnext;
+        public SortPolygonNode head;
+        public TextureAtlas.TextureHandle texture;
+        public int hash;
+
+        private SortTextureNode init()
+        {
+            this.head = null;
+            return this;
+        }
+
+        public static SortTextureNode allocate()
+        {
+            return allocator.allocate().init();
+        }
+
+        public void free()
+        {
+            this.hashnext = null;
+            this.listnext = null;
+            this.texture = null;
+            while(this.head != null)
+            {
+                SortPolygonNode freeMe = this.head;
+                this.head = this.head.next;
+                freeMe.free();
+            }
+        }
+    }
+
+    private static final int hashSize = 8192; // must be power of 2
+    private final SortTextureNode[] sortHashTable = new SortTextureNode[hashSize];
+    private SortTextureNode sortListHead = null;
+
+    private static int getHash(final TextureHandle texture)
+    {
+        return texture.hashCode() & (hashSize - 1);
+    }
+
+    private SortTextureNode findOrInsert(final TextureHandle texture)
+    {
+        int hash = getHash(texture);
+        SortTextureNode node = this.sortHashTable[hash], parent = null;
+        while(node != null)
+        {
+            if(node.texture.equals(texture))
+            {
+                if(parent != null)
+                {
+                    parent.hashnext = node.hashnext;
+                    node.hashnext = this.sortHashTable[hash];
+                    this.sortHashTable[hash] = node;
+                }
+                return node;
+            }
+        }
+        node = SortTextureNode.allocate();
+        node.hash = hash;
+        node.hashnext = this.sortHashTable[hash];
+        node.listnext = this.sortListHead;
+        this.sortHashTable[hash] = node;
+        this.sortListHead = node;
+        return node;
+    }
+
+    public void sortByTexture()
+    {
+        if(this.trianglePoint != -1)
+            throw new IllegalStateException("sortByTexture called between beginTriangle and endTriangle");
+        if(this.trianglesUsed <= 2)
+            return;
+        for(int tri = 0, ti = 0, ci = 0, vi = 0; tri < this.trianglesUsed; tri++)
+        {
+            SortTextureNode stn = findOrInsert(this.textureArray[tri]);
+            stn.texture = this.textureArray[tri];
+            stn.head = SortPolygonNode.allocate(stn.head);
+            SortPolygonNode p = stn.head;
+            p.r1 = this.colorArray[ci++];
+            p.g1 = this.colorArray[ci++];
+            p.b1 = this.colorArray[ci++];
+            p.a1 = this.colorArray[ci++];
+            p.u1 = this.texCoordArray[ti++];
+            p.v1 = this.texCoordArray[ti++];
+            p.x1 = this.vertexArray[vi++];
+            p.y1 = this.vertexArray[vi++];
+            p.z1 = this.vertexArray[vi++];
+            p.r2 = this.colorArray[ci++];
+            p.g2 = this.colorArray[ci++];
+            p.b2 = this.colorArray[ci++];
+            p.a2 = this.colorArray[ci++];
+            p.u2 = this.texCoordArray[ti++];
+            p.v2 = this.texCoordArray[ti++];
+            p.x2 = this.vertexArray[vi++];
+            p.y2 = this.vertexArray[vi++];
+            p.z2 = this.vertexArray[vi++];
+            p.r3 = this.colorArray[ci++];
+            p.g3 = this.colorArray[ci++];
+            p.b3 = this.colorArray[ci++];
+            p.a3 = this.colorArray[ci++];
+            p.u3 = this.texCoordArray[ti++];
+            p.v3 = this.texCoordArray[ti++];
+            p.x3 = this.vertexArray[vi++];
+            p.y3 = this.vertexArray[vi++];
+            p.z3 = this.vertexArray[vi++];
+        }
+        int tri = 0, ti = 0, ci = 0, vi = 0;
+        SortTextureNode stn = this.sortListHead;
+        this.sortListHead = null;
+        this.trianglesUsed = 0;
+        while(stn != null)
+        {
+            SortPolygonNode p = stn.head;
+            stn.head = null;
+            while(p != null)
+            {
+                this.colorArray[ci++] = p.r1;
+                this.colorArray[ci++] = p.g1;
+                this.colorArray[ci++] = p.b1;
+                this.colorArray[ci++] = p.a1;
+                this.texCoordArray[ti++] = p.u1;
+                this.texCoordArray[ti++] = p.v1;
+                this.vertexArray[vi++] = p.x1;
+                this.vertexArray[vi++] = p.y1;
+                this.vertexArray[vi++] = p.z1;
+                this.colorArray[ci++] = p.r2;
+                this.colorArray[ci++] = p.g2;
+                this.colorArray[ci++] = p.b2;
+                this.colorArray[ci++] = p.a2;
+                this.texCoordArray[ti++] = p.u2;
+                this.texCoordArray[ti++] = p.v2;
+                this.vertexArray[vi++] = p.x2;
+                this.vertexArray[vi++] = p.y2;
+                this.vertexArray[vi++] = p.z2;
+                this.colorArray[ci++] = p.r3;
+                this.colorArray[ci++] = p.g3;
+                this.colorArray[ci++] = p.b3;
+                this.colorArray[ci++] = p.a3;
+                this.texCoordArray[ti++] = p.u3;
+                this.texCoordArray[ti++] = p.v3;
+                this.vertexArray[vi++] = p.x3;
+                this.vertexArray[vi++] = p.y3;
+                this.vertexArray[vi++] = p.z3;
+                this.textureArray[tri++] = stn.texture;
+                this.trianglesUsed++;
+                SortPolygonNode freeMe = p;
+                p = p.next;
+                freeMe.next = null;
+                freeMe.free();
+            }
+            stn.texture = null;
+            SortTextureNode freeMe = stn;
+            this.sortHashTable[stn.hash] = null;
+            stn = stn.listnext;
+            freeMe.free();
+        }
     }
 }

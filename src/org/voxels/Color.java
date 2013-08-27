@@ -17,8 +17,16 @@
 package org.voxels;
 
 /** @author jacob */
-public final class Color
+public final class Color implements Allocatable
 {
+    private static final Allocator<Color> allocator = new Allocator<Color>()
+    {
+        @Override
+        protected Color allocateInternal()
+        {
+            return new Color();
+        }
+    };
     /** red intensity */
     public byte r;
     /** green intensity */
@@ -28,31 +36,8 @@ public final class Color
     /** opacity */
     public byte a;
 
-    /** @param nr
-     *            red intensity
-     * @param ng
-     *            green intensity
-     * @param nb
-     *            blue intensity
-     * @param na
-     *            transparency */
-    public Color(final byte nr, final byte ng, final byte nb, final byte na)
+    Color()
     {
-        this.r = nr;
-        this.g = ng;
-        this.b = nb;
-        this.a = na;
-    }
-
-    /** @param nr
-     *            red intensity
-     * @param ng
-     *            green intensity
-     * @param nb
-     *            blue intensity */
-    public Color(final byte nr, final byte ng, final byte nb)
-    {
-        this(nr, ng, nb, (byte)0);
     }
 
     /** @param nr
@@ -62,13 +47,19 @@ public final class Color
      * @param nb
      *            blue intensity
      * @param na
-     *            transparency */
-    public Color(final int nr, final int ng, final int nb, final int na)
+     *            transparency
+     * @return the new Color */
+    public static Color allocate(final byte nr,
+                                 final byte ng,
+                                 final byte nb,
+                                 final byte na)
     {
-        this((byte)Math.max(Math.min(nr, 0xFF), 0),
-             (byte)Math.max(Math.min(ng, 0xFF), 0),
-             (byte)Math.max(Math.min(nb, 0xFF), 0),
-             (byte)Math.max(Math.min(na, 0xFF), 0));
+        Color retval = allocator.allocate();
+        retval.r = nr;
+        retval.g = ng;
+        retval.b = nb;
+        retval.a = na;
+        return retval;
     }
 
     /** @param nr
@@ -76,20 +67,54 @@ public final class Color
      * @param ng
      *            green intensity
      * @param nb
-     *            blue intensity */
-    public Color(final int nr, final int ng, final int nb)
+     *            blue intensity
+     * @return the new Color */
+    public static Color allocate(final byte nr, final byte ng, final byte nb)
     {
-        this((byte)Math.max(Math.min(nr, 0xFF), 0),
-             (byte)Math.max(Math.min(ng, 0xFF), 0),
-             (byte)Math.max(Math.min(nb, 0xFF), 0),
-             (byte)0);
+        return allocate(nr, ng, nb, (byte)0);
+    }
+
+    /** @param nr
+     *            red intensity
+     * @param ng
+     *            green intensity
+     * @param nb
+     *            blue intensity
+     * @param na
+     *            transparency
+     * @return the new Color */
+    public static Color allocate(final int nr,
+                                 final int ng,
+                                 final int nb,
+                                 final int na)
+    {
+        return allocate((byte)Math.max(Math.min(nr, 0xFF), 0),
+                        (byte)Math.max(Math.min(ng, 0xFF), 0),
+                        (byte)Math.max(Math.min(nb, 0xFF), 0),
+                        (byte)Math.max(Math.min(na, 0xFF), 0));
+    }
+
+    /** @param nr
+     *            red intensity
+     * @param ng
+     *            green intensity
+     * @param nb
+     *            blue intensity
+     * @return the new Color */
+    public static Color allocate(final int nr, final int ng, final int nb)
+    {
+        return allocate((byte)Math.max(Math.min(nr, 0xFF), 0),
+                        (byte)Math.max(Math.min(ng, 0xFF), 0),
+                        (byte)Math.max(Math.min(nb, 0xFF), 0),
+                        (byte)0);
     }
 
     /** @param rt
-     *            the color to copy */
-    public Color(final Color rt)
+     *            the color to copy
+     * @return the new Color */
+    public static Color allocate(final Color rt)
     {
-        this(rt.r, rt.g, rt.b, rt.a);
+        return allocate(rt.r, rt.g, rt.b, rt.a);
     }
 
     /** @param r
@@ -101,7 +126,7 @@ public final class Color
      * @return the created <code>Color</code> */
     public static Color RGB(final int r, final int g, final int b)
     {
-        return new Color(r, g, b);
+        return allocate(r, g, b);
     }
 
     /** @param r
@@ -116,7 +141,7 @@ public final class Color
     public static Color
         RGBA(final int r, final int g, final int b, final int a)
     {
-        return new Color(r, g, b, a);
+        return allocate(r, g, b, a);
     }
 
     /** @param r
@@ -271,5 +296,17 @@ public final class Color
                     (GetBValue(this) * (255 - foregroundA) + GetBValue(bkgnd)
                             * foregroundA) / 255,
                     foregroundA * GetAValue(bkgnd) / 255);
+    }
+
+    @Override
+    public void free()
+    {
+        allocator.free(this);
+    }
+
+    @Override
+    public Color dup()
+    {
+        return allocate(this);
     }
 }

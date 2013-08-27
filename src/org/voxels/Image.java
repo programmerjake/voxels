@@ -360,10 +360,10 @@ public class Image
             yp = this.h - yp - 1;
         this.validTexture = false;
         int index = (x + yp * this.w) * BytesPerPixel;
-        return new Color(this.data[index],
-                         this.data[index + 1],
-                         this.data[index + 2],
-                         this.data[index + 3]);
+        return Color.allocate(this.data[index],
+                              this.data[index + 1],
+                              this.data[index + 2],
+                              this.data[index + 3]);
     }
 
     /** set the color of a pixel

@@ -30,7 +30,7 @@ public final class Main
     /**
      * 
      */
-    public static Platform platform = new LWJGLPlatform();
+    public static Platform platform = PlatformImplementation.makePlatform();
     /**
      * 
      */
@@ -69,18 +69,27 @@ public final class Main
     static boolean lastEventWasLeftButtonDown = false;
 
     /** @author jacob */
-    public static class MouseEvent
+    public static final class MouseEvent implements Allocatable
     {
+        private static final Allocator<MouseEvent> allocator = new Allocator<Main.MouseEvent>()
+        {
+            @SuppressWarnings("synthetic-access")
+            @Override
+            protected MouseEvent allocateInternal()
+            {
+                return new MouseEvent();
+            }
+        };
         /** the mouse x coordinate */
-        public final float mouseX;
+        public float mouseX;
         /** the mouse y coordinate */
-        public final float mouseY;
+        public float mouseY;
         /** the button this event is about */
-        public final int button;
+        public int button;
         /** the amount that the mouse wheel was moved */
-        public final int dWheel;
+        public int dWheel;
         /** true if the button is pressed */
-        public final boolean isDown;
+        public boolean isDown;
         /** left mouse button */
         public static final int LEFT = Mouse.BUTTON_LEFT;
         /** right mouse button */
@@ -88,20 +97,41 @@ public final class Main
         /** middle mouse button */
         public static final int MIDDLE = Mouse.BUTTON_MIDDLE;
 
-        /**
-		 * 
-		 */
-        public MouseEvent()
+        private MouseEvent()
         {
-            this.mouseX = mouse.getEventX();
-            this.mouseY = mouse.getEventY();
-            this.button = mouse.getEventButtonIndex();
-            this.isDown = mouse.isEventButtonDown();
-            this.dWheel = mouse.getEventDWheel();
+        }
+
+        public static MouseEvent allocate()
+        {
+            MouseEvent retval = allocator.allocate();
+            retval.mouseX = mouse.getEventX();
+            retval.mouseY = mouse.getEventY();
+            retval.button = mouse.getEventButtonIndex();
+            retval.isDown = mouse.isEventButtonDown();
+            retval.dWheel = mouse.getEventDWheel();
+            return retval;
+        }
+
+        @Override
+        public MouseEvent dup()
+        {
+            MouseEvent retval = allocator.allocate();
+            retval.mouseX = this.mouseX;
+            retval.mouseY = this.mouseY;
+            retval.button = this.button;
+            retval.isDown = this.isDown;
+            retval.dWheel = this.dWheel;
+            return retval;
+        }
+
+        @Override
+        public void free()
+        {
+            allocator.free(this);
         }
     }
 
-    private static String frameText = "";
+    private static final StringBuilder frameText = new StringBuilder();
 
     /** adds a string to the current frame's overlaid text
      * 
@@ -109,11 +139,11 @@ public final class Main
      *            the string to add */
     public static void addToFrameText(final String str)
     {
-        frameText += str;
+        frameText.append(str);
     }
 
     private static float fps = 30.0f;
-    private static Matrix renderFrame_t1 = new Matrix();
+    private static Matrix renderFrame_t1 = Matrix.allocate();
 
     private static void renderFrame()
     {
@@ -125,8 +155,8 @@ public final class Main
                                         dist - 1.0f,
                                         -dist),
                   Color.RGB(1.0f, 1.0f, 1.0f),
-                  frameText);
-        frameText = "";
+                  frameText.toString());
+        frameText.setLength(0);
         if(DEBUG)
         {
             String fpsStr = "?";
@@ -346,25 +376,36 @@ public final class Main
     }
 
     /** @author jacob */
-    public static class KeyboardEvent
+    public static final class KeyboardEvent implements Allocatable
     {
-        /**
-		 * 
-		 */
-        public final int key;
-        /**
-		 * 
-		 */
-        public final char character;
-        /** if the key is pressed */
-        public final boolean isDown;
-        /** if this key press event is a repeat */
-        public final boolean isRepeat;
+        private static final Allocator<KeyboardEvent> allocator = new Allocator<Main.KeyboardEvent>()
+        {
+            @SuppressWarnings("synthetic-access")
+            @Override
+            protected KeyboardEvent allocateInternal()
+            {
+                return new KeyboardEvent();
+            }
+        };
+
+        private KeyboardEvent()
+        {
+        }
 
         /**
 		 * 
 		 */
-        public KeyboardEvent()
+        public int key;
+        /**
+		 * 
+		 */
+        public char character;
+        /** if the key is pressed */
+        public boolean isDown;
+        /** if this key press event is a repeat */
+        public boolean isRepeat;
+
+        private KeyboardEvent init()
         {
             if(keyboard != null)
             {
@@ -380,6 +421,47 @@ public final class Main
                 this.isDown = false;
                 this.isRepeat = false;
             }
+            return this;
+        }
+
+        private KeyboardEvent init(final int key,
+                                   final char character,
+                                   final boolean isDown,
+                                   final boolean isRepeat)
+        {
+            this.key = key;
+            this.character = character;
+            this.isDown = isDown;
+            this.isRepeat = isRepeat;
+            return this;
+        }
+
+        public static KeyboardEvent allocate()
+        {
+            return allocator.allocate().init();
+        }
+
+        public static KeyboardEvent allocate(final int key,
+                                             final char character,
+                                             final boolean isDown,
+                                             final boolean isRepeat)
+        {
+            return allocator.allocate().init(key, character, isDown, isRepeat);
+        }
+
+        @Override
+        public KeyboardEvent dup()
+        {
+            return allocate(this.key,
+                            this.character,
+                            this.isDown,
+                            this.isRepeat);
+        }
+
+        @Override
+        public void free()
+        {
+            allocator.free(this);
         }
     }
 
@@ -394,58 +476,9 @@ public final class Main
     {
         saveFile = null;
         World.clear();
-        world.setLandGeneratorSettings(makeLandGeneratorSettings());
+        world.setLandGeneratorSettings(makeLandGeneratorSettings(), false);
         players.clear();
         players.addDefaultPlayer();
-        // if(DEBUG)
-        // {
-        // for(int i = 0; i < 10000; i++)
-        // {
-        // players.front().giveBlock(BlockType.BTChest);
-        // players.front().giveBlock(BlockType.BTFurnace);
-        // players.front().giveBlock(BlockType.BTSapling);
-        // players.front().giveBlock(BlockType.BTTorch);
-        // players.front().giveBlock(BlockType.BTWorkbench);
-        // players.front().giveBlock(BlockType.BTLadder);
-        // players.front().giveBlock(BlockType.BTLadder);
-        // players.front().giveBlock(BlockType.BTLadder);
-        // players.front().giveBlock(BlockType.BTLadder);
-        // players.front().giveBlock(BlockType.BTLadder);
-        // players.front().giveBlock(BlockType.BTLadder);
-        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
-        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
-        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
-        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
-        // players.front().giveBlock(BlockType.BTRedstoneDustOff);
-        // players.front().giveBlock(BlockType.BTRedstoneTorchOff);
-        // players.front().giveBlock(BlockType.BTLever);
-        // players.front().giveBlock(BlockType.BTStonePressurePlate);
-        // players.front().giveBlock(BlockType.BTWoodPressurePlate);
-        // players.front().giveBlock(BlockType.BTLava);
-        // players.front().giveBlock(BlockType.BTWater);
-        // players.front().giveBlock(BlockType.BTObsidian);
-        // players.front().giveBlock(BlockType.BTStone);
-        // players.front().giveBlock(BlockType.BTRedstoneRepeaterOff);
-        // players.front().giveBlock(BlockType.BTSlime);
-        // players.front().giveBlock(BlockType.BTSlime);
-        // players.front().giveBlock(BlockType.BTPiston);
-        // players.front().giveBlock(BlockType.BTPiston);
-        // players.front().giveBlock(BlockType.BTSand);
-        // players.front().giveBlock(BlockType.BTGunpowder);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTTNT);
-        // players.front().giveBlock(BlockType.BTBlazeRod);
-        // players.front().giveBlock(BlockType.BTDiamondPick);
-        // players.front().giveBlock(BlockType.BTGoldPick);
-        // }
-        // }
         didLoad = true;
     }
 
@@ -462,6 +495,7 @@ public final class Main
     public static void runMenu(final MenuScreen menu)
     {
         platform.setMouseVisible(true);
+        stopAllSound();
         boolean done = false;
         while(!done)
         {
@@ -471,27 +505,31 @@ public final class Main
             {
                 while(mouse.nextEvent())
                 {
-                    MouseEvent event = new MouseEvent();
+                    MouseEvent event = MouseEvent.allocate();
                     if(event.isDown)
                         menu.onClick(event.mouseX / ScreenXRes() * 2f - 1f, 1f
                                 - event.mouseY / ScreenYRes() * 2f);
+                    event.free();
                 }
                 if(keyboard != null)
                 {
                     while(keyboard.nextEvent())
                     {
-                        KeyboardEvent event = new KeyboardEvent();
+                        KeyboardEvent event = KeyboardEvent.allocate();
                         if(event.isDown && event.key == KEY_F4
                                 && isKeyDown(KEY_ALT))
                         {
                             done = true;
+                            event.free();
                             continue;
                         }
                         if(event.isDown && event.key == KEY_F11)
                         {
                             isFullscreen = !isFullscreen;
+                            event.free();
                             continue;
                         }
+                        event.free();
                     }
                 }
                 float mouseX = mouse.getX();
@@ -1273,6 +1311,48 @@ public final class Main
         });
     }
 
+    public static void runSoundForFrame()
+    {
+        if(needFuseBurnAudio)
+        {
+            if(!fuseBurnAudioPlaying)
+                playloop(fuseBurnAudio);
+            fuseBurnAudioPlaying = true;
+        }
+        else
+        {
+            if(fuseBurnAudioPlaying)
+                stoploop(fuseBurnAudio);
+            fuseBurnAudioPlaying = false;
+        }
+        needFuseBurnAudio = false;
+        if(needFireBurnAudio)
+        {
+            if(!fireBurnAudioPlaying)
+                playloop(fireBurnAudio);
+            fireBurnAudioPlaying = true;
+        }
+        else
+        {
+            if(fireBurnAudioPlaying)
+                stoploop(fireBurnAudio);
+            fireBurnAudioPlaying = false;
+        }
+        needFireBurnAudio = false;
+        if(backgroundAudio != null && !backgroundAudio.isPlaying())
+            playloop(backgroundAudio);
+    }
+
+    public static void stopAllSound()
+    {
+        if(fuseBurnAudioPlaying)
+            stoploop(fuseBurnAudio);
+        fuseBurnAudioPlaying = false;
+        if(fireBurnAudioPlaying)
+            stoploop(fireBurnAudio);
+        fireBurnAudioPlaying = false;
+    }
+
     public static boolean needPause = false;
 
     /** @param args
@@ -1291,6 +1371,7 @@ public final class Main
         curTime = Timer();
         init();
         curTime = Timer();
+        playloop(backgroundAudio);
         runMainMenu();
         if(!didLoad)
         {
@@ -1302,8 +1383,10 @@ public final class Main
             if(needPause)
             {
                 needPause = false;
+                stopAllSound();
                 runMainMenu();
             }
+            runSoundForFrame();
             setFullscreen(isFullscreen);
             renderFrame();
             platform.update();
@@ -1311,31 +1394,37 @@ public final class Main
             {
                 while(mouse.nextEvent())
                 {
-                    players.handleMouseUpDown(new MouseEvent());
+                    MouseEvent event = MouseEvent.allocate();
+                    players.handleMouseUpDown(event);
+                    event.free();
                 }
                 if(keyboard != null)
                 {
                     while(keyboard.nextEvent())
                     {
-                        KeyboardEvent event = new KeyboardEvent();
+                        KeyboardEvent event = KeyboardEvent.allocate();
                         if(event.isDown && event.key == KEY_F4
                                 && isKeyDown(KEY_ALT))
                         {
                             done = true;
+                            event.free();
                             continue;
                         }
                         if(event.isDown && event.key == KEY_F11)
                         {
                             isFullscreen = !isFullscreen;
+                            event.free();
                             continue;
                         }
                         if(event.isDown && event.key == KEY_P)
                         {
                             runMainMenu();
                             needPause = false;
+                            event.free();
                             continue;
                         }
                         players.handleKeyboardEvent(event);
+                        event.free();
                     }
                 }
                 if(platform.isTouchScreen())
@@ -1414,6 +1503,7 @@ public final class Main
 
     private static void showProgressDialog(final String labelText)
     {
+        stopAllSound();
         topOfProgressStack = null;
         progressLabelText = labelText;
     }
@@ -1640,16 +1730,26 @@ public final class Main
      * 
      * @param filename
      *            the file to load
+     * @param isStream
+     *            if the file should be loaded as a stream
      * @return the loaded <code>Audio</code> or <code>null</code> */
     @SuppressWarnings("resource")
-    public static Audio loadAudio(final String filename)
+    public static Audio
+        loadAudio(final String filename, final boolean isStream)
     {
         InputStream in = null;
         Audio retval = null;
         try
         {
-            in = platform.getFileInputStream(filename);
-            retval = platform.loadAudio(in);
+            if(isStream)
+            {
+                retval = platform.loadAudioStream(filename);
+            }
+            else
+            {
+                in = platform.getFileInputStream(filename);
+                retval = platform.loadAudio(in);
+            }
         }
         catch(IOException e)
         {
@@ -1670,13 +1770,32 @@ public final class Main
         return retval;
     }
 
-    static void play(final Audio a)
+    public static void play(final Audio a)
     {
         if(a != null)
             a.play(1.0f, false);
     }
 
-    static Audio clickAudio = loadAudio("click.ogg");
-    static Audio popAudio = loadAudio("pop.ogg");
-    static Audio destructAudio = loadAudio("destruct.ogg");
+    public static void playloop(final Audio a)
+    {
+        if(a != null)
+            a.play(1.0f, true);
+    }
+
+    public static void stoploop(final Audio a)
+    {
+        if(a != null)
+            a.stop();
+    }
+
+    static Audio clickAudio = loadAudio("click.ogg", false);
+    static Audio popAudio = loadAudio("pop.ogg", false);
+    static Audio destructAudio = loadAudio("destruct.ogg", false);
+    static Audio explodeAudio = loadAudio("explode.ogg", false);
+    static Audio fuseBurnAudio = loadAudio("fuse.ogg", false);
+    static boolean needFuseBurnAudio = false, fuseBurnAudioPlaying = false;
+    static Audio fireBurnAudio = loadAudio("fire.ogg", false);
+    static boolean needFireBurnAudio = false, fireBurnAudioPlaying = false;
+    static Audio backgroundAudio = loadAudio("background.ogg", true);
+    static boolean backgroundPlaying = false;
 }

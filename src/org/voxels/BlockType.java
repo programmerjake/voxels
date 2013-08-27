@@ -4678,61 +4678,6 @@ public enum BlockType
             return ToolLevel.Gold;
         }
     },
-    /** diamond hoe */
-    BTDiamondHoe(97, false, BlockDrawType.BDTTool,
-            new TextureAtlas.TextureHandle[]
-            {
-                TextureAtlas.addImage(new Image("diamondhoe.png"))
-            })
-    {
-        @Override
-        public Block make(final int orientation)
-        {
-            return Block.NewDiamondHoe();
-        }
-
-        @Override
-        public int getLight()
-        {
-            return 0;
-        }
-
-        @Override
-        public boolean isDoubleSided()
-        {
-            return false;
-        }
-
-        @Override
-        public boolean isParticleGenerate()
-        {
-            return false;
-        }
-
-        @Override
-        public BlockType getSmeltResult()
-        {
-            return BTEmpty;
-        }
-
-        @Override
-        public int getBurnTime()
-        {
-            return 0;
-        }
-
-        @Override
-        public ToolType getToolType()
-        {
-            return ToolType.Hoe;
-        }
-
-        @Override
-        public ToolLevel getToolLevel()
-        {
-            return ToolLevel.Diamond;
-        }
-    },
     BTCocoa(97, false, BlockDrawType.BDTCustom,
             new TextureAtlas.TextureHandle[]
             {
@@ -5824,8 +5769,341 @@ public enum BlockType
             return ToolLevel.Wood; // has the closest durability to 65
         }
     },
+    /** diamond hoe */
+    BTDiamondHoe(119, false, BlockDrawType.BDTTool,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("diamondhoe.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewDiamondHoe();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public ToolType getToolType()
+        {
+            return ToolType.Hoe;
+        }
+
+        @Override
+        public ToolLevel getToolLevel()
+        {
+            return ToolLevel.Diamond;
+        }
+    },
+    /** Rail */
+    BTRail(120, false, BlockDrawType.BDTRail, new TextureAtlas.TextureHandle[]
+    {
+        TextureAtlas.addImage(new Image("rail.png")),
+        TextureAtlas.addImage(new Image("railcurve.png")),
+    })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            if(orientation == -1)
+                return Block.NewRail(0);
+            if(Block.getOrientationDZ(orientation) != 0)
+                return Block.NewRail(0);
+            return Block.NewRail(1);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            if(Block.getOrientationDX(orientation) != 0
+                    || Block.getOrientationDZ(orientation) != 0)
+                return make(orientation);
+            return make(vieworientation);
+        }
+    },
+    /** Detector Rail */
+    BTDetectorRail(121, false, BlockDrawType.BDTRail,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("detectorrailoff.png")),
+                TextureAtlas.addImage(new Image("detectorrailon.png")),
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            if(orientation == -1)
+                return Block.NewDetectorRail(0, 0);
+            if(Block.getOrientationDZ(orientation) != 0)
+                return Block.NewDetectorRail(0, 0);
+            return Block.NewDetectorRail(1, 0);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            if(Block.getOrientationDX(orientation) != 0
+                    || Block.getOrientationDZ(orientation) != 0)
+                return make(orientation);
+            return make(vieworientation);
+        }
+    },
+    /** Activator Rail */
+    BTActivatorRail(122, false, BlockDrawType.BDTRail,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("activatorrailoff.png")),
+                TextureAtlas.addImage(new Image("activatorrailon.png")),
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            if(orientation == -1)
+                return Block.NewActivatorRail(0, 0);
+            if(Block.getOrientationDZ(orientation) != 0)
+                return Block.NewActivatorRail(0, 0);
+            return Block.NewActivatorRail(1, 0);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            if(Block.getOrientationDX(orientation) != 0
+                    || Block.getOrientationDZ(orientation) != 0)
+                return make(orientation);
+            return make(vieworientation);
+        }
+    },
+    /** Powered Rail */
+    BTPoweredRail(123, false, BlockDrawType.BDTRail,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("poweredrailoff.png")),
+                TextureAtlas.addImage(new Image("poweredrailon.png")),
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            if(orientation == -1)
+                return Block.NewPoweredRail(0, 0);
+            if(Block.getOrientationDZ(orientation) != 0)
+                return Block.NewPoweredRail(0, 0);
+            return Block.NewPoweredRail(1, 0);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            if(Block.getOrientationDX(orientation) != 0
+                    || Block.getOrientationDZ(orientation) != 0)
+                return make(orientation);
+            return make(vieworientation);
+        }
+    },
+    /** mine cart */
+    BTMineCart(124, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("minecartoutside.png")),
+                TextureAtlas.addImage(new Image("minecartinside.png")),
+                TextureAtlas.addImage(new Image("minecartitem.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewMinecart(0, true);
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Block make(final int orientation, final int vieworientation)
+        {
+            return make(vieworientation);
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(119, false, BlockDrawType.BDTNone, null)
+    BTLast(125, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -6071,22 +6349,30 @@ public enum BlockType
         return retval;
     }
 
-    private static Map<Integer, List<AddedBlockDescriptor>> caveChestBlocksMap = new HashMap<Integer, List<AddedBlockDescriptor>>();
+    private static Map<Integer, ArrayList<AddedBlockDescriptor>> caveChestBlocksMap = new HashMap<Integer, ArrayList<AddedBlockDescriptor>>();
 
-    /** @param y
-     *            the y coordinate
-     * @return the resulting list of blocks */
-    public static List<AddedBlockDescriptor> getAllCaveChestBlocks(final int y)
+    private static ArrayList<AddedBlockDescriptor>
+        getAllCaveChestBlocks(final int y)
     {
-        List<AddedBlockDescriptor> v = caveChestBlocksMap.get(Integer.valueOf(y));
+        ArrayList<AddedBlockDescriptor> v = caveChestBlocksMap.get(Integer.valueOf(y));
         if(v != null)
             return v;
-        List<AddedBlockDescriptor> retval = new LinkedList<BlockType.AddedBlockDescriptor>();
+        ArrayList<AddedBlockDescriptor> retval = new ArrayList<BlockType.AddedBlockDescriptor>();
         for(int i = 0; i < BlockType.Count; i++)
             retval.addAll(toBlockType(i).getCaveChestBlocks(y));
-        retval = Collections.unmodifiableList(retval);
         caveChestBlocksMap.put(Integer.valueOf(y), retval);
         return retval;
+    }
+
+    public static int getAllCaveChestBlocksSize(final int y)
+    {
+        return getAllCaveChestBlocks(y).size();
+    }
+
+    public static AddedBlockDescriptor
+        getAllCaveChestBlocksItem(final int y, final int index)
+    {
+        return getAllCaveChestBlocks(y).get(index);
     }
 
     private static ArrayList<Block> creativeModeBlockList = null;
@@ -6362,6 +6648,12 @@ public enum BlockType
         case BTFlint:
         case BTFlintAndSteel:
             return 0;
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
+            return 0;
         }
         return 0;
     }
@@ -6519,7 +6811,13 @@ public enum BlockType
         case BTBone:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTMineCart:
             return true;
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+            return false;
         }
         return false;
     }
@@ -6673,6 +6971,11 @@ public enum BlockType
         case BTFire:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
             return false;
         case BTDispenser:
         case BTDropper:
@@ -6832,6 +7135,11 @@ public enum BlockType
         case BTFire:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
             return false;
         case BTDispenser:
         case BTDropper:
@@ -6939,6 +7247,11 @@ public enum BlockType
         case BTFire:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
             return true;
         case BTPlank:
         case BTLeaves:
@@ -7110,6 +7423,11 @@ public enum BlockType
         case BTFire:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -7292,6 +7610,11 @@ public enum BlockType
         case BTFire:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
             return true;
         }
         return false;
@@ -7404,11 +7727,11 @@ public enum BlockType
         case BTGunpowder:
             return Replaceability.Replace;
         case BTTNT:
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
             return Replaceability.CanNotGrow;
         case BTBlazeRod:
         case BTBlazePowder:
-        case BTStonePressurePlate:
-        case BTWoodPressurePlate:
         case BTSnow:
         case BTVines:
         case BTWoodAxe:
@@ -7454,6 +7777,7 @@ public enum BlockType
         case BTFire:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTMineCart:
             return Replaceability.Replace;
         case BTDispenser:
         case BTDropper:
@@ -7462,6 +7786,10 @@ public enum BlockType
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
             return Replaceability.CanNotGrow;
         case BTCactus:
             if(replacingBlock == BTWood)
@@ -7767,7 +8095,13 @@ public enum BlockType
             return 1;
         case BTFlint:
         case BTFlintAndSteel:
+        case BTMineCart:
             return 0;
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+            return 3.5f;
         }
         return 1e10f;
     }
@@ -8023,6 +8357,11 @@ public enum BlockType
         case BTWorkbench:
         case BTFlint:
         case BTFlintAndSteel:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
             return Flammability.NotFlammable;
         case BTLeaves:
         case BTPlank:

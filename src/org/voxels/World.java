@@ -23,15 +23,24 @@ import static org.voxels.PlayerList.players;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voxels.BlockType.ToolType;
 import org.voxels.generate.*;
 
 /** @author jacob */
-public class World
+public final class World
 {
+    private static final Allocator<World> allocator = new Allocator<World>()
+    {
+        @Override
+        protected World allocateInternal()
+        {
+            return new World();
+        }
+    };
     /** the program's world */
-    public static World world = new World();
+    public static World world = allocator.allocate().init();
     /** the maximum height<br/>
      * <code>-Depth &lt;= y &lt; Height</code>
      * 
@@ -48,16 +57,57 @@ public class World
     static int viewDist = 10;
     private long displayListValidTag = 0;
     private Rand.Settings landGeneratorSettings = null;
-    private Rand landGenerator = Rand.create(this.landGeneratorSettings);
+    private Rand landGenerator;
     private static final int generatedChunkScale = 1 << 0; // must be power of 2
 
     /** @param landGeneratorSettings
-     *            the new land generator settings */
+     *            the new land generator settings
+     * @param useSeed
+     *            if the current seed should be used */
     public void
-        setLandGeneratorSettings(final Rand.Settings landGeneratorSettings)
+        setLandGeneratorSettings(final Rand.Settings landGeneratorSettings,
+                                 final boolean useSeed)
     {
+        if(this.landGeneratorSettings != null)
+            this.landGeneratorSettings.free();
         this.landGeneratorSettings = landGeneratorSettings;
+        if(this.landGeneratorSettings != null)
+            this.landGeneratorSettings = this.landGeneratorSettings.dup();
+        int seed = this.landGenerator.getSeed();
+        this.landGenerator.free();
+        if(useSeed)
+            this.landGenerator = Rand.create(seed, this.landGeneratorSettings);
+        else
+            this.landGenerator = Rand.create(this.landGeneratorSettings);
+    }
+
+    private World init()
+    {
         this.landGenerator = Rand.create(this.landGeneratorSettings);
+        return this;
+    }
+
+    private void free()
+    {
+        clearChunkGenerator();
+        this.landGenerator.free();
+        this.landGenerator = null;
+        if(this.landGeneratorSettings != null)
+            this.landGeneratorSettings.free();
+        this.landGeneratorSettings = null;
+        clearEntities();
+        clearHashTable();
+        clearEvalNodes();
+        clearTimedInvalidates();
+        clearBackgroundColor();
+        clearGenChunk();
+        clearMoveAllBlocks();
+        clearParticleGenTime();
+        clearCurTime();
+        clearTreeGenerateList();
+        clearDisplayListValidTag();
+        clearTimeOfDay();
+        allocator.free(this);
     }
 
     /** generate a random <code>float</code>
@@ -195,8 +245,27 @@ public class World
     @SuppressWarnings("unused")
     private EntityNode entityHead = null, entityTail = null;
 
+    private void clearEntities()
+    {
+        EntityNode head = removeAllEntities();
+        while(head != null)
+        {
+            EntityNode freeMe = head;
+            head = head.next;
+            freeMe.free();
+        }
+    }
+
     private static class Chunk
     {
+        private static final Allocator<Chunk> allocator = new Allocator<World.Chunk>()
+        {
+            @Override
+            protected Chunk allocateInternal()
+            {
+                return new Chunk();
+            }
+        };
         public static final int size = 4; // must be power of 2
         public static final int generatedChunkSize = size; // must be power of 2
                                                            // that is less than
@@ -204,27 +273,57 @@ public class World
                                                            // Chunk.size
         public static final int generatedChunksPerChunk = Math.max(1, size
                 / generatedChunkSize);
-        public final int orgx, orgy, orgz;
-        private boolean generated[] = new boolean[generatedChunksPerChunk
+        public int orgx, orgy, orgz;
+        private final boolean generated[] = new boolean[generatedChunksPerChunk
                 * generatedChunksPerChunk * generatedChunksPerChunk];
-        private Block[] blocks = new Block[size * size * size];
+        private final Block[] blocks = new Block[size * size * size];
         public Chunk next, listnext;
         public static final int drawPhaseCount = 2;
-        public long displayListValidTag[] = new long[drawPhaseCount];
+        public final long displayListValidTag[] = new long[drawPhaseCount];
         @SuppressWarnings("unused")
         public EntityNode head = null, tail = null;
         public boolean drawsAnything = true;
         public long drawsAnythingValidTag = -1;
+        public int fireCount = 0;
 
-        public Chunk(final int ox, final int oy, final int oz)
+        Chunk()
         {
-            this.orgx = ox;
-            this.orgy = oy;
-            this.orgz = oz;
+        }
+
+        public static Chunk allocate(final int ox, final int oy, final int oz)
+        {
+            Chunk retval = allocator.allocate();
+            retval.orgx = ox;
+            retval.orgy = oy;
+            retval.orgz = oz;
             for(int i = 0; i < drawPhaseCount; i++)
             {
-                this.displayListValidTag[i] = -1;
+                retval.displayListValidTag[i] = -1;
             }
+            retval.next = null;
+            retval.listnext = null;
+            retval.head = null;
+            retval.tail = null;
+            retval.fireCount = 0;
+            return retval;
+        }
+
+        public void free()
+        {
+            for(int i = 0; i < this.blocks.length; i++)
+            {
+                if(this.blocks[i] != null)
+                {
+                    this.blocks[i].isInWorld = false;
+                    this.blocks[i].free();
+                }
+                this.blocks[i] = null;
+            }
+            this.next = null;
+            this.listnext = null;
+            this.head = null;
+            this.tail = null;
+            allocator.free(this);
         }
 
         public Block getBlock(final int cx, final int cy, final int cz)
@@ -239,7 +338,12 @@ public class World
                              final Block b)
         {
             int index = cx + size * (cy + size * cz);
+            if(this.blocks[index] != null
+                    && this.blocks[index].getType() == BlockType.BTFire)
+                this.fireCount--;
             this.blocks[index] = b;
+            if(b != null && b.getType() == BlockType.BTFire)
+                this.fireCount++;
         }
 
         public boolean isGenerated(final int cx_in,
@@ -289,6 +393,11 @@ public class World
     }
 
     private Chunk lastChunk = null;
+
+    private void clearLastChunk()
+    {
+        this.lastChunk = null;
+    }
 
     private void insertEntity(final EntityNode node)
     {
@@ -366,6 +475,8 @@ public class World
         {
             this.hashnext = null;
             this.listnext = freeNodeHead;
+            if(this.b != null)
+                this.b.free();
             this.b = null;
             freeNodeHead = this;
         }
@@ -404,35 +515,32 @@ public class World
 
     private static int getChunkX(final int v)
     {
-        return v - (v % Chunk.size + Chunk.size) % Chunk.size;
+        return v - (v & (Chunk.size - 1));
     }
 
     private static int getChunkY(final int v)
     {
-        return v - (v % Chunk.size + Chunk.size) % Chunk.size;
+        return v - (v & (Chunk.size - 1));
     }
 
     private static int getChunkZ(final int v)
     {
-        return v - (v % Chunk.size + Chunk.size) % Chunk.size;
+        return v - (v & (Chunk.size - 1));
     }
 
     private static int getGeneratedChunkX(final int v)
     {
-        return v - (v % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
-                % Chunk.generatedChunkSize;
+        return v - (v & (Chunk.generatedChunkSize - 1));
     }
 
     private static int getGeneratedChunkY(final int v)
     {
-        return v - (v % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
-                % Chunk.generatedChunkSize;
+        return v - (v & (Chunk.generatedChunkSize - 1));
     }
 
     private static int getGeneratedChunkZ(final int v)
     {
-        return v - (v % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
-                % Chunk.generatedChunkSize;
+        return v - (v & (Chunk.generatedChunkSize - 1));
     }
 
     private static final int WorldHashPrimePowOf2 = 17;
@@ -459,7 +567,24 @@ public class World
         return hashPos(cx, cy, cz);
     }
 
-    private Chunk[] hashTable = new Chunk[WorldHashPrime];
+    private final Chunk[] hashTable = new Chunk[WorldHashPrime];
+
+    private void clearHashTable()
+    {
+        clearLastChunk();
+        for(int i = 0; i < WorldHashPrime; i++)
+        {
+            Chunk head = this.hashTable[i];
+            this.hashTable[i] = null;
+            while(head != null)
+            {
+                Chunk freeMe = head;
+                head = head.next;
+                freeMe.free();
+            }
+        }
+        this.chunksHead = null;
+    }
 
     private EvalNode[][] genEvalNodeHashTable()
     {
@@ -471,8 +596,24 @@ public class World
         return retval;
     }
 
-    private EvalNode[][] evalNodeHashTable = genEvalNodeHashTable();
-    private EvalNode[] evalNodeListHead = new EvalNode[EvalType.Last.ordinal()];
+    private final EvalNode[][] evalNodeHashTable = genEvalNodeHashTable();
+    private final EvalNode[] evalNodeListHead = new EvalNode[EvalType.Last.ordinal()];
+
+    private void clearEvalNodes()
+    {
+        for(EvalType et : EvalType.values)
+        {
+            if(et == EvalType.Last)
+                continue;
+            EvalNode head = removeAllEvalNodes(et);
+            while(head != null)
+            {
+                EvalNode freeMe = head;
+                head = head.listnext;
+                freeMe.free();
+            }
+        }
+    }
 
     private void insertEvalNode(final EvalType et, final EvalNode newnode)
     {
@@ -497,6 +638,8 @@ public class World
                     this.evalNodeHashTable[eti][hash] = node;
                 }
                 node.b = newnode.b;
+                newnode.b = null;
+                newnode.free();
                 return;
             }
             lastNode = node;
@@ -532,6 +675,8 @@ public class World
                     node.hashnext = this.evalNodeHashTable[eti][hash];
                     this.evalNodeHashTable[eti][hash] = node;
                 }
+                if(node.b != null)
+                    node.b.free();
                 node.b = b;
                 return;
             }
@@ -591,19 +736,40 @@ public class World
 
     private static class TimedInvalidate
     {
-        public final int x, y, z;
+        private static final Allocator<TimedInvalidate> allocator = new Allocator<World.TimedInvalidate>()
+        {
+            @Override
+            protected TimedInvalidate allocateInternal()
+            {
+                return new TimedInvalidate();
+            }
+        };
+        public int x, y, z;
         public double timeLeft;
         public TimedInvalidate next;
 
-        public TimedInvalidate(final int x,
-                               final int y,
-                               final int z,
-                               final double timeLeft)
+        TimedInvalidate()
+        {
+        }
+
+        public static TimedInvalidate allocate(final int x,
+                                               final int y,
+                                               final int z,
+                                               final double timeLeft)
+        {
+            return allocator.allocate().init(x, y, z, timeLeft);
+        }
+
+        private TimedInvalidate init(final int x,
+                                     final int y,
+                                     final int z,
+                                     final double timeLeft)
         {
             this.x = x;
             this.y = y;
             this.z = z;
             this.timeLeft = timeLeft;
+            return this;
         }
 
         public boolean isReady()
@@ -617,9 +783,25 @@ public class World
             if(this.timeLeft < 0.0)
                 this.timeLeft = 0.0;
         }
+
+        public void free()
+        {
+            this.next = null;
+            allocator.free(this);
+        }
     }
 
     private TimedInvalidate timedInvalidateHead = null;
+
+    private void clearTimedInvalidates()
+    {
+        while(this.timedInvalidateHead != null)
+        {
+            TimedInvalidate freeMe = this.timedInvalidateHead;
+            this.timedInvalidateHead = this.timedInvalidateHead.next;
+            freeMe.free();
+        }
+    }
 
     /** add a block invalidate in the future
      * 
@@ -636,7 +818,7 @@ public class World
                                    final int z,
                                    final double seconds)
     {
-        TimedInvalidate i = new TimedInvalidate(x, y, z, seconds);
+        TimedInvalidate i = TimedInvalidate.allocate(x, y, z, seconds);
         i.next = this.timedInvalidateHead;
         this.timedInvalidateHead = i;
     }
@@ -652,6 +834,7 @@ public class World
                 if(i.isReady())
                 {
                     invalidate(i.x, i.y, i.z);
+                    i.free();
                 }
                 else
                 {
@@ -721,7 +904,7 @@ public class World
             lastNode = node;
             node = node.next;
         }
-        node = new Chunk(cx, cy, cz);
+        node = Chunk.allocate(cx, cy, cz);
         node.next = this.hashTable[hash];
         this.hashTable[hash] = node;
         node.listnext = this.chunksHead;
@@ -773,7 +956,10 @@ public class World
         Chunk c = find(cx, cy, cz);
         if(c == null)
             return null;
-        return c.getBlock(x - cx, y - cy, z - cz);
+        Block b = c.getBlock(x - cx, y - cy, z - cz);
+        if(b != null)
+            b.checkForBeingAllocated();
+        return b;
     }
 
     private void internalSetBlock(final int x,
@@ -781,11 +967,16 @@ public class World
                                   final int z,
                                   final Block b)
     {
+        b.checkForBeingAllocated();
         int cx = getChunkX(x);
         int cy = getChunkY(y);
         int cz = getChunkZ(z);
         Chunk c = findOrInsert(cx, cy, cz);
+        Block oldb = c.getBlock(x - cx, y - cy, z - cz);
+        if(oldb != null)
+            oldb.isInWorld = false;
         c.setBlock(x - cx, y - cy, z - cz, b);
+        b.isInWorld = true;
     }
 
     private void resetLightingArrays(final int x, final int y, final int z)
@@ -811,15 +1002,16 @@ public class World
     @SuppressWarnings("unused")
     private void addGeneratedChunk(final GeneratedChunk c)
     {
-        assert c.size == Chunk.generatedChunkSize * generatedChunkScale;
-        assert c.cx % c.size == 0;
-        assert c.cy % c.size == 0;
-        assert c.cz % c.size == 0;
-        for(int cx = c.cx; cx < c.cx + c.size; cx += Chunk.generatedChunkSize)
+        if(c == null)
+            return;
+        assert c.cx % GeneratedChunk.size == 0;
+        assert c.cy % GeneratedChunk.size == 0;
+        assert c.cz % GeneratedChunk.size == 0;
+        for(int cx = c.cx; cx < c.cx + GeneratedChunk.size; cx += Chunk.generatedChunkSize)
         {
-            for(int cy = c.cy; cy < c.cy + c.size; cy += Chunk.generatedChunkSize)
+            for(int cy = c.cy; cy < c.cy + GeneratedChunk.size; cy += Chunk.generatedChunkSize)
             {
-                for(int cz = c.cz; cz < c.cz + c.size; cz += Chunk.generatedChunkSize)
+                for(int cz = c.cz; cz < c.cz + GeneratedChunk.size; cz += Chunk.generatedChunkSize)
                 {
                     for(int x = cx; x < cx + Chunk.generatedChunkSize; x++)
                     {
@@ -827,14 +1019,17 @@ public class World
                         {
                             for(int z = cz; z < cz + Chunk.generatedChunkSize; z++)
                             {
+                                Block temp = getBlock(x, y, z);
                                 // TODO finish
                                 if(true)
-                                    setBlock(x, y, z, c.getBlock(x, y, z));
+                                    setBlock(x, y, z, c.getBlock(x, y, z).dup());
                                 else
                                     internalSetBlock(x,
                                                      y,
                                                      z,
-                                                     c.getBlock(x, y, z));
+                                                     c.getBlock(x, y, z).dup());
+                                if(temp != null)
+                                    temp.free();
                             }
                         }
                     }
@@ -842,6 +1037,7 @@ public class World
                 }
             }
         }
+        c.free();
     }
 
     /** sets the block at (<code>x</code>, <code>y</code>, <code>z</code>)
@@ -862,7 +1058,7 @@ public class World
     {
         if(y < -Depth || y >= Height)
             return;
-        Block b = new Block(block);
+        Block b = block;
         Block oldb = getBlock(x, y, z);
         if(oldb != null)
             b.copyLighting(oldb);
@@ -967,6 +1163,7 @@ public class World
 
     private void updateLight()
     {
+        int count = 100;
         for(EvalNode node = removeAllEvalNodes(EvalType.Lighting); node != null; node = removeAllEvalNodes(EvalType.Lighting))
         {
             while(node != null)
@@ -977,7 +1174,9 @@ public class World
                     b = null;
                 if(b == null)
                 {
+                    EvalNode freeMe = node;
                     node = node.listnext;
+                    freeMe.free();
                     continue;
                 }
                 int newlight = b.getEmitLight();
@@ -1026,10 +1225,12 @@ public class World
                 newscatteredsunlight--;
                 if(newscatteredsunlight < 0)
                     newscatteredsunlight = 0;
-                b = new Block(b);
+                Block freeMe2 = b;
+                b = b.dup();
                 if(b.setLighting(newsunlight, newscatteredsunlight, newlight))
                 {
                     internalSetBlock(x, y, z, b);
+                    freeMe2.free();
                     resetLightingArrays(x, y, z);
                     invalidate(x - 1, y, z);
                     invalidate(x + 1, y, z);
@@ -1039,16 +1240,29 @@ public class World
                     invalidate(x, y, z + 1);
                     invalidate(x, y, z);
                 }
+                else
+                    b.free();
                 EvalNode freeMe = node;
                 node = node.listnext;
                 freeMe.free();
             }
+            if(count-- <= 0)
+                return;
         }
+    }
+
+    private void clearTimeOfDay()
+    {
+        this.sunlightFactor = 15;
+        this.timeOfDay = 0.3f;
     }
 
     private int sunlightFactor = 15; // integer between 0 and 15
     private float timeOfDay = 0.3f;
 
+    /** @param timeOfDay
+     *            the time of day
+     * @return the new Color */
     private static Color getBackgroundColor(final float timeOfDay)
     {
         float seconds = 20.0f * 60.0f * timeOfDay;
@@ -1092,6 +1306,12 @@ public class World
         return RGB(0.0f, 0.0f, intensity);
     }
 
+    private void clearBackgroundColor()
+    {
+        this.backgroundColor.free();
+        this.backgroundColor = getBackgroundColor(0.3f);
+    }
+
     private Color backgroundColor = getBackgroundColor(0.3f);
 
     private void setSunlightFactor()
@@ -1130,6 +1350,7 @@ public class World
 
     private void setBackgroundColor()
     {
+        this.backgroundColor.free();
         this.backgroundColor = getBackgroundColor(this.timeOfDay);
     }
 
@@ -1183,6 +1404,14 @@ public class World
         nsunvec.free();
     }
 
+    private void clearGenChunk()
+    {
+        this.genChunkX = 0;
+        this.genChunkY = 0;
+        this.genChunkZ = 0;
+        this.genChunkDistance = -1f;
+    }
+
     private int genChunkX = 0, genChunkY = 0, genChunkZ = 0;
     private float genChunkDistance = -1.0f;
 
@@ -1191,6 +1420,17 @@ public class World
                              final int cz,
                              final float distance)
     {
+        for(int i = 0; i < chunkGeneratorCount; i++)
+        {
+            if(this.chunkGenerator[i].busy.get()
+                    || this.chunkGenerator[i].generated)
+            {
+                if(cx == this.chunkGenerator[i].cx
+                        && cy == this.chunkGenerator[i].cy
+                        && cz == this.chunkGenerator[i].cz)
+                    return;
+            }
+        }
         if(this.genChunkDistance < 0.0f || distance < this.genChunkDistance)
         {
             this.genChunkX = cx;
@@ -1208,12 +1448,9 @@ public class World
      *            the z coordinate */
     public void flagGenerate(final int x, final int y, final int z)
     {
-        int cx = x - (x % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
-                % Chunk.generatedChunkSize;
-        int cy = y - (y % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
-                % Chunk.generatedChunkSize;
-        int cz = z - (z % Chunk.generatedChunkSize + Chunk.generatedChunkSize)
-                % Chunk.generatedChunkSize;
+        int cx = x - (x & (Chunk.generatedChunkSize - 1));
+        int cy = y - (y & (Chunk.generatedChunkSize - 1));
+        int cz = z - (z & (Chunk.generatedChunkSize - 1));
         if(isGenerated(cx, cy, cz))
             return;
         this.genChunkX = cx;
@@ -1223,7 +1460,7 @@ public class World
     }
 
     private static final float chunkGenScale = 1.5f;
-    private Vector chunkPassClipPlane_t1 = Vector.allocate();
+    private static Vector chunkPassClipPlane_t1 = Vector.allocate();
 
     /** @param p
      * @param a
@@ -1240,7 +1477,7 @@ public class World
     {
         for(int i = 0; i < p.length; i++)
         {
-            if(p[i].dot(Vector.set(this.chunkPassClipPlane_t1, a, b, c)) + d <= 0)
+            if(p[i].dot(Vector.set(World.chunkPassClipPlane_t1, a, b, c)) + d <= 0)
                 return true;
         }
         if(p.length <= 0)
@@ -1285,7 +1522,7 @@ public class World
         return true;
     }
 
-    private Matrix drawChunk_t1 = new Matrix();
+    private static Matrix drawChunk_t1 = Matrix.allocate();
 
     private void drawChunk(final RenderingStream rs,
                            final int cx,
@@ -1345,7 +1582,7 @@ public class World
                             continue;
                         getLightingArray(x + cx, y + cy, z + cz);
                         b = pnode.getBlock(x, y, z);
-                        b.draw(rs, Matrix.setToTranslate(this.drawChunk_t1, x
+                        b.draw(rs, Matrix.setToTranslate(World.drawChunk_t1, x
                                 + cx, y + cy, z + cz));
                     }
                 }
@@ -1376,14 +1613,15 @@ public class World
     }
 
     private static final List<Vector> stars = makeStars();
-    private Vector draw_t1 = Vector.allocate();
-    private Vector draw_t2 = Vector.allocate();
-    private Vector draw_cameraPos = Vector.allocate();
-    private Matrix draw_t3 = new Matrix();
-    private Matrix draw_t4 = new Matrix();
-    private Vector draw_chunkCenter = Vector.allocate();
+    private static Vector draw_t1 = Vector.allocate();
+    private static Vector draw_t2 = Vector.allocate();
+    private static Vector draw_cameraPos = Vector.allocate();
+    private static Matrix draw_t3 = Matrix.allocate();
+    private static Matrix draw_t4 = Matrix.allocate();
+    private static Vector draw_chunkCenter = Vector.allocate();
     private static TextureAtlas.TextureHandle starImg = TextureAtlas.addImage(new Image("star.png"));
     private static TextureAtlas.TextureHandle sunsetGlow = TextureAtlas.addImage(new Image("sunsetglow.png"));
+    private static final RenderingStream[] draw_rs = new RenderingStream[Chunk.drawPhaseCount];
 
     /** draw the world
      * 
@@ -1398,13 +1636,13 @@ public class World
                      final RenderingStream transparentRenderingStream,
                      final Matrix worldToCamera)
     {
-        RenderingStream rs[] = new RenderingStream[Chunk.drawPhaseCount];
+        RenderingStream rs[] = draw_rs;
         rs[0] = renderingStream;
         rs[1] = transparentRenderingStream;
         for(int i = 2; i < Chunk.drawPhaseCount; i++)
             rs[i] = RenderingStream.allocate();
-        Vector cameraPos = Matrix.setToInverse(this.draw_t3, worldToCamera)
-                                 .apply(this.draw_cameraPos, Vector.ZERO);
+        Vector cameraPos = Matrix.setToInverse(World.draw_t3, worldToCamera)
+                                 .apply(World.draw_cameraPos, Vector.ZERO);
         int cameraX = (int)Math.floor(cameraPos.getX());
         int cameraY = (int)Math.floor(cameraPos.getY());
         int cameraZ = (int)Math.floor(cameraPos.getZ());
@@ -1418,21 +1656,21 @@ public class World
         Block moonb = Block.NewMoon();
         if(!this.sunPosition.equals(Vector.ZERO))
         {
-            Vector p = Vector.add(this.draw_t1, cameraPos, -0.5f, -0.5f, -0.5f);
-            p.addAndSet(Vector.normalize(this.draw_t2, this.sunPosition)
+            Vector p = Vector.add(World.draw_t1, cameraPos, -0.5f, -0.5f, -0.5f);
+            p.addAndSet(Vector.normalize(World.draw_t2, this.sunPosition)
                               .mulAndSet(10.0f));
             RenderingStream.free(sunb.drawAsEntity(RenderingStream.allocate(),
-                                                   Matrix.setToTranslate(this.draw_t3,
+                                                   Matrix.setToTranslate(World.draw_t3,
                                                                          p))
                                      .render());
         }
         if(!this.moonPosition.equals(Vector.ZERO))
         {
-            Vector p = Vector.add(this.draw_t1, cameraPos, -0.5f, -0.5f, -0.5f);
-            p.addAndSet(Vector.normalize(this.draw_t2, this.moonPosition)
+            Vector p = Vector.add(World.draw_t1, cameraPos, -0.5f, -0.5f, -0.5f);
+            p.addAndSet(Vector.normalize(World.draw_t2, this.moonPosition)
                               .mulAndSet(10.0f));
             RenderingStream.free(moonb.drawAsEntity(RenderingStream.allocate(),
-                                                    Matrix.setToTranslate(this.draw_t3,
+                                                    Matrix.setToTranslate(World.draw_t3,
                                                                           p))
                                       .render());
         }
@@ -1445,14 +1683,14 @@ public class World
                     * t;
             float glowG = GetGValueF(this.backgroundColor) * nt + 98 / 255f * t;
             float glowB = GetBValueF(this.backgroundColor) * nt + 62 / 255f * t;
-            Matrix tform = Matrix.setToRotateZ(this.draw_t3, Math.PI
+            Matrix tform = Matrix.setToRotateZ(World.draw_t3, Math.PI
                     * (0.5 + Math.floor(2 * this.timeOfDay)));
             RenderingStream.free(Block.drawImgAsBlock(RenderingStream.allocate()
-                                                                     .concatMatrix(Matrix.setToScale(this.draw_t4,
+                                                                     .concatMatrix(Matrix.setToScale(World.draw_t4,
                                                                                                      60))
-                                                                     .concatMatrix(Matrix.removeTranslate(this.draw_t4,
+                                                                     .concatMatrix(Matrix.removeTranslate(World.draw_t4,
                                                                                                           worldToCamera)),
-                                                      Matrix.setToTranslate(this.draw_t4,
+                                                      Matrix.setToTranslate(World.draw_t4,
                                                                             -0.5f,
                                                                             -0.5f,
                                                                             -0.5f)
@@ -1480,13 +1718,14 @@ public class World
             for(Vector v : stars)
             {
                 Vector starPos = Vector.allocate(v);
-                Matrix.setToRotateZ(this.draw_t3, -Math.PI * 2 * this.timeOfDay)
+                Matrix.setToRotateZ(World.draw_t3,
+                                    -Math.PI * 2 * this.timeOfDay)
                       .apply(starPos, starPos);
-                Vector p = worldToCamera.applyToNormal(this.draw_t1, starPos)
+                Vector p = worldToCamera.applyToNormal(World.draw_t1, starPos)
                                         .mulAndSet(50f);
                 Block.drawImgAsEntity(starRenderingStream,
-                                      Matrix.setToTranslate(this.draw_t4, p)
-                                            .concatAndSet(Matrix.setToScale(this.draw_t3,
+                                      Matrix.setToTranslate(World.draw_t4, p)
+                                            .concatAndSet(Matrix.setToScale(World.draw_t3,
                                                                             20f / 50f)),
                                       starImg,
                                       true,
@@ -1541,15 +1780,15 @@ public class World
                             {
                                 for(int gcz = cz; gcz < cz + Chunk.size; gcz += Chunk.generatedChunkSize)
                                 {
-                                    Vector chunkCenter = this.draw_chunkCenter.set(gcx
-                                                                                           + Chunk.generatedChunkSize
-                                                                                           / 2.0f,
-                                                                                   gcy
-                                                                                           + Chunk.generatedChunkSize
-                                                                                           / 2.0f,
-                                                                                   gcz
-                                                                                           + Chunk.generatedChunkSize
-                                                                                           / 2.0f);
+                                    Vector chunkCenter = World.draw_chunkCenter.set(gcx
+                                                                                            + Chunk.generatedChunkSize
+                                                                                            / 2.0f,
+                                                                                    gcy
+                                                                                            + Chunk.generatedChunkSize
+                                                                                            / 2.0f,
+                                                                                    gcz
+                                                                                            + Chunk.generatedChunkSize
+                                                                                            / 2.0f);
                                     float distance = chunkCenter.subAndSet(cameraPos)
                                                                 .abs();
                                     if(isVisible)
@@ -1561,6 +1800,11 @@ public class World
                     }
                     else
                     {
+                        if(Math.abs(cameraX - cx) < 20
+                                && Math.abs(cameraY - cy) < 20
+                                && Math.abs(cameraZ - cz) < 20
+                                && c.fireCount > 0)
+                            Main.needFireBurnAudio = true;
                         for(int gcx = cx; gcx < cx + Chunk.size; gcx += Chunk.generatedChunkSize)
                         {
                             for(int gcy = cy; gcy < cy + Chunk.size; gcy += Chunk.generatedChunkSize)
@@ -1569,15 +1813,15 @@ public class World
                                 {
                                     if(!isGenerated(gcx, gcy, gcz))
                                     {
-                                        Vector chunkCenter = this.draw_chunkCenter.set(gcx
-                                                                                               + Chunk.generatedChunkSize
-                                                                                               / 2.0f,
-                                                                                       gcy
-                                                                                               + Chunk.generatedChunkSize
-                                                                                               / 2.0f,
-                                                                                       gcz
-                                                                                               + Chunk.generatedChunkSize
-                                                                                               / 2.0f);
+                                        Vector chunkCenter = World.draw_chunkCenter.set(gcx
+                                                                                                + Chunk.generatedChunkSize
+                                                                                                / 2.0f,
+                                                                                        gcy
+                                                                                                + Chunk.generatedChunkSize
+                                                                                                / 2.0f,
+                                                                                        gcz
+                                                                                                + Chunk.generatedChunkSize
+                                                                                                / 2.0f);
                                         float distance = chunkCenter.subAndSet(cameraPos)
                                                                     .abs();
                                         if(isVisible)
@@ -1612,6 +1856,8 @@ public class World
         }
         for(int drawPhase = 0; drawPhase < Chunk.drawPhaseCount; drawPhase++)
         {
+            // TODO finish
+            // rs[drawPhase].sortByTexture();
             switch(drawPhase)
             {
             case 0:
@@ -1626,20 +1872,24 @@ public class World
                 break;
             }
             RenderingStream.free(rs[drawPhase]);
+            rs[drawPhase] = null;
         }
     }
 
-    private int[] getLightingArray_l = new int[3 * 3 * 3];
-    private boolean[] getLightingArray_o = new boolean[3 * 3 * 3];
+    private final int[] getLightingArray_l = new int[3 * 3 * 3];
+    private final boolean[] getLightingArray_o = new boolean[3 * 3 * 3];
+    private static final int[] getLightingArray_empty = new int[]
+    {
+        0, 0, 0, 0, 0, 0, 0, 0
+    };
 
     int[] getLightingArray(final int bx, final int by, final int bz)
     {
         Block b = getBlock(bx, by, bz);
         if(b == null)
-            return new int[]
-            {
-                0, 0, 0, 0, 0, 0, 0, 0
-            };
+        {
+            return getLightingArray_empty;
+        }
         if(b.getLightingArray(this.sunlightFactor, this.displayListValidTag) != null)
             return b.getLightingArray(this.sunlightFactor,
                                       this.displayListValidTag);
@@ -1710,7 +1960,8 @@ public class World
             if(o[i])
                 l[i] = 0;
         }
-        int fl[] = new int[2 * 2 * 2];
+        int fl[] = Block.allocateLightingArray();
+        assert fl.length == 2 * 2 * 2;
         for(int x = 0; x < 2; x++)
         {
             for(int y = 0; y < 2; y++)
@@ -1787,6 +2038,7 @@ public class World
      *            the new seed */
     public void setSeed(final int newSeed)
     {
+        this.landGenerator.free();
         this.landGenerator = Rand.create(newSeed, this.landGeneratorSettings);
     }
 
@@ -1800,10 +2052,13 @@ public class World
         public Rand.Settings landGeneratorSettings = null;
         private final Thread curThread = new Thread(this, "Chunk Generator");
         public AtomicBoolean needStart = new AtomicBoolean(false);
+        public final AtomicInteger busyCount;
 
-        public ChunkGenerator()
+        public ChunkGenerator(final AtomicInteger busyCount)
         {
+            this.busyCount = busyCount;
             this.curThread.setDaemon(true);
+            this.curThread.setPriority(Thread.MIN_PRIORITY);
             this.curThread.start();
         }
 
@@ -1826,60 +2081,111 @@ public class World
                     }
                     this.needStart.set(false);
                 }
+                this.busyCount.incrementAndGet();
                 this.newChunk = this.landGenerator.genChunk(this.cx,
                                                             this.cy,
                                                             this.cz,
                                                             Chunk.generatedChunkSize
                                                                     * generatedChunkScale);
                 this.generated = true;
-                this.busy.set(false);
+                synchronized(this.busyCount)
+                {
+                    this.busy.set(false);
+                    this.busyCount.decrementAndGet();
+                    this.busyCount.notifyAll();
+                }
             }
         }
     }
 
-    private ChunkGenerator chunkGenerator = new ChunkGenerator();
+    public static final int generatedChunkSize = Chunk.generatedChunkSize
+            * generatedChunkScale;
+    private static final int chunkGeneratorCount = 5;
+    private final AtomicInteger chunkGeneratorBusyCount = new AtomicInteger(0);
+    private final ChunkGenerator[] chunkGenerator = new ChunkGenerator[chunkGeneratorCount];
+    {
+        for(int i = 0; i < chunkGeneratorCount; i++)
+            this.chunkGenerator[i] = new ChunkGenerator(this.chunkGeneratorBusyCount);
+    }
+
+    private void clearChunkGenerator()
+    {
+        for(int i = 0; i < chunkGeneratorCount; i++)
+        {
+            synchronized(this.chunkGeneratorBusyCount)
+            {
+                while(this.chunkGenerator[i].busy.get())
+                {
+                    try
+                    {
+                        this.chunkGeneratorBusyCount.wait();
+                    }
+                    catch(InterruptedException e)
+                    {
+                    }
+                }
+            }
+            if(this.chunkGenerator[i].landGenerator != null)
+                this.chunkGenerator[i].landGenerator.free();
+            this.chunkGenerator[i].landGenerator = null;
+            if(this.chunkGenerator[i].landGeneratorSettings != null)
+                this.chunkGenerator[i].landGeneratorSettings.free();
+            this.chunkGenerator[i].landGeneratorSettings = null;
+            if(this.chunkGenerator[i].newChunk != null)
+                this.chunkGenerator[i].newChunk.free();
+            this.chunkGenerator[i].newChunk = null;
+        }
+    }
 
     /** generate chunks */
     public void generateChunks()
     {
-        if(this.chunkGenerator.busy.get())
-            return;
-        if(this.chunkGenerator.generated)
+        for(int i = 0; i < chunkGeneratorCount; i++)
         {
-            addGeneratedChunk(this.chunkGenerator.newChunk);
-            this.chunkGenerator.generated = false;
-            this.chunkGenerator.newChunk = null;
-        }
-        if(this.genChunkDistance < 0)
-            return;
-        if(isGenerated(this.genChunkX, this.genChunkY, this.genChunkZ))
-        {
+            if(this.chunkGenerator[i].busy.get())
+                return;
+            if(this.chunkGenerator[i].generated)
+            {
+                addGeneratedChunk(this.chunkGenerator[i].newChunk);
+                this.chunkGenerator[i].generated = false;
+                this.chunkGenerator[i].newChunk = null;
+            }
+            if(this.genChunkDistance < 0)
+                return;
+            if(isGenerated(this.genChunkX, this.genChunkY, this.genChunkZ))
+            {
+                this.genChunkDistance = -1;
+                return;
+            }
+            final int generateSize = Chunk.generatedChunkSize
+                    * generatedChunkScale;
+            this.chunkGenerator[i].cx = this.genChunkX
+                    - (this.genChunkX & (generateSize - 1));
+            this.chunkGenerator[i].cy = this.genChunkY
+                    - (this.genChunkY & (generateSize - 1));
+            this.chunkGenerator[i].cz = this.genChunkZ
+                    - (this.genChunkZ & (generateSize - 1));
+            if(this.chunkGenerator[i].landGenerator == null
+                    || this.chunkGenerator[i].landGenerator.getSeed() != this.landGenerator.getSeed()
+                    || this.chunkGenerator[i].landGeneratorSettings == null
+                    || !this.chunkGenerator[i].landGeneratorSettings.equals(this.landGeneratorSettings))
+            {
+                if(this.chunkGenerator[i].landGeneratorSettings != null)
+                    this.chunkGenerator[i].landGeneratorSettings.free();
+                this.chunkGenerator[i].landGeneratorSettings = Rand.Settings.allocate(this.landGeneratorSettings);
+                if(this.chunkGenerator[i].landGenerator != null)
+                    this.chunkGenerator[i].landGenerator.free();
+                this.chunkGenerator[i].landGenerator = Rand.create(this.landGenerator.getSeed(),
+                                                                   this.chunkGenerator[i].landGeneratorSettings);
+            }
+            synchronized(this.chunkGenerator[i].needStart)
+            {
+                this.chunkGenerator[i].busy.set(true);
+                this.chunkGenerator[i].needStart.set(true);
+                this.chunkGenerator[i].needStart.notifyAll();
+            }
             this.genChunkDistance = -1;
-            return;
         }
-        final int generateSize = Chunk.generatedChunkSize * generatedChunkScale;
-        this.chunkGenerator.cx = this.genChunkX
-                - (this.genChunkX % generateSize + generateSize) % generateSize;
-        this.chunkGenerator.cy = this.genChunkY
-                - (this.genChunkY % generateSize + generateSize) % generateSize;
-        this.chunkGenerator.cz = this.genChunkZ
-                - (this.genChunkZ % generateSize + generateSize) % generateSize;
-        if(this.chunkGenerator.landGenerator == null
-                || this.chunkGenerator.landGenerator.getSeed() != this.landGenerator.getSeed()
-                || this.chunkGenerator.landGeneratorSettings == null
-                || !this.chunkGenerator.landGeneratorSettings.equals(this.landGeneratorSettings))
-        {
-            this.chunkGenerator.landGeneratorSettings = new Rand.Settings(this.landGeneratorSettings);
-            this.chunkGenerator.landGenerator = Rand.create(this.landGenerator.getSeed(),
-                                                            this.chunkGenerator.landGeneratorSettings);
-        }
-        synchronized(this.chunkGenerator.needStart)
-        {
-            this.chunkGenerator.busy.set(true);
-            this.chunkGenerator.needStart.set(true);
-            this.chunkGenerator.needStart.notifyAll();
-        }
-        this.genChunkDistance = -1;
     }
 
     /** insert a new entity into this world
@@ -2006,17 +2312,23 @@ public class World
         {
             Block b = getBlockEval(node.x, node.y, node.z);
             if(b != null)
-                insertEvalNode(EvalType.RedstoneFirst,
-                               node.x,
-                               node.y,
-                               node.z,
-                               b.redstoneMove(node.x, node.y, node.z));
+            {
+                b = b.redstoneMove(node.x, node.y, node.z);
+                if(b != null)
+                    insertEvalNode(EvalType.RedstoneFirst,
+                                   node.x,
+                                   node.y,
+                                   node.z,
+                                   b);
+            }
         }
         for(EvalNode node = removeAllEvalNodes(EvalType.RedstoneFirst); node != null; freeMe = node, node = node.listnext, freeMe.free())
         {
             if(node.b == null)
                 continue;
-            setBlock(node.x, node.y, node.z, node.b);
+            Block temp = getBlock(node.x, node.y, node.z);
+            setBlock(node.x, node.y, node.z, node.b.dup());
+            temp.free();
         }
         for(int i = 0; i < 16; i++)
         {
@@ -2034,7 +2346,9 @@ public class World
             {
                 if(node.b == null)
                     continue;
-                setBlock(node.x, node.y, node.z, node.b);
+                Block temp = getBlock(node.x, node.y, node.z);
+                setBlock(node.x, node.y, node.z, node.b.dup());
+                temp.free();
             }
         }
     }
@@ -2054,7 +2368,7 @@ public class World
                                    node.x,
                                    node.y,
                                    node.z,
-                                   new Block());
+                                   Block.NewEmpty());
                     insertEntity(e);
                 }
                 else
@@ -2071,7 +2385,9 @@ public class World
         {
             if(node.b == null)
                 continue;
-            setBlock(node.x, node.y, node.z, node.b);
+            Block temp = getBlock(node.x, node.y, node.z);
+            setBlock(node.x, node.y, node.z, node.b.dup());
+            temp.free();
         }
     }
 
@@ -2105,6 +2421,13 @@ public class World
 
     private static final float redstoneMovePeriod = 0.1f;
     private static final float generalMovePeriod = 0.25f;
+
+    private void clearMoveAllBlocks()
+    {
+        this.redstoneMoveTimeLeft = redstoneMovePeriod;
+        this.generalMoveTimeLeft = generalMovePeriod;
+    }
+
     private float redstoneMoveTimeLeft = redstoneMovePeriod;
     private float generalMoveTimeLeft = generalMovePeriod;
 
@@ -2124,6 +2447,11 @@ public class World
             moveRedstone();
             movePistons();
         }
+    }
+
+    private void clearParticleGenTime()
+    {
+        this.particleGenTime = 0;
     }
 
     private double particleGenTime = 0;
@@ -2159,12 +2487,20 @@ public class World
                 Block b = getBlockEval(x, y, z);
                 if(b != null)
                 {
-                    b = b.moveRandom(x, y, z);
-                    if(b != null)
-                        setBlock(x, y, z, b);
+                    Block destB = b.moveRandom(x, y, z);
+                    if(destB != null)
+                    {
+                        setBlock(x, y, z, destB);
+                        b.free();
+                    }
                 }
             }
         }
+    }
+
+    private void clearCurTime()
+    {
+        this.curTime = 0;
     }
 
     private double curTime = 0.0;
@@ -2193,9 +2529,10 @@ public class World
         return this.curTime;
     }
 
-    static final class BlockHitDescriptor
+    public static final class BlockHitDescriptor
     {
         public Block b;
+        public Entity e;
         public int x, y, z, orientation;
         public float distance;
         public boolean hitUnloadedChunk;
@@ -2208,6 +2545,7 @@ public class World
                                   final Block b)
         {
             this.b = b;
+            this.e = null;
             this.x = x;
             this.y = y;
             this.z = z;
@@ -2222,6 +2560,18 @@ public class World
             this.hitUnloadedChunk = false;
         }
 
+        public BlockHitDescriptor(final Entity e, final float distance)
+        {
+            this.b = null;
+            this.e = e;
+            this.x = 0;
+            this.y = 0;
+            this.z = 0;
+            this.orientation = -1;
+            this.hitUnloadedChunk = false;
+            this.distance = distance;
+        }
+
         public BlockHitDescriptor init(final int x,
                                        final int y,
                                        final int z,
@@ -2230,6 +2580,7 @@ public class World
                                        final Block b)
         {
             this.b = b;
+            this.e = null;
             this.x = x;
             this.y = y;
             this.z = z;
@@ -2245,22 +2596,35 @@ public class World
             this.hitUnloadedChunk = false;
             return this;
         }
+
+        public BlockHitDescriptor init(final Entity e, final float distance)
+        {
+            this.b = null;
+            this.e = e;
+            this.x = 0;
+            this.y = 0;
+            this.z = 0;
+            this.orientation = -1;
+            this.hitUnloadedChunk = false;
+            this.distance = distance;
+            return this;
+        }
     }
 
-    private Vector internalGetPointedAtBlock_pos = Vector.allocate();
-    private Vector internalGetPointedAtBlock_dir = Vector.allocate();
-    private Vector internalGetPointedAtBlock_invdir = Vector.allocate();
-    private Vector internalGetPointedAtBlock_nextxinc = Vector.allocate();
-    private Vector internalGetPointedAtBlock_nextyinc = Vector.allocate();
-    private Vector internalGetPointedAtBlock_nextzinc = Vector.allocate();
-    private Vector internalGetPointedAtBlock_vt = Vector.allocate();
-    private Vector internalGetPointedAtBlock_nextx = Vector.allocate();
-    private Vector internalGetPointedAtBlock_nexty = Vector.allocate();
-    private Vector internalGetPointedAtBlock_nextz = Vector.allocate();
-    private Vector internalGetPointedAtBlock_vtinc = Vector.allocate();
-    private Vector internalGetPointedAtBlock_t1 = Vector.allocate();
-    private Vector internalGetPointedAtBlock_t2 = Vector.allocate();
-    private Vector internalGetPointedAtBlock_newpos = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_pos = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_dir = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_invdir = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_nextxinc = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_nextyinc = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_nextzinc = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_vt = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_nextx = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_nexty = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_nextz = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_vtinc = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_t1 = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_t2 = Vector.allocate();
+    private static Vector internalGetPointedAtBlock_newpos = Vector.allocate();
 
     private BlockHitDescriptor
         internalGetPointedAtBlock(final BlockHitDescriptor retval,
@@ -2271,11 +2635,11 @@ public class World
                                   final boolean calcPassThruWater,
                                   final boolean passThruWater_in)
     {
-        final float maxDist = Float.isNaN(maxDist_in) ? 128
+        float maxDist = Float.isNaN(maxDist_in) ? 128
                 : Math.max(0, Math.min(128, maxDist_in));
         int finishx = 0, finishy = 0, finishz = 0, orientation = -1;
-        Vector pos = Vector.set(this.internalGetPointedAtBlock_pos, pos_in);
-        Vector dir = Vector.set(this.internalGetPointedAtBlock_dir, dir_in);
+        Vector pos = Vector.set(World.internalGetPointedAtBlock_pos, pos_in);
+        Vector dir = Vector.set(World.internalGetPointedAtBlock_dir, dir_in);
         final float eps = 1e-4f;
         if(Math.abs(dir.getX()) < eps)
             dir.setX(eps);
@@ -2283,7 +2647,7 @@ public class World
             dir.setY(eps);
         if(Math.abs(dir.getZ()) < eps)
             dir.setZ(eps);
-        Vector invdir = Vector.set(this.internalGetPointedAtBlock_invdir,
+        Vector invdir = Vector.set(World.internalGetPointedAtBlock_invdir,
                                    1.0f / dir.getX(),
                                    1.0f / dir.getY(),
                                    1.0f / dir.getZ());
@@ -2291,6 +2655,11 @@ public class World
         int iy = (int)Math.floor(pos.getY());
         int iz = (int)Math.floor(pos.getZ());
         int previx = 0, previy = 0, previz = 0;
+        int cx, cy, cz;
+        cx = getChunkX(ix);
+        cy = getChunkY(iy);
+        cz = getChunkZ(iz);
+        int lastcx = 0x80000000, lastcy = 0, lastcz = 0;
         boolean hasprev = false;
         int lasthit = -1;
         Block prevb = null;
@@ -2307,15 +2676,15 @@ public class World
         else
             passthruwater = passThruWater_in;
         float totalt = 0.0f;
-        Vector nextxinc = Vector.set(this.internalGetPointedAtBlock_nextxinc,
+        Vector nextxinc = Vector.set(World.internalGetPointedAtBlock_nextxinc,
                                      (dir.getX() < 0) ? -1 : 1,
                                      0,
                                      0);
-        Vector nextyinc = Vector.set(this.internalGetPointedAtBlock_nextyinc,
+        Vector nextyinc = Vector.set(World.internalGetPointedAtBlock_nextyinc,
                                      0,
                                      (dir.getY() < 0) ? -1 : 1,
                                      0);
-        Vector nextzinc = Vector.set(this.internalGetPointedAtBlock_nextzinc,
+        Vector nextzinc = Vector.set(World.internalGetPointedAtBlock_nextzinc,
                                      0,
                                      0,
                                      (dir.getZ() < 0) ? -1 : 1);
@@ -2326,8 +2695,8 @@ public class World
             fixy = -1;
         if(dir.getZ() < 0)
             fixz = -1;
-        Vector vt = this.internalGetPointedAtBlock_vt;
-        Vector nextx = this.internalGetPointedAtBlock_nextx, nexty = this.internalGetPointedAtBlock_nexty, nextz = this.internalGetPointedAtBlock_nextz;
+        Vector vt = World.internalGetPointedAtBlock_vt;
+        Vector nextx = World.internalGetPointedAtBlock_nextx, nexty = World.internalGetPointedAtBlock_nexty, nextz = World.internalGetPointedAtBlock_nextz;
         nextx.setX((dir.getX() < 0) ? (float)Math.ceil(pos.getX()) - 1
                 : (float)Math.floor(pos.getX()) + 1);
         nexty.setY((dir.getY() < 0) ? (float)Math.ceil(pos.getY()) - 1
@@ -2343,7 +2712,7 @@ public class World
         nexty.setZ(vt.getY() * dir.getZ() + pos.getZ());
         nextz.setX(vt.getZ() * dir.getX() + pos.getX());
         nextz.setY(vt.getZ() * dir.getY() + pos.getY());
-        Vector vtinc = Vector.set(this.internalGetPointedAtBlock_vtinc,
+        Vector vtinc = Vector.set(World.internalGetPointedAtBlock_vtinc,
                                   Math.abs(invdir.getX()),
                                   Math.abs(invdir.getY()),
                                   Math.abs(invdir.getZ()));
@@ -2357,12 +2726,12 @@ public class World
         if(b != null)
             rayIntersectsRetval = b.rayIntersects(dir,
                                                   invdir,
-                                                  Vector.sub(this.internalGetPointedAtBlock_t1,
+                                                  Vector.sub(World.internalGetPointedAtBlock_t1,
                                                              pos,
                                                              ix,
                                                              iy,
                                                              iz),
-                                                  Vector.sub(this.internalGetPointedAtBlock_t2,
+                                                  Vector.sub(World.internalGetPointedAtBlock_t2,
                                                              pos,
                                                              ix,
                                                              iy,
@@ -2370,6 +2739,43 @@ public class World
                                                   ix,
                                                   iy,
                                                   iz);
+        Entity hitEntity = null;
+        cx = getChunkX(ix);
+        cy = getChunkY(iy);
+        cz = getChunkZ(iz);
+        if(cx != lastcx || cy != lastcy || cz != lastcz)
+        {
+            lastcx = cx;
+            lastcy = cy;
+            lastcz = cz;
+            for(int dx = -Chunk.size; dx <= Chunk.size; dx += Chunk.size)
+            {
+                for(int dy = -Chunk.size; dy <= Chunk.size; dy += Chunk.size)
+                {
+                    for(int dz = -Chunk.size; dz <= Chunk.size; dz += Chunk.size)
+                    {
+                        Chunk c = find(cx + dx, cy + dy, cz + dz);
+                        if(c != null)
+                        {
+                            EntityNode node = c.head;
+                            while(node != null)
+                            {
+                                if(node.e != null)
+                                {
+                                    float t = node.e.rayHitEntity(pos_in, dir);
+                                    if(t >= 0 && t <= maxDist)
+                                    {
+                                        hitEntity = node.e;
+                                        maxDist = t;
+                                    }
+                                }
+                                node = node.hashnext;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // int i = 0;
         while(b != null
                 && (b.getType() == BlockType.BTEmpty
@@ -2386,85 +2792,91 @@ public class World
             previy = iy;
             previz = iz;
             prevb = b;
-            float t;
-            Vector newpos;
-            if(vt.getX() < vt.getY())
             {
-                if(vt.getX() < vt.getZ())
+                float t;
+                Vector newpos;
+                if(vt.getX() < vt.getY())
                 {
-                    t = vt.getX();
-                    newpos = Vector.set(this.internalGetPointedAtBlock_newpos,
-                                        nextx);
-                    ix = (int)Math.floor(newpos.getX());
-                    iy = (int)Math.floor(newpos.getY());
-                    iz = (int)Math.floor(newpos.getZ());
-                    ix += fixx;
-                    vt = vt.subAndSet(t, t, t);
-                    nextx = nextx.addAndSet(nextxinc);
-                    vt.setX(vtinc.getX());
-                    lasthit = 0;
+                    if(vt.getX() < vt.getZ())
+                    {
+                        t = vt.getX();
+                        newpos = Vector.set(World.internalGetPointedAtBlock_newpos,
+                                            nextx);
+                        ix = (int)Math.floor(newpos.getX());
+                        iy = (int)Math.floor(newpos.getY());
+                        iz = (int)Math.floor(newpos.getZ());
+                        ix += fixx;
+                        vt = vt.subAndSet(t, t, t);
+                        nextx = nextx.addAndSet(nextxinc);
+                        vt.setX(vtinc.getX());
+                        lasthit = 0;
+                    }
+                    else
+                    {
+                        t = vt.getZ();
+                        newpos = Vector.set(World.internalGetPointedAtBlock_newpos,
+                                            nextz);
+                        ix = (int)Math.floor(newpos.getX());
+                        iy = (int)Math.floor(newpos.getY());
+                        iz = (int)Math.floor(newpos.getZ());
+                        iz += fixz;
+                        vt = vt.subAndSet(t, t, t);
+                        nextz = nextz.addAndSet(nextzinc);
+                        vt.setZ(vtinc.getZ());
+                        lasthit = 1;
+                    }
                 }
                 else
                 {
-                    t = vt.getZ();
-                    newpos = Vector.set(this.internalGetPointedAtBlock_newpos,
-                                        nextz);
-                    ix = (int)Math.floor(newpos.getX());
-                    iy = (int)Math.floor(newpos.getY());
-                    iz = (int)Math.floor(newpos.getZ());
-                    iz += fixz;
-                    vt = vt.subAndSet(t, t, t);
-                    nextz = nextz.addAndSet(nextzinc);
-                    vt.setZ(vtinc.getZ());
-                    lasthit = 1;
+                    if(vt.getY() < vt.getZ())
+                    {
+                        t = vt.getY();
+                        newpos = Vector.set(World.internalGetPointedAtBlock_newpos,
+                                            nexty);
+                        ix = (int)Math.floor(newpos.getX());
+                        iy = (int)Math.floor(newpos.getY());
+                        iz = (int)Math.floor(newpos.getZ());
+                        iy += fixy;
+                        vt = vt.subAndSet(t, t, t);
+                        nexty = nexty.addAndSet(nextyinc);
+                        vt.setY(vtinc.getY());
+                        lasthit = 4;
+                    }
+                    else
+                    {
+                        t = vt.getZ();
+                        newpos = Vector.set(World.internalGetPointedAtBlock_newpos,
+                                            nextz);
+                        ix = (int)Math.floor(newpos.getX());
+                        iy = (int)Math.floor(newpos.getY());
+                        iz = (int)Math.floor(newpos.getZ());
+                        iz += fixz;
+                        vt = vt.subAndSet(t, t, t);
+                        nextz = nextz.addAndSet(nextzinc);
+                        vt.setZ(vtinc.getZ());
+                        lasthit = 1;
+                    }
                 }
+                pos = Vector.set(World.internalGetPointedAtBlock_pos, newpos);
+                totalt += t;
             }
-            else
-            {
-                if(vt.getY() < vt.getZ())
-                {
-                    t = vt.getY();
-                    newpos = Vector.set(this.internalGetPointedAtBlock_newpos,
-                                        nexty);
-                    ix = (int)Math.floor(newpos.getX());
-                    iy = (int)Math.floor(newpos.getY());
-                    iz = (int)Math.floor(newpos.getZ());
-                    iy += fixy;
-                    vt = vt.subAndSet(t, t, t);
-                    nexty = nexty.addAndSet(nextyinc);
-                    vt.setY(vtinc.getY());
-                    lasthit = 4;
-                }
-                else
-                {
-                    t = vt.getZ();
-                    newpos = Vector.set(this.internalGetPointedAtBlock_newpos,
-                                        nextz);
-                    ix = (int)Math.floor(newpos.getX());
-                    iy = (int)Math.floor(newpos.getY());
-                    iz = (int)Math.floor(newpos.getZ());
-                    iz += fixz;
-                    vt = vt.subAndSet(t, t, t);
-                    nextz = nextz.addAndSet(nextzinc);
-                    vt.setZ(vtinc.getZ());
-                    lasthit = 1;
-                }
-            }
-            pos = Vector.set(this.internalGetPointedAtBlock_pos, newpos);
-            totalt += t;
             if(totalt > maxDist)
-                return new BlockHitDescriptor();
+            {
+                if(hitEntity != null)
+                    return retval.init(hitEntity, maxDist);
+                return retval.init();
+            }
             b = getBlock(ix, iy, iz);
             rayIntersectsRetval = -1;
             if(b != null)
                 rayIntersectsRetval = b.rayIntersects(dir,
                                                       invdir,
-                                                      Vector.sub(this.internalGetPointedAtBlock_t1,
+                                                      Vector.sub(World.internalGetPointedAtBlock_t1,
                                                                  pos,
                                                                  ix,
                                                                  iy,
                                                                  iz),
-                                                      Vector.sub(this.internalGetPointedAtBlock_t2,
+                                                      Vector.sub(World.internalGetPointedAtBlock_t2,
                                                                  pos,
                                                                  ix,
                                                                  iy,
@@ -2472,8 +2884,51 @@ public class World
                                                       ix,
                                                       iy,
                                                       iz);
+            cx = getChunkX(ix);
+            cy = getChunkY(iy);
+            cz = getChunkZ(iz);
+            if(cx != lastcx || cy != lastcy || cz != lastcz)
+            {
+                lastcx = cx;
+                lastcy = cy;
+                lastcz = cz;
+                for(int dx = -Chunk.size; dx <= Chunk.size; dx += Chunk.size)
+                {
+                    for(int dy = -Chunk.size; dy <= Chunk.size; dy += Chunk.size)
+                    {
+                        for(int dz = -Chunk.size; dz <= Chunk.size; dz += Chunk.size)
+                        {
+                            Chunk c = find(cx + dx, cy + dy, cz + dz);
+                            if(c != null)
+                            {
+                                EntityNode node = c.head;
+                                while(node != null)
+                                {
+                                    if(node.e != null)
+                                    {
+                                        float t = node.e.rayHitEntity(pos_in,
+                                                                      dir);
+                                        if(t >= 0 && t <= maxDist)
+                                        {
+                                            hitEntity = node.e;
+                                            maxDist = t;
+                                        }
+                                    }
+                                    node = node.hashnext;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         totalt += Math.max(0, rayIntersectsRetval);
+        if(totalt > maxDist)
+        {
+            if(hitEntity != null)
+                return retval.init(hitEntity, maxDist);
+            return retval.init();
+        }
         if(b != null)
         {
             if(getBlockRightBefore)
@@ -2517,12 +2972,13 @@ public class World
         return retval.init(finishx, finishy, finishz, orientation, totalt, b);
     }
 
-    BlockHitDescriptor getPointedAtBlock(final BlockHitDescriptor retval,
-                                         final Vector org,
-                                         final Vector dir,
-                                         final float maxDist,
-                                         final boolean getBlockRightBefore,
-                                         final boolean passThruWater)
+    public BlockHitDescriptor
+        getPointedAtBlock(final BlockHitDescriptor retval,
+                          final Vector org,
+                          final Vector dir,
+                          final float maxDist,
+                          final boolean getBlockRightBefore,
+                          final boolean passThruWater)
     {
         return internalGetPointedAtBlock(retval,
                                          org,
@@ -2533,18 +2989,19 @@ public class World
                                          passThruWater);
     }
 
-    private Matrix getPointedAtBlock_cameraToWorld = new Matrix();
-    private Vector getPointedAtBlock_org = Vector.allocate();
-    private Vector getPointedAtBlock_dir = Vector.allocate();
+    private static Matrix getPointedAtBlock_cameraToWorld = Matrix.allocate();
+    private static Vector getPointedAtBlock_org = Vector.allocate();
+    private static Vector getPointedAtBlock_dir = Vector.allocate();
 
-    BlockHitDescriptor getPointedAtBlock(final BlockHitDescriptor retval,
-                                         final Matrix worldToCamera,
-                                         final float maxDist,
-                                         final boolean getBlockRightBefore)
+    public BlockHitDescriptor
+        getPointedAtBlock(final BlockHitDescriptor retval,
+                          final Matrix worldToCamera,
+                          final float maxDist,
+                          final boolean getBlockRightBefore)
     {
-        Vector org = Vector.set(this.getPointedAtBlock_org, 0, 0, 0);
-        Vector dir = Vector.set(this.getPointedAtBlock_dir, 0, 0, -1);
-        Matrix cameraToWorld = Matrix.setToInverse(this.getPointedAtBlock_cameraToWorld,
+        Vector org = Vector.set(World.getPointedAtBlock_org, 0, 0, 0);
+        Vector dir = Vector.set(World.getPointedAtBlock_dir, 0, 0, -1);
+        Matrix cameraToWorld = Matrix.setToInverse(World.getPointedAtBlock_cameraToWorld,
                                                    worldToCamera);
         org = cameraToWorld.apply(org, org);
         dir = cameraToWorld.apply(dir, dir).subAndSet(org).normalizeAndSet();
@@ -2559,37 +3016,78 @@ public class World
 
     private static final class TreeGenerateLocation
     {
-        public final int x, y, z;
-        public final Block startingSapling;
+        private static final Allocator<TreeGenerateLocation> allocator = new Allocator<TreeGenerateLocation>()
+        {
+            @Override
+            protected TreeGenerateLocation allocateInternal()
+            {
+                return new TreeGenerateLocation();
+            }
+        };
+        public int x, y, z;
+        public Block startingSapling;
         public TreeGenerateLocation next;
 
-        public TreeGenerateLocation(final int x,
-                                    final int y,
-                                    final int z,
-                                    final Block b,
-                                    final TreeGenerateLocation next)
+        TreeGenerateLocation()
+        {
+        }
+
+        public static TreeGenerateLocation
+            allocate(final int x,
+                     final int y,
+                     final int z,
+                     final Block b,
+                     final TreeGenerateLocation next)
+        {
+            return allocator.allocate().init(x, y, z, b, next);
+        }
+
+        private TreeGenerateLocation init(final int x,
+                                          final int y,
+                                          final int z,
+                                          final Block b,
+                                          final TreeGenerateLocation next)
         {
             this.x = x;
             this.y = y;
             this.z = z;
-            this.startingSapling = b;
+            this.startingSapling = b.dup();
             this.next = next;
+            return this;
+        }
+
+        public void free()
+        {
+            this.startingSapling.free();
+            this.next = null;
+            allocator.free(this);
         }
     }
 
     private TreeGenerateLocation treeGenerateListHead = null;
+
+    private void clearTreeGenerateList()
+    {
+        while(this.treeGenerateListHead != null)
+        {
+            TreeGenerateLocation freeMe = this.treeGenerateListHead;
+            this.treeGenerateListHead = this.treeGenerateListHead.next;
+            freeMe.free();
+        }
+    }
 
     private void generateAllTrees()
     {
         while(this.treeGenerateListHead != null)
         {
             TreeGenerateLocation next = this.treeGenerateListHead.next;
-            this.treeGenerateListHead.next = null;
-            Tree.generate(this.treeGenerateListHead.startingSapling,
+            Tree.generate(this.treeGenerateListHead.startingSapling.dup(),
                           this.treeGenerateListHead.x,
                           this.treeGenerateListHead.y,
                           this.treeGenerateListHead.z);
+            TreeGenerateLocation freeMe = this.treeGenerateListHead;
             this.treeGenerateListHead = next;
+            freeMe.free();
         }
     }
 
@@ -2602,17 +3100,17 @@ public class World
      * @param z
      *            new tree's z coordinate
      * @param startingSapling
-     *            the sapling that created this tree */
+     *            the sapling that created this tree (duplicated) */
     public void addNewTree(final int x,
                            final int y,
                            final int z,
                            final Block startingSapling)
     {
-        this.treeGenerateListHead = new TreeGenerateLocation(x,
-                                                             y,
-                                                             z,
-                                                             startingSapling,
-                                                             this.treeGenerateListHead);
+        this.treeGenerateListHead = TreeGenerateLocation.allocate(x,
+                                                                  y,
+                                                                  z,
+                                                                  startingSapling,
+                                                                  this.treeGenerateListHead);
     }
 
     private static final int fileVersion = 2;
@@ -2766,7 +3264,7 @@ public class World
         }
         int seed = i.readInt();
         clear(seed);
-        world.setLandGeneratorSettings(Rand.Settings.read(i));
+        world.setLandGeneratorSettings(Rand.Settings.read(i), true);
         randSeed = i.readLong();
         float timeOfDay = i.readFloat();
         if(Float.isInfinite(timeOfDay) || Float.isNaN(timeOfDay)
@@ -3046,33 +3544,63 @@ public class World
      *            the new seed */
     public static void clear(final int seed)
     {
-        world = new World();
+        world.free();
+        world = allocator.allocate().init();
         world.setSeed(seed);
     }
 
     /** clears <code>world</code> to a new world */
     public static void clear()
     {
-        world = new World();
+        world.free();
+        world = allocator.allocate().init();
     }
 
     private static class ExplosionNode
     {
-        public final int x, y, z;
+        private static final Allocator<ExplosionNode> allocator = new Allocator<World.ExplosionNode>()
+        {
+            @Override
+            protected ExplosionNode allocateInternal()
+            {
+                return new ExplosionNode();
+            }
+        };
+        public int x, y, z;
         public float strength;
         public ExplosionNode next;
 
-        public ExplosionNode(final int x,
-                             final int y,
-                             final int z,
-                             final float strength,
-                             final ExplosionNode next)
+        ExplosionNode()
+        {
+        }
+
+        public static ExplosionNode allocate(final int x,
+                                             final int y,
+                                             final int z,
+                                             final float strength,
+                                             final ExplosionNode next)
+        {
+            return allocator.allocate().init(x, y, z, strength, next);
+        }
+
+        private ExplosionNode init(final int x,
+                                   final int y,
+                                   final int z,
+                                   final float strength,
+                                   final ExplosionNode next)
         {
             this.x = x;
             this.y = y;
             this.z = z;
             this.strength = strength;
             this.next = next;
+            return this;
+        }
+
+        public void free()
+        {
+            this.next = null;
+            allocator.free(this);
         }
     }
 
@@ -3094,11 +3622,26 @@ public class World
                              final int z,
                              final float strength)
     {
-        this.explosionList = new ExplosionNode(x,
-                                               y,
-                                               z,
-                                               strength,
-                                               this.explosionList);
+        this.explosionList = ExplosionNode.allocate(x,
+                                                    y,
+                                                    z,
+                                                    strength,
+                                                    this.explosionList);
+        int particleCount = Math.max(1,
+                                     (int)Math.floor(strength * strength
+                                             * strength / 8));
+        float maxDist = strength / 2;
+        for(int i = 0; i < particleCount; i++)
+        {
+            Vector p = vRand(Vector.allocate(),
+                             (float)Math.pow(fRand(0, maxDist), 2)).addAndSet(x + 0.5f,
+                                                                              y + 0.5f,
+                                                                              z + 0.5f);
+            insertEntity(Entity.NewParticle(p,
+                                            ParticleType.Explosion,
+                                            Vector.ZERO));
+            p.free();
+        }
     }
 
     private float getExplosionStrength(final int x,
@@ -3115,15 +3658,33 @@ public class World
                 * 0.3f);
     }
 
-    private static class BlockLoc
+    private static class BlockLoc implements Allocatable
     {
-        public final int x, y, z;
+        private static final Allocator<BlockLoc> allocator = new Allocator<World.BlockLoc>()
+        {
+            @Override
+            protected BlockLoc allocateInternal()
+            {
+                return new BlockLoc();
+            }
+        };
+        public int x, y, z;
 
-        public BlockLoc(final int x, final int y, final int z)
+        BlockLoc()
+        {
+        }
+
+        private BlockLoc init(final int x, final int y, final int z)
         {
             this.x = x;
             this.y = y;
             this.z = z;
+            return this;
+        }
+
+        public static BlockLoc allocate(final int x, final int y, final int z)
+        {
+            return allocator.allocate().init(x, y, z);
         }
 
         @Override
@@ -3140,14 +3701,27 @@ public class World
         {
             return this.x + 1234787 * this.y + 1263486782 * this.z;
         }
+
+        @Override
+        public void free()
+        {
+            allocator.free(this);
+        }
+
+        @Override
+        public BlockLoc dup()
+        {
+            return allocate(this.x, this.y, this.z);
+        }
     }
 
     private static Vector runExplosionRay_step = Vector.allocate();
 
-    private void runExplosionRay(final Set<BlockLoc> destroyedBlocks,
-                                 final Vector init_pos,
-                                 final Vector dir,
-                                 final float init_strength)
+    private void
+        runExplosionRay(final AllocatorHashMap<BlockLoc, BlockLoc> destroyedBlocks,
+                        final Vector init_pos,
+                        final Vector dir,
+                        final float init_strength)
     {
         Vector step = Vector.normalize(runExplosionRay_step, dir)
                             .mulAndSet(0.3f);
@@ -3165,9 +3739,10 @@ public class World
             if(curBlockX != lastBlockX || curBlockY != lastBlockY
                     || curBlockZ != lastBlockZ)
             {
-                destroyedBlocks.add(new BlockLoc(lastBlockX,
-                                                 lastBlockY,
-                                                 lastBlockZ));
+                BlockLoc position = BlockLoc.allocate(lastBlockX,
+                                                      lastBlockY,
+                                                      lastBlockZ);
+                destroyedBlocks.put(position, null);
             }
             lastBlockX = curBlockX;
             lastBlockY = curBlockY;
@@ -3204,7 +3779,8 @@ public class World
             b.digBlock(x, y, z, true, ToolType.None);
         else
             b.digBlock(x, y, z, false, ToolType.None);
-        setBlock(x, y, z, new Block());
+        setBlock(x, y, z, Block.NewEmpty());
+        b.free();
     }
 
     private static Vector runExplosion_dir = Vector.allocate();
@@ -3216,7 +3792,8 @@ public class World
                                             explosion.y + 0.5f,
                                             explosion.z + 0.5f),
                         explosion.strength);
-        Set<BlockLoc> destroyedBlocks = new HashSet<World.BlockLoc>();
+        @SuppressWarnings("unchecked")
+        AllocatorHashMap<BlockLoc, BlockLoc> destroyedBlocks = (AllocatorHashMap<BlockLoc, BlockLoc>)AllocatorHashMap.allocate();
         final int count = 16;
         for(int x = 0; x < count; x++)
         {
@@ -3244,10 +3821,14 @@ public class World
                 }
             }
         }
-        for(BlockLoc i : destroyedBlocks)
+        AllocatorHashMap.Iterator<BlockLoc, BlockLoc> iter = destroyedBlocks.iterator();
+        for(; !iter.isEnd(); iter.next())
         {
+            BlockLoc i = iter.getKey();
             runExplosion(i.x, i.y, i.z);
         }
+        iter.free();
+        destroyedBlocks.free();
     }
 
     private void runAllExplosions()
@@ -3257,10 +3838,16 @@ public class World
             return;
         this.explosionList = null;
         ExplosionNode node = allExplosions;
+        if(node != null)
+        {
+            Main.play(Main.explodeAudio);
+        }
         while(node != null)
         {
             runExplosion(node);
+            ExplosionNode freeMe = node;
             node = node.next;
+            freeMe.free();
         }
     }
 
@@ -3367,5 +3954,10 @@ public class World
     public void invalidateLightingArrays()
     {
         this.displayListValidTag++;
+    }
+
+    private void clearDisplayListValidTag()
+    {
+        this.displayListValidTag = 0;
     }
 }

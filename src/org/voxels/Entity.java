@@ -16,6 +16,7 @@
  */
 package org.voxels;
 
+import static org.voxels.PlayerList.players;
 import static org.voxels.World.GravityAcceleration;
 import static org.voxels.World.world;
 
@@ -28,7 +29,7 @@ import org.voxels.World.BlockHitDescriptor;
 public class Entity implements GameObject
 {
     private Entity next = null; // for free entity list
-    private Vector position = Vector.allocate();
+    private Vector position = null;
     private EntityType type;
     private static Entity freeEntityListHead = null;
     private static final Object freeEntityListSyncObject = new Object();
@@ -41,8 +42,9 @@ public class Entity implements GameObject
             if(retval == null)
                 return new Entity();
             freeEntityListHead = retval.next;
+            retval.type = EntityType.Nothing;
             retval.next = null;
-            retval.position = Vector.allocate();
+            retval.position = null;
             return retval;
         }
     }
@@ -75,6 +77,9 @@ public class Entity implements GameObject
     private static TextureHandle[] imgSmokeAnimation = null;
     private static TextureHandle[] imgFireAnimation = null;
     private static TextureHandle[] imgRedstoneFireAnimation = null;
+    private static TextureHandle imgExplosion = TextureAtlas.addImage(new Image("explosion.png"));
+    private static final int explosionFrameCount = 16;
+    private static final float explosionFrameRate = 20f;
 
     private static TextureHandle[] genAnimation(final FireSimulation sim,
                                                 final int stepCount)
@@ -118,9 +123,13 @@ public class Entity implements GameObject
         public boolean nearperson;
         public ParticleType particletype;
         public float frame;
+        public float momentum;
         private Data next = null;
         private static final Object freePoolSyncObject = new Object();
         private static Data freePoolHead = null;
+        public String ridingPlayerName = null;
+        public Vector cornerVelocity = null;
+        public boolean wasOverOnActivatorRail = false;
 
         public static Data allocate()
         {
@@ -137,11 +146,18 @@ public class Entity implements GameObject
 
         public void free()
         {
+            if(this.block != null)
+                this.block.free();
             this.block = null;
             if(this.velocity != null)
             {
                 this.velocity.free();
                 this.velocity = null;
+            }
+            if(this.cornerVelocity != null)
+            {
+                this.cornerVelocity.free();
+                this.cornerVelocity = null;
             }
             synchronized(freePoolSyncObject)
             {
@@ -189,7 +205,7 @@ public class Entity implements GameObject
             break;
         case Block:
         case ThrownBlock:
-            retval.data.block = rt.data.block;
+            retval.data.block = rt.data.block.dup();
             retval.data.theta = rt.data.theta;
             retval.data.phi = rt.data.phi;
             retval.data.velocity = Vector.allocate(rt.data.velocity);
@@ -205,7 +221,7 @@ public class Entity implements GameObject
             retval.data.frame = rt.data.frame;
             break;
         case FallingBlock:
-            retval.data.block = rt.data.block;
+            retval.data.block = rt.data.block.dup();
             retval.data.velocity = Vector.allocate(rt.data.velocity);
             break;
         case PrimedTNT:
@@ -213,14 +229,25 @@ public class Entity implements GameObject
             retval.data.existduration = rt.data.existduration;
             break;
         case PlaceBlockIfReplaceable:
-            retval.data.block = rt.data.block;
+            retval.data.block = rt.data.block.dup();
             break;
         case RemoveBlockIfEqual:
-            retval.data.block = rt.data.block;
+            retval.data.block = rt.data.block.dup();
             break;
         case TransferItem:
         case ApplyBoneMealOrPutBackInContainer:
             retval.data.velocity = Vector.allocate(rt.data.velocity);
+            break;
+        case MineCart:
+            retval.data.velocity = Vector.allocate(rt.data.velocity);
+            retval.data.block = Block.allocate(rt.data.block);
+            retval.data.theta = rt.data.theta;
+            retval.data.phi = rt.data.phi;
+            retval.data.existduration = rt.data.existduration;
+            retval.data.momentum = rt.data.momentum;
+            retval.data.ridingPlayerName = rt.data.ridingPlayerName;
+            retval.data.cornerVelocity = Vector.allocate(rt.data.cornerVelocity);
+            retval.data.wasOverOnActivatorRail = rt.data.wasOverOnActivatorRail;
             break;
         }
         return retval;
@@ -241,8 +268,29 @@ public class Entity implements GameObject
         }
     }
 
-    private static Matrix draw_t1 = new Matrix();
-    private static Matrix draw_t2 = new Matrix();
+    private static final float minecartScale = 0.98f;
+    private static final Matrix getMinecartDrawMatrix_t1 = Matrix.allocate();
+    private static final Matrix getMinecartDrawMatrix_t2 = Matrix.allocate();
+
+    private Matrix getMinecartDrawMatrix()
+    {
+        Matrix retval = Matrix.setToTranslate(getMinecartDrawMatrix_t1,
+                                              -0.5f,
+                                              -0.5f,
+                                              -0.5f);
+        retval = retval.concatAndSet(Matrix.setToScale(getMinecartDrawMatrix_t2,
+                                                       minecartScale));
+        retval = retval.concatAndSet(Matrix.setToRotateX(getMinecartDrawMatrix_t2,
+                                                         -this.data.phi));
+        retval = retval.concatAndSet(Matrix.setToRotateY(getMinecartDrawMatrix_t2,
+                                                         this.data.theta));
+        retval = retval.concatAndSet(Matrix.setToTranslate(getMinecartDrawMatrix_t2,
+                                                           this.position));
+        return retval;
+    }
+
+    private static Matrix draw_t1 = Matrix.allocate();
+    private static Matrix draw_t2 = Matrix.allocate();
 
     @Override
     public RenderingStream draw(final RenderingStream rs,
@@ -282,6 +330,9 @@ public class Entity implements GameObject
         {
             TextureHandle img = null;
             boolean isAnim = false;
+            float minu = 0, maxu = 1, minv = 0, maxv = 1;
+            boolean isGlowing = false;
+            float scale = 1;
             switch(this.data.particletype)
             {
             case Last:
@@ -325,6 +376,20 @@ public class Entity implements GameObject
                 img = imgSmokeAnimation[frame];
                 break;
             }
+            case Explosion:
+            {
+                int frame = (int)Math.floor(this.data.frame)
+                        % explosionFrameCount;
+                if(frame < 0)
+                    frame += explosionFrameCount;
+                img = imgExplosion;
+                minu = (frame % 4) * 0.25f;
+                maxu = minu + 0.25f;
+                minv = (3 - frame / 4) * 0.25f;
+                maxv = minv + 0.25f;
+                scale = 10;
+                break;
+            }
             }
             if(img != null)
             {
@@ -338,12 +403,22 @@ public class Entity implements GameObject
                                                                this.data.theta));
                 if(!isAnim)
                     tform = tform.concatAndSet(Matrix.setToScale(draw_t2,
-                                                                 0.125f));
+                                                                 0.125f * scale));
                 tform = tform.concatAndSet(Matrix.setToTranslate(draw_t2,
                                                                  this.position));
                 rs.pushMatrixStack();
                 rs.concatMatrix(worldToCamera);
-                Block.drawImgAsEntity(rs, tform, img);
+                Block.drawImgAsEntity(rs,
+                                      tform,
+                                      img,
+                                      isGlowing,
+                                      minu,
+                                      maxu,
+                                      minv,
+                                      maxv,
+                                      1,
+                                      1,
+                                      1);
                 rs.popMatrixStack();
             }
             break;
@@ -386,6 +461,7 @@ public class Entity implements GameObject
                                                                      0.5f,
                                                                      0.5f,
                                                                      0.5f)));
+            b.free();
             rs.popMatrixStack();
             break;
         }
@@ -394,6 +470,16 @@ public class Entity implements GameObject
         case TransferItem:
         case ApplyBoneMealOrPutBackInContainer:
             return rs;
+        case MineCart:
+        {
+            Block b = Block.NewMinecart(0, false);
+            rs.pushMatrixStack();
+            rs.concatMatrix(worldToCamera);
+            b.drawAsEntity(rs, getMinecartDrawMatrix());
+            rs.popMatrixStack();
+            b.free();
+            return rs;
+        }
         }
         return rs;
     }
@@ -505,6 +591,201 @@ public class Entity implements GameObject
     private static Vector move_t2 = Vector.allocate();
     private static Vector move_t3 = Vector.allocate();
     private static final Block bedrockBlock = Block.NewBedrock();
+    private static final double MINECART_DELETE_TIME = 0.3f;
+
+    private static final class BlockWithPos
+    {
+        public int bx, by, bz;
+        public Block b;
+
+        public BlockWithPos()
+        {
+        }
+    }
+
+    private static final BlockWithPos getRailFromPos_retval = new BlockWithPos();
+
+    private static BlockWithPos getRailFromPos(final Vector pos)
+    {
+        int bx = (int)Math.floor(pos.getX());
+        int by = (int)Math.floor(pos.getY() + 0.5f);
+        int bz = (int)Math.floor(pos.getZ());
+        Block b = world.getBlockEval(bx, by, bz);
+        if(b == null || !b.isRail())
+        {
+            by--;
+            b = world.getBlockEval(bx, by, bz);
+        }
+        if(b == null || !b.isRail())
+        {
+            by--;
+            b = world.getBlockEval(bx, by, bz);
+        }
+        if(b == null || !b.isRail())
+            return null;
+        BlockWithPos retval = getRailFromPos_retval;
+        retval.bx = bx;
+        retval.by = by;
+        retval.bz = bz;
+        retval.b = b;
+        return retval;
+    }
+
+    private static boolean minecartIsPosOnTrack(final Vector pos)
+    {
+        BlockWithPos bwp = getRailFromPos(pos);
+        if(bwp == null)
+            return false;
+        Block b = bwp.b;
+        int bx = bwp.bx, by = bwp.by, bz = bwp.bz;
+        float railHeightAtPos = 0;
+        if(b.railGetOrientation() >= 2 && b.railGetOrientation() <= 5)
+        {
+            float x = pos.getX() - bx;
+            float z = pos.getZ() - bz;
+            x -= 0.5f;
+            z -= 0.5f;
+            for(int i = 2; i < b.railGetOrientation(); i++)
+            {
+                float t = x;
+                x = z;
+                z = -t;
+            }
+            railHeightAtPos = 0.5f - x;
+        }
+        return pos.getY() - 0.5f <= by + railHeightAtPos + 0.05f;
+    }
+
+    private void minecartOnSetPosition()
+    {
+        if(this.data.ridingPlayerName == null)
+            return;
+        Player p = players.getPlayer(this.data.ridingPlayerName);
+        if(p == null)
+            return;
+        if(!p.isRiding)
+        {
+            this.data.ridingPlayerName = null;
+            return;
+        }
+        Vector pos = Vector.allocate(this.position).addAndSet(0, 1.0f, 0);
+        p.setPosition(pos);
+        pos.free();
+    }
+
+    private void minecartSetVelocity()
+    {
+        BlockWithPos bwp = getRailFromPos(this.position);
+        this.data.cornerVelocity.set(Vector.ZERO);
+        this.data.velocity.setToSphericalCoordinates(1,
+                                                     this.data.theta,
+                                                     this.data.phi)
+                          .mulAndSet(Math.max(-8,
+                                              Math.min(8, this.data.momentum)));
+        if(bwp != null && bwp.b.railGetOrientation() >= 6) // is corner
+        {
+            this.data.velocity.mulAndSet((float)Math.sqrt(2));
+            Vector t = Vector.allocate(this.data.velocity);
+            t.setY(0);
+            int velocityOrientation = Block.getOrientationFromVector(t);
+            t.free();
+            float velocityRotateAngle = (float)Math.PI / 4;
+            int railOrientation = bwp.b.getOrientation() - 6;
+            if(velocityOrientation == railOrientation
+                    || velocityOrientation == (railOrientation + 3) % 4)
+            {
+                velocityRotateAngle = -velocityRotateAngle;
+            }
+            Matrix tform = Matrix.allocate();
+            Matrix.setToRotateY(tform, -velocityRotateAngle)
+                  .apply(this.data.cornerVelocity, this.data.velocity);
+            Matrix.setToRotateY(tform, velocityRotateAngle)
+                  .apply(this.data.velocity, this.data.velocity);
+            tform.free();
+            return;
+        }
+    }
+
+    private static final Vector[] railOrigin = new Vector[]
+    {
+        Vector.allocate(0.5f, 0.5f, 0).getImmutableAndFree(),
+        Vector.allocate(0, 0.5f, 0.5f).getImmutableAndFree(),
+        Vector.allocate(1, 0.5f, 0.5f).getImmutableAndFree(),
+        Vector.allocate(0.5f, 0.5f, 1).getImmutableAndFree(),
+        Vector.allocate(0, 0.5f, 0.5f).getImmutableAndFree(),
+        Vector.allocate(0.5f, 0.5f, 0).getImmutableAndFree(),
+        Vector.allocate(0, 0.5f, 0.5f).getImmutableAndFree(),
+        Vector.allocate(0.5f, 0.5f, 0).getImmutableAndFree(),
+        Vector.allocate(1, 0.5f, 0.5f).getImmutableAndFree(),
+        Vector.allocate(0.5f, 0.5f, 1).getImmutableAndFree(),
+    };
+    private static final Vector[] railDir = new Vector[]
+    {
+        Vector.allocate(0, 0, 1).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(1, 0, 0).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(-1, 1, 0).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(0, 1, -1).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(1, 1, 0).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(0, 1, 1).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(1, 0, -1).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(1, 0, 1).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(-1, 0, 1).normalizeAndSet().getImmutableAndFree(),
+        Vector.allocate(-1, 0, -1).normalizeAndSet().getImmutableAndFree(),
+    };
+    private static final Vector minecartAttachToRail_t1 = Vector.allocate();
+
+    private float minecartAttachToRail()
+    {
+        BlockWithPos b = getRailFromPos(this.position);
+        if(b == null)
+            return -this.data.momentum;
+        if(b.b.getType() == BlockType.BTDetectorRail)
+        {
+            b.b.detectorRailActivate();
+            world.setBlock(b.bx, b.by, b.bz, b.b);
+        }
+        int railOrientation = b.b.railGetOrientation();
+        float t = minecartAttachToRail_t1.set(this.position)
+                                         .subAndSet(b.bx, b.by, b.bz)
+                                         .subAndSet(railOrigin[railOrientation])
+                                         .dot(railDir[railOrientation]);
+        this.position.set(railDir[railOrientation])
+                     .mulAndSet(t)
+                     .addAndSet(b.bx, b.by, b.bz)
+                     .addAndSet(railOrigin[railOrientation]);
+        minecartOnSetPosition();
+        Vector facingDir = minecartAttachToRail_t1.setToSphericalCoordinates(1,
+                                                                             this.data.theta,
+                                                                             this.data.phi);
+        facingDir.setY(facingDir.getY() / 2);
+        t = facingDir.dot(railDir[railOrientation]);
+        facingDir = minecartAttachToRail_t1.set(railDir[railOrientation]);
+        if(t < 0)
+            facingDir.negAndSet();
+        this.data.theta = facingDir.getTheta();
+        this.data.phi = facingDir.getPhi();
+        minecartSetVelocity();
+        float returnedAcceleration = 0;
+        if(b.b.getType() == BlockType.BTActivatorRail)
+        {
+            this.data.wasOverOnActivatorRail = b.b.railIsPowered();
+        }
+        if(b.b.getType() == BlockType.BTPoweredRail)
+        {
+            if(b.b.railIsPowered())
+            {
+                returnedAcceleration = Math.signum(this.data.momentum) * 5;
+            }
+            else
+            {
+                this.data.momentum = 0;
+                return 0;
+            }
+        }
+        return facingDir.getY() > 0 ? returnedAcceleration - 1
+                : (facingDir.getY() == 0 ? returnedAcceleration
+                        : returnedAcceleration + 1);
+    }
 
     @Override
     public void move()
@@ -591,7 +872,6 @@ public class Entity implements GameObject
                                                                     (float)Math.floor(this.position.getY()),
                                                                     (float)Math.floor(this.position.getZ()))))
                 {
-                    b = new Block(b);
                     b.pressurePlatePress();
                     world.setBlock((int)Math.floor(this.position.getX()),
                                    (int)Math.floor(this.position.getY()),
@@ -606,7 +886,6 @@ public class Entity implements GameObject
             {
                 if(b.getType() == BlockType.BTHopper && b.hopperIsActive())
                 {
-                    b = new Block(b);
                     if(b.addBlockToContainer(this.data.block, 5))
                     {
                         world.setBlock((int)Math.floor(this.position.getX()),
@@ -658,6 +937,16 @@ public class Entity implements GameObject
                         * (float)Main.getFrameDuration();
                 this.data.frame %= SimulationAnimationFrameCount;
                 break;
+            case Explosion:
+                this.data.velocity.set(Vector.ZERO);
+                this.data.frame += explosionFrameRate
+                        * (float)Main.getFrameDuration();
+                if(Math.floor(this.data.frame) >= explosionFrameCount)
+                {
+                    clear();
+                    return;
+                }
+                break;
             }
             this.position = this.position.addAndSet(this.data.velocity.mulAndSet((float)Main.getFrameDuration()));
             break;
@@ -673,7 +962,9 @@ public class Entity implements GameObject
             {
                 b = this.data.block;
                 if(b == null)
-                    b = new Block();
+                    b = Block.NewEmpty();
+                else
+                    b = b.dup();
                 world.insertEntity(NewBlock(move_t1.set(this.position)
                                                    .addAndSet(0.5f, 0.5f, 0.5f),
                                             b,
@@ -686,8 +977,13 @@ public class Entity implements GameObject
             {
                 b = this.data.block;
                 if(b == null)
-                    b = new Block();
+                    b = Block.NewEmpty();
+                else
+                    b = b.dup();
+                Block prevBlock = world.getBlock(x, y, z);
                 world.setBlock(x, y, z, b);
+                if(prevBlock != null)
+                    prevBlock.free();
                 clear();
                 return;
             }
@@ -740,8 +1036,6 @@ public class Entity implements GameObject
                                                                          -GravityAcceleration
                                                                                  * (float)Main.getFrameDuration(),
                                                                          0));
-            if(this.data.velocity.getY() < -15.0f)
-                this.data.velocity.setY(-15.0f);
             Vector deltaPos = Vector.mul(move_t1,
                                          this.data.velocity,
                                          (float)Main.getFrameDuration());
@@ -788,7 +1082,8 @@ public class Entity implements GameObject
             Block b = world.getBlockEval(x, y, z);
             if(b != null && b.isReplaceable())
             {
-                world.setBlock(x, y, z, this.data.block);
+                world.setBlock(x, y, z, this.data.block.dup());
+                b.free();
             }
             clear();
             return;
@@ -801,7 +1096,8 @@ public class Entity implements GameObject
             Block b = world.getBlockEval(x, y, z);
             if(b != null && b.equals(this.data.block))
             {
-                world.setBlock(x, y, z, new Block());
+                world.setBlock(x, y, z, Block.NewEmpty());
+                b.free();
             }
             clear();
             return;
@@ -872,11 +1168,123 @@ public class Entity implements GameObject
                                                    World.vRand(t2, 0.2f)
                                                         .addAndSet(dir)
                                                         .mulAndSet(5f)));
+                t1.free();
+                t2.free();
+                dir.free();
             }
             clear();
             return;
         }
+        case MineCart:
+        {
+            if(this.data.existduration <= 0)
+            {
+                minecartDropAllItems();
+                clear();
+                return;
+            }
+            this.data.existduration += 0.33 * Main.getFrameDuration();
+            if(this.data.existduration > MINECART_DELETE_TIME)
+                this.data.existduration = MINECART_DELETE_TIME;
+            this.data.velocity.addAndSet(0, -World.GravityAcceleration
+                    * (float)Main.getFrameDuration(), 0);
+            if(minecartIsPosOnTrack(this.position))
+            {
+                minecartAttachToRail();
+                int count = Math.max(1,
+                                     (int)Math.floor(1000
+                                             * Math.abs(this.data.momentum)
+                                             * Main.getFrameDuration()));
+                final float invCount = 1.0f / count;
+                for(int i = 0; i < count; i++)
+                {
+                    this.position.addAndSet(move_t1.set(this.data.velocity)
+                                                   .addAndSet(this.data.cornerVelocity)
+                                                   .mulAndSet((float)Main.getFrameDuration()
+                                                           * invCount));
+                    minecartOnSetPosition();
+                    this.data.momentum = Math.max(-20,
+                                                  Math.min(20,
+                                                           this.data.momentum
+                                                                   + minecartAttachToRail()
+                                                                   * (float)Main.getFrameDuration()
+                                                                   * invCount));
+                }
+                if(Main.DEBUG)
+                    Main.addToFrameText("Momentum : " + this.data.momentum
+                            + "\n");
+            }
+            else
+            {
+                this.data.momentum *= (float)Math.pow(0.9,
+                                                      Main.getFrameDuration());
+                this.data.phi = 0;
+                this.data.cornerVelocity.set(Vector.ZERO);
+                Vector deltaPos = Vector.mul(move_t1,
+                                             this.data.velocity,
+                                             (float)Main.getFrameDuration());
+                Vector newPos = move_t2.set(this.position);
+                Vector lastPos = move_t3.set(newPos);
+                final int count = (int)Math.floor(deltaPos.abs() * 100) + 1;
+                deltaPos.divAndSet(count);
+                for(int i = 0; i < count; i++)
+                {
+                    if(itemHits(minecartScale / 2, newPos))
+                    {
+                        this.data.velocity.set(Vector.ZERO);
+                        newPos.set(lastPos);
+                        break;
+                    }
+                    lastPos.set(newPos);
+                    newPos.addAndSet(deltaPos);
+                }
+                Vector adjustedNewPos = getNearestEmptySpot(minecartScale / 2,
+                                                            newPos);
+                if(adjustedNewPos != null)
+                {
+                    if(!newPos.equals(adjustedNewPos))
+                        this.data.velocity.set(Vector.ZERO);
+                    this.position.set(adjustedNewPos);
+                    minecartOnSetPosition();
+                    adjustedNewPos.free();
+                }
+                else
+                {
+                    this.data.velocity.set(Vector.ZERO);
+                    return;
+                }
+            }
+            return;
         }
+        }
+    }
+
+    private void minecartDropAllItems()
+    {
+        if(this.data.block != null)
+        {
+            Block block = this.data.block.dup();
+            if(block.isContainer())
+            {
+                while(true)
+                {
+                    int removeDescriptor = block.makeRemoveBlockFromContainerDescriptor(-1);
+                    Block b = block.removeBlockFromContainer(-1,
+                                                             removeDescriptor);
+                    if(b == null)
+                        break;
+                    world.insertEntity(NewBlock(this.position,
+                                                b,
+                                                World.vRand(move_t1, 0.1f)));
+                }
+            }
+            world.insertEntity(NewBlock(this.position,
+                                        block,
+                                        World.vRand(move_t1, 0.1f)));
+        }
+        world.insertEntity(NewBlock(this.position,
+                                    BlockType.BTMineCart.make(-1),
+                                    World.vRand(move_t1, 0.1f)));
     }
 
     private static Vector checkHitPlayer_t1 = Vector.allocate();
@@ -921,15 +1329,26 @@ public class Entity implements GameObject
             }
             break;
         }
+        case PrimedTNT:
+        {
+            Vector ppos = p.getPosition();
+            Vector disp = Vector.sub(checkHitPlayer_t1, ppos, this.position);
+            if(disp.abs_squared() <= 15 * 15)
+                Main.needFuseBurnAudio = true;
+            break;
+        }
         case Particle:
         case FallingBlock:
-        case PrimedTNT:
         case ThrownBlock:
         case PlaceBlockIfReplaceable:
         case RemoveBlockIfEqual:
         case TransferItem:
         case ApplyBoneMealOrPutBackInContainer:
             break;
+        case MineCart:
+        {
+            // TODO finish
+        }
         }
     }
 
@@ -1052,6 +1471,7 @@ public class Entity implements GameObject
         case RemoveBlockIfEqual:
         case TransferItem:
         case ApplyBoneMealOrPutBackInContainer:
+        case MineCart:
             break;
         }
     }
@@ -1070,7 +1490,7 @@ public class Entity implements GameObject
                                   final Vector velocity)
     {
         Entity retval = allocate(position, EntityType.Block);
-        retval.data.block = b;
+        retval.data.block = b.dup();
         retval.data.existduration = 0;
         retval.data.phi = 0;
         retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
@@ -1093,7 +1513,7 @@ public class Entity implements GameObject
                                         final Vector velocity)
     {
         Entity retval = allocate(position, EntityType.ThrownBlock);
-        retval.data.block = b;
+        retval.data.block = b.dup();
         retval.data.existduration = 0;
         retval.data.phi = 0;
         retval.data.theta = World.fRand(0.0f, 2 * (float)Math.PI);
@@ -1142,6 +1562,10 @@ public class Entity implements GameObject
                     / SmokeSimulationAnimationFrameRate;
             retval.data.phi = 0.0f;
             break;
+        case Explosion:
+            retval.data.phi = 0;
+            retval.data.existduration = 5;
+            break;
         }
         return retval;
     }
@@ -1156,7 +1580,7 @@ public class Entity implements GameObject
     public static Entity NewFallingBlock(final Vector position, final Block b)
     {
         Entity retval = allocate(position, EntityType.FallingBlock);
-        retval.data.block = b;
+        retval.data.block = b.dup();
         retval.data.velocity = Vector.allocate(0);
         return retval;
     }
@@ -1188,7 +1612,7 @@ public class Entity implements GameObject
                                                     final Block b)
     {
         Entity retval = allocate(position, EntityType.PlaceBlockIfReplaceable);
-        retval.data.block = b;
+        retval.data.block = b.dup();
         return retval;
     }
 
@@ -1203,7 +1627,7 @@ public class Entity implements GameObject
                                                final Block b)
     {
         Entity retval = allocate(position, EntityType.RemoveBlockIfEqual);
-        retval.data.block = b;
+        retval.data.block = b.dup();
         return retval;
     }
 
@@ -1232,6 +1656,22 @@ public class Entity implements GameObject
         Entity retval = allocate(t,
                                  EntityType.ApplyBoneMealOrPutBackInContainer);
         retval.data.velocity = t.set(containerX, containerY, containerZ);
+        return retval;
+    }
+
+    public static Entity NewMineCart(final Vector position,
+                                     final Block containedBlock)
+    {
+        Entity retval = allocate(position, EntityType.MineCart);
+        retval.data.velocity = Vector.allocate(Vector.ZERO);
+        retval.data.block = containedBlock;
+        retval.data.phi = 0;
+        retval.data.theta = 0;
+        retval.data.existduration = MINECART_DELETE_TIME;
+        retval.data.momentum = 0;
+        retval.data.ridingPlayerName = null;
+        retval.data.cornerVelocity = Vector.allocate(Vector.ZERO);
+        retval.data.wasOverOnActivatorRail = false;
         return retval;
     }
 
@@ -1304,10 +1744,19 @@ public class Entity implements GameObject
                         || this.data.existduration > 1e5)
                     throw new IOException("exist duration out of range");
                 this.data.frame = i.readFloat();
-                if(Double.isInfinite(this.data.frame)
-                        || Double.isNaN(this.data.frame)
+                if(Float.isInfinite(this.data.frame)
+                        || Float.isNaN(this.data.frame)
                         || this.data.frame < -1 - SimulationAnimationFrameCount
-                        || this.data.existduration > 1 + SimulationAnimationFrameCount)
+                        || this.data.frame > 1 + SimulationAnimationFrameCount)
+                    throw new IOException("frame out of range");
+                break;
+            case Explosion:
+                this.data.existduration = 5;
+                this.data.frame = i.readFloat();
+                if(Float.isInfinite(this.data.frame)
+                        || Float.isNaN(this.data.frame)
+                        || this.data.frame < -1 - explosionFrameCount
+                        || this.data.frame > 1 + explosionFrameCount)
                     throw new IOException("frame out of range");
                 break;
             }
@@ -1334,6 +1783,40 @@ public class Entity implements GameObject
         case ApplyBoneMealOrPutBackInContainer:
         {
             this.data.velocity = Vector.read(i);
+            return;
+        }
+        case MineCart:
+        {
+            this.data.velocity = Vector.read(i);
+            if(i.readBoolean())
+                this.data.block = Block.read(i);
+            else
+                this.data.block = null;
+            readPhiTheta(i);
+            this.data.existduration = i.readDouble();
+            if(Double.isInfinite(this.data.existduration)
+                    || Double.isNaN(this.data.existduration)
+                    || this.data.existduration < -100
+                    || this.data.existduration > 100)
+                throw new IOException("exist duration out of range");
+            this.data.momentum = i.readFloat();
+            if(Float.isInfinite(this.data.momentum)
+                    || Float.isNaN(this.data.momentum))
+                throw new IOException("momentum out of range");
+            int length = i.readInt();
+            if(length == -1)
+                this.data.ridingPlayerName = null;
+            else
+            {
+                if(length < 0)
+                    throw new IOException("riding player name length out of range");
+                StringBuilder sb = new StringBuilder(length);
+                for(int index = 0; index < length; index++)
+                    sb.append(i.readChar());
+                this.data.ridingPlayerName = sb.toString();
+            }
+            this.data.cornerVelocity = Vector.read(i);
+            this.data.wasOverOnActivatorRail = i.readBoolean();
             return;
         }
         }
@@ -1413,6 +1896,9 @@ public class Entity implements GameObject
                 o.writeDouble(this.data.existduration);
                 o.writeFloat(this.data.frame);
                 break;
+            case Explosion:
+                o.writeFloat(this.data.frame);
+                break;
             }
             return;
         }
@@ -1433,6 +1919,28 @@ public class Entity implements GameObject
         {
             this.data.velocity.write(o);
             return;
+        }
+        case MineCart:
+        {
+            this.data.velocity.write(o);
+            o.writeBoolean(this.data.block != null);
+            if(this.data.block != null)
+                this.data.block.write(o);
+            o.writeFloat(this.data.phi);
+            o.writeFloat(this.data.theta);
+            o.writeDouble(this.data.existduration);
+            o.writeFloat(this.data.momentum);
+            if(this.data.ridingPlayerName != null)
+            {
+                o.writeInt(this.data.ridingPlayerName.length());
+                for(int index = 0; index < this.data.ridingPlayerName.length(); index++)
+                    o.writeChar(this.data.ridingPlayerName.charAt(index));
+            }
+            else
+                o.writeInt(-1);
+            this.data.cornerVelocity.write(o);
+            o.writeBoolean(this.data.wasOverOnActivatorRail);
+            break;
         }
         }
     }
@@ -1482,7 +1990,8 @@ public class Entity implements GameObject
                                                                          dist + 1e-3f,
                                                                          false,
                                                                          true);
-                        if(!bhd.hitUnloadedChunk && bhd.b != null)
+                        if(!bhd.hitUnloadedChunk
+                                && (bhd.b != null || bhd.e != null))
                             retval++;
                     }
                     divisor++;
@@ -1490,5 +1999,128 @@ public class Entity implements GameObject
             }
         }
         return (float)retval / divisor;
+    }
+
+    private static final Vector rayHitEntity_t1 = Vector.allocate();
+    private static final Vector rayHitEntity_t2 = Vector.allocate();
+    private static final Matrix rayHitEntity_t3 = Matrix.allocate();
+    private static final Matrix rayHitEntity_t4 = Matrix.allocate();
+
+    public float rayHitEntity(final Vector origin, final Vector dir)
+    {
+        switch(this.type)
+        {
+        case ApplyBoneMealOrPutBackInContainer:
+            break;
+        case Block:
+            break;
+        case FallingBlock:
+            break;
+        case Last:
+            break;
+        case Nothing:
+            break;
+        case Particle:
+            break;
+        case PlaceBlockIfReplaceable:
+            break;
+        case PrimedTNT:
+            break;
+        case RemoveBlockIfEqual:
+            break;
+        case ThrownBlock:
+            break;
+        case TransferItem:
+            break;
+        case MineCart:
+        {
+            Matrix mat = Matrix.setToInverse(rayHitEntity_t3,
+                                             getMinecartDrawMatrix());
+            Matrix matNoTranslate = Matrix.removeTranslate(rayHitEntity_t4, mat);
+            Vector dir2 = matNoTranslate.apply(rayHitEntity_t1, dir);
+            Vector origin2 = mat.apply(rayHitEntity_t2, origin);
+            return Block.minecartRayIntersects(origin2, dir2, this.data.block);
+        }
+        }
+        return -1;
+    }
+
+    public void onPunch(final double punchTime)
+    {
+        switch(this.type)
+        {
+        case ApplyBoneMealOrPutBackInContainer:
+            break;
+        case Block:
+            break;
+        case FallingBlock:
+            break;
+        case Last:
+            break;
+        case Nothing:
+            break;
+        case Particle:
+            break;
+        case PlaceBlockIfReplaceable:
+            break;
+        case PrimedTNT:
+            break;
+        case RemoveBlockIfEqual:
+            break;
+        case ThrownBlock:
+            break;
+        case TransferItem:
+            break;
+        case MineCart:
+        {
+            this.data.existduration -= punchTime;
+            break;
+        }
+        }
+    }
+
+    public void onUseButtonPress(final Player p)
+    {
+        switch(this.type)
+        {
+        case ApplyBoneMealOrPutBackInContainer:
+            break;
+        case Block:
+            break;
+        case FallingBlock:
+            break;
+        case Last:
+            break;
+        case Nothing:
+            break;
+        case Particle:
+            break;
+        case PlaceBlockIfReplaceable:
+            break;
+        case PrimedTNT:
+            break;
+        case RemoveBlockIfEqual:
+            break;
+        case ThrownBlock:
+            break;
+        case TransferItem:
+            break;
+        case MineCart:
+        {
+            this.data.ridingPlayerName = p.getName();
+            p.isRiding = true;
+            break;
+        }
+        }
+    }
+
+    public void minecartClearRiders()
+    {
+        this.data.ridingPlayerName = null;
+    }
+
+    public EntityType getType()
+    {
+        return this.type;
     }
 }

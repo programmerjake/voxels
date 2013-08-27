@@ -17,6 +17,7 @@
 package org.voxels;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** @author jacob */
 public class TextureAtlas
@@ -51,10 +52,13 @@ public class TextureAtlas
         public Image getImage();
     }
 
-    private static class TextureHandleImp implements TextureHandle
+    static final AtomicInteger nextTextureHandleHash = new AtomicInteger(0);
+
+    private static final class TextureHandleImp implements TextureHandle
     {
         public final AtlasPart ap;
         public final Image image;
+        private final int hash = nextTextureHandleHash.getAndIncrement();
 
         public TextureHandleImp(final AtlasPart ap, final Image image)
         {
@@ -66,6 +70,18 @@ public class TextureAtlas
         public Image getImage()
         {
             return this.image;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return this.hash;
+        }
+
+        @Override
+        public boolean equals(final Object obj)
+        {
+            return obj == this;
         }
     }
 
@@ -152,7 +168,7 @@ public class TextureAtlas
             return;
         generateImagePlacement();
         finalImage = new Image(finalImageWidth, finalImageHeight);
-        Color color = new Color(0, 0, 0);
+        Color color = Color.allocate(0, 0, 0);
         for(AtlasPart ap : parts)
         {
             for(int index = 0, y = 0; y < ap.h; y++)

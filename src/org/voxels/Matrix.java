@@ -21,9 +21,9 @@ import java.nio.FloatBuffer;
 /** 4x4 matrix for 3D transformation with last row always equal to [0 0 0 1]
  * 
  * @author jacob */
-public class Matrix
+public class Matrix implements Allocatable
 {
-    private float elements[] = new float[12];
+    protected float elements[] = new float[12];
 
     /** get the value at the position (<code>x</code>, <code>y</code>)
      * 
@@ -82,126 +82,6 @@ public class Matrix
         return dest;
     }
 
-    /** creates the identity matrix<BR/>
-     * using <code>Matrix.identity()</code> is preferred
-     * 
-     * @see #identity() */
-    public Matrix()
-    {
-        this(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
-    }
-
-    /** creates the matrix<br/>
-     * <table>
-     * <tr>
-     * <td>/</td>
-     * <td></td>
-     * <td></td>
-     * <td></td>
-     * <td></td>
-     * <td>\</td>
-     * </tr>
-     * <tr>
-     * <td>|</td>
-     * <td><code>x00</code></td>
-     * <td><code>x10</code></td>
-     * <td><code>x20</code></td>
-     * <td><code>x30</code></td>
-     * <td>|</td>
-     * </tr>
-     * <tr>
-     * <td>|</td>
-     * <td><code>x01</code></td>
-     * <td><code>x11</code></td>
-     * <td><code>x21</code></td>
-     * <td><code>x31</code></td>
-     * <td>|</td>
-     * </tr>
-     * <tr>
-     * <td>|</td>
-     * <td><code>x02</code></td>
-     * <td><code>x12</code></td>
-     * <td><code>x22</code></td>
-     * <td><code>x32</code></td>
-     * <td>|</td>
-     * </tr>
-     * <tr>
-     * <td>|</td>
-     * <td><code>0.0</code></td>
-     * <td><code>0.0</code></td>
-     * <td><code>0.0</code></td>
-     * <td><code>1.0</code></td>
-     * <td>|</td>
-     * </tr>
-     * <tr>
-     * <td>\</td>
-     * <td></td>
-     * <td></td>
-     * <td></td>
-     * <td></td>
-     * <td>/</td>
-     * </tr>
-     * </table>
-     * 
-     * @param x00
-     *            value at (0, 0)
-     * @param x10
-     *            value at (1, 0)
-     * @param x20
-     *            value at (2, 0)
-     * @param x30
-     *            value at (3, 0)
-     * @param x01
-     *            value at (0, 1)
-     * @param x11
-     *            value at (1, 1)
-     * @param x21
-     *            value at (2, 1)
-     * @param x31
-     *            value at (3, 1)
-     * @param x02
-     *            value at (0, 2)
-     * @param x12
-     *            value at (1, 2)
-     * @param x22
-     *            value at (2, 2)
-     * @param x32
-     *            value at (3, 2) */
-    public Matrix(final float x00,
-                  final float x10,
-                  final float x20,
-                  final float x30,
-                  final float x01,
-                  final float x11,
-                  final float x21,
-                  final float x31,
-                  final float x02,
-                  final float x12,
-                  final float x22,
-                  final float x32)
-    {
-        this.elements[0 + 0 * 4] = x00;
-        this.elements[1 + 0 * 4] = x10;
-        this.elements[2 + 0 * 4] = x20;
-        this.elements[3 + 0 * 4] = x30;
-        this.elements[0 + 1 * 4] = x01;
-        this.elements[1 + 1 * 4] = x11;
-        this.elements[2 + 1 * 4] = x21;
-        this.elements[3 + 1 * 4] = x31;
-        this.elements[0 + 2 * 4] = x02;
-        this.elements[1 + 2 * 4] = x12;
-        this.elements[2 + 2 * 4] = x22;
-        this.elements[3 + 2 * 4] = x32;
-    }
-
-    /** @param rt
-     *            the matrix to copy */
-    public Matrix(final Matrix rt)
-    {
-        for(int i = 0; i < this.elements.length; i++)
-            this.elements[i] = rt.elements[i];
-    }
-
     public static Matrix set(final Matrix dest, final Matrix src)
     {
         if(dest instanceof ImmutableMatrix)
@@ -217,7 +97,7 @@ public class Matrix
     @Deprecated
     public static Matrix identity()
     {
-        return new Matrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+        return allocate(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
     }
 
     public static Matrix setToIdentity(final Matrix dest)
@@ -238,7 +118,7 @@ public class Matrix
     @Deprecated
     public static Matrix rotate(final Vector axis, final double angle)
     {
-        return setToRotate(new Matrix(), axis, angle);
+        return setToRotate(allocate(), axis, angle);
     }
 
     /** creates a rotation matrix
@@ -357,18 +237,18 @@ public class Matrix
     @Deprecated
     public static Matrix translate(final Vector position)
     {
-        return new Matrix(1,
-                          0,
-                          0,
-                          position.getX(),
-                          0,
-                          1,
-                          0,
-                          position.getY(),
-                          0,
-                          0,
-                          1,
-                          position.getZ());
+        return allocate(1,
+                        0,
+                        0,
+                        position.getX(),
+                        0,
+                        1,
+                        0,
+                        position.getY(),
+                        0,
+                        0,
+                        1,
+                        position.getZ());
     }
 
     public static Matrix
@@ -401,7 +281,7 @@ public class Matrix
     @Deprecated
     public static Matrix translate(final float x, final float y, final float z)
     {
-        return new Matrix(1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z);
+        return allocate(1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z);
     }
 
     public static Matrix setToTranslate(final Matrix dest,
@@ -424,7 +304,7 @@ public class Matrix
     @Deprecated
     public static Matrix scale(final float x, final float y, final float z)
     {
-        return new Matrix(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0);
+        return allocate(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0);
     }
 
     public static Matrix setToScale(final Matrix dest,
@@ -492,84 +372,84 @@ public class Matrix
         if(det == 0.0f)
             return identity();
         float factor = 1.0f / det;
-        return new Matrix((this.elements[1 + 1 * 4] * this.elements[2 + 2 * 4] - this.elements[1 + 2 * 4]
-                                  * this.elements[2 + 1 * 4])
-                                  * factor,
-                          (this.elements[1 + 2 * 4] * this.elements[2 + 0 * 4] - this.elements[1 + 0 * 4]
-                                  * this.elements[2 + 2 * 4])
-                                  * factor,
-                          (this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4] - this.elements[1 + 1 * 4]
-                                  * this.elements[2 + 0 * 4])
-                                  * factor,
-                          (-this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4]
-                                  * this.elements[3 + 2 * 4]
-                                  + this.elements[1 + 1 * 4]
-                                  * this.elements[2 + 0 * 4]
-                                  * this.elements[3 + 2 * 4]
-                                  + this.elements[1 + 0 * 4]
-                                  * this.elements[2 + 2 * 4]
-                                  * this.elements[3 + 1 * 4]
-                                  - this.elements[1 + 2 * 4]
-                                  * this.elements[2 + 0 * 4]
-                                  * this.elements[3 + 1 * 4]
-                                  - this.elements[1 + 1 * 4]
-                                  * this.elements[2 + 2 * 4]
-                                  * this.elements[3 + 0 * 4] + this.elements[1 + 2 * 4]
-                                  * this.elements[2 + 1 * 4]
-                                  * this.elements[3 + 0 * 4])
-                                  * factor,
-                          (this.elements[0 + 2 * 4] * this.elements[2 + 1 * 4] - this.elements[0 + 1 * 4]
-                                  * this.elements[2 + 2 * 4])
-                                  * factor,
-                          (this.elements[0 + 0 * 4] * this.elements[2 + 2 * 4] - this.elements[0 + 2 * 4]
-                                  * this.elements[2 + 0 * 4])
-                                  * factor,
-                          (this.elements[0 + 1 * 4] * this.elements[2 + 0 * 4] - this.elements[0 + 0 * 4]
-                                  * this.elements[2 + 1 * 4])
-                                  * factor,
-                          (this.elements[0 + 0 * 4] * this.elements[2 + 1 * 4]
-                                  * this.elements[3 + 2 * 4]
-                                  - this.elements[0 + 1 * 4]
-                                  * this.elements[2 + 0 * 4]
-                                  * this.elements[3 + 2 * 4]
-                                  - this.elements[0 + 0 * 4]
-                                  * this.elements[2 + 2 * 4]
-                                  * this.elements[3 + 1 * 4]
-                                  + this.elements[0 + 2 * 4]
-                                  * this.elements[2 + 0 * 4]
-                                  * this.elements[3 + 1 * 4]
-                                  + this.elements[0 + 1 * 4]
-                                  * this.elements[2 + 2 * 4]
-                                  * this.elements[3 + 0 * 4] - this.elements[0 + 2 * 4]
-                                  * this.elements[2 + 1 * 4]
-                                  * this.elements[3 + 0 * 4])
-                                  * factor,
-                          (this.elements[0 + 1 * 4] * this.elements[1 + 2 * 4] - this.elements[0 + 2 * 4]
-                                  * this.elements[1 + 1 * 4])
-                                  * factor,
-                          (this.elements[0 + 2 * 4] * this.elements[1 + 0 * 4] - this.elements[0 + 0 * 4]
-                                  * this.elements[1 + 2 * 4])
-                                  * factor,
-                          (this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4] - this.elements[0 + 1 * 4]
-                                  * this.elements[1 + 0 * 4])
-                                  * factor,
-                          (-this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4]
-                                  * this.elements[3 + 2 * 4]
-                                  + this.elements[0 + 1 * 4]
-                                  * this.elements[1 + 0 * 4]
-                                  * this.elements[3 + 2 * 4]
-                                  + this.elements[0 + 0 * 4]
-                                  * this.elements[1 + 2 * 4]
-                                  * this.elements[3 + 1 * 4]
-                                  - this.elements[0 + 2 * 4]
-                                  * this.elements[1 + 0 * 4]
-                                  * this.elements[3 + 1 * 4]
-                                  - this.elements[0 + 1 * 4]
-                                  * this.elements[1 + 2 * 4]
-                                  * this.elements[3 + 0 * 4] + this.elements[0 + 2 * 4]
-                                  * this.elements[1 + 1 * 4]
-                                  * this.elements[3 + 0 * 4])
-                                  * factor);
+        return allocate((this.elements[1 + 1 * 4] * this.elements[2 + 2 * 4] - this.elements[1 + 2 * 4]
+                                * this.elements[2 + 1 * 4])
+                                * factor,
+                        (this.elements[1 + 2 * 4] * this.elements[2 + 0 * 4] - this.elements[1 + 0 * 4]
+                                * this.elements[2 + 2 * 4])
+                                * factor,
+                        (this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4] - this.elements[1 + 1 * 4]
+                                * this.elements[2 + 0 * 4])
+                                * factor,
+                        (-this.elements[1 + 0 * 4] * this.elements[2 + 1 * 4]
+                                * this.elements[3 + 2 * 4]
+                                + this.elements[1 + 1 * 4]
+                                * this.elements[2 + 0 * 4]
+                                * this.elements[3 + 2 * 4]
+                                + this.elements[1 + 0 * 4]
+                                * this.elements[2 + 2 * 4]
+                                * this.elements[3 + 1 * 4]
+                                - this.elements[1 + 2 * 4]
+                                * this.elements[2 + 0 * 4]
+                                * this.elements[3 + 1 * 4]
+                                - this.elements[1 + 1 * 4]
+                                * this.elements[2 + 2 * 4]
+                                * this.elements[3 + 0 * 4] + this.elements[1 + 2 * 4]
+                                * this.elements[2 + 1 * 4]
+                                * this.elements[3 + 0 * 4])
+                                * factor,
+                        (this.elements[0 + 2 * 4] * this.elements[2 + 1 * 4] - this.elements[0 + 1 * 4]
+                                * this.elements[2 + 2 * 4])
+                                * factor,
+                        (this.elements[0 + 0 * 4] * this.elements[2 + 2 * 4] - this.elements[0 + 2 * 4]
+                                * this.elements[2 + 0 * 4])
+                                * factor,
+                        (this.elements[0 + 1 * 4] * this.elements[2 + 0 * 4] - this.elements[0 + 0 * 4]
+                                * this.elements[2 + 1 * 4])
+                                * factor,
+                        (this.elements[0 + 0 * 4] * this.elements[2 + 1 * 4]
+                                * this.elements[3 + 2 * 4]
+                                - this.elements[0 + 1 * 4]
+                                * this.elements[2 + 0 * 4]
+                                * this.elements[3 + 2 * 4]
+                                - this.elements[0 + 0 * 4]
+                                * this.elements[2 + 2 * 4]
+                                * this.elements[3 + 1 * 4]
+                                + this.elements[0 + 2 * 4]
+                                * this.elements[2 + 0 * 4]
+                                * this.elements[3 + 1 * 4]
+                                + this.elements[0 + 1 * 4]
+                                * this.elements[2 + 2 * 4]
+                                * this.elements[3 + 0 * 4] - this.elements[0 + 2 * 4]
+                                * this.elements[2 + 1 * 4]
+                                * this.elements[3 + 0 * 4])
+                                * factor,
+                        (this.elements[0 + 1 * 4] * this.elements[1 + 2 * 4] - this.elements[0 + 2 * 4]
+                                * this.elements[1 + 1 * 4])
+                                * factor,
+                        (this.elements[0 + 2 * 4] * this.elements[1 + 0 * 4] - this.elements[0 + 0 * 4]
+                                * this.elements[1 + 2 * 4])
+                                * factor,
+                        (this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4] - this.elements[0 + 1 * 4]
+                                * this.elements[1 + 0 * 4])
+                                * factor,
+                        (-this.elements[0 + 0 * 4] * this.elements[1 + 1 * 4]
+                                * this.elements[3 + 2 * 4]
+                                + this.elements[0 + 1 * 4]
+                                * this.elements[1 + 0 * 4]
+                                * this.elements[3 + 2 * 4]
+                                + this.elements[0 + 0 * 4]
+                                * this.elements[1 + 2 * 4]
+                                * this.elements[3 + 1 * 4]
+                                - this.elements[0 + 2 * 4]
+                                * this.elements[1 + 0 * 4]
+                                * this.elements[3 + 1 * 4]
+                                - this.elements[0 + 1 * 4]
+                                * this.elements[1 + 2 * 4]
+                                * this.elements[3 + 0 * 4] + this.elements[0 + 2 * 4]
+                                * this.elements[1 + 1 * 4]
+                                * this.elements[3 + 0 * 4])
+                                * factor);
     }
 
     public Matrix invertAndSet()
@@ -733,7 +613,7 @@ public class Matrix
     @Deprecated
     public Vector apply(final Vector v)
     {
-        return new Vector(v.getX() * this.elements[0 + 0 * 4] + v.getY()
+        return Vector.allocate(v.getX() * this.elements[0 + 0 * 4] + v.getY()
                 * this.elements[1 + 0 * 4] + v.getZ()
                 * this.elements[2 + 0 * 4] + this.elements[3 + 0 * 4], v.getX()
                 * this.elements[0 + 1 * 4] + v.getY()
@@ -805,69 +685,69 @@ public class Matrix
     @Deprecated
     public Matrix concat(final Matrix rt)
     {
-        return new Matrix(this.elements[0 + 0 * 4] * rt.elements[0 + 0 * 4]
-                                  + this.elements[0 + 1 * 4]
-                                  * rt.elements[1 + 0 * 4]
-                                  + this.elements[0 + 2 * 4]
-                                  * rt.elements[2 + 0 * 4],
-                          this.elements[1 + 0 * 4] * rt.elements[0 + 0 * 4]
-                                  + this.elements[1 + 1 * 4]
-                                  * rt.elements[1 + 0 * 4]
-                                  + this.elements[1 + 2 * 4]
-                                  * rt.elements[2 + 0 * 4],
-                          this.elements[2 + 0 * 4] * rt.elements[0 + 0 * 4]
-                                  + this.elements[2 + 1 * 4]
-                                  * rt.elements[1 + 0 * 4]
-                                  + this.elements[2 + 2 * 4]
-                                  * rt.elements[2 + 0 * 4],
-                          this.elements[3 + 0 * 4] * rt.elements[0 + 0 * 4]
-                                  + this.elements[3 + 1 * 4]
-                                  * rt.elements[1 + 0 * 4]
-                                  + this.elements[3 + 2 * 4]
-                                  * rt.elements[2 + 0 * 4]
-                                  + rt.elements[3 + 0 * 4],
-                          this.elements[0 + 0 * 4] * rt.elements[0 + 1 * 4]
-                                  + this.elements[0 + 1 * 4]
-                                  * rt.elements[1 + 1 * 4]
-                                  + this.elements[0 + 2 * 4]
-                                  * rt.elements[2 + 1 * 4],
-                          this.elements[1 + 0 * 4] * rt.elements[0 + 1 * 4]
-                                  + this.elements[1 + 1 * 4]
-                                  * rt.elements[1 + 1 * 4]
-                                  + this.elements[1 + 2 * 4]
-                                  * rt.elements[2 + 1 * 4],
-                          this.elements[2 + 0 * 4] * rt.elements[0 + 1 * 4]
-                                  + this.elements[2 + 1 * 4]
-                                  * rt.elements[1 + 1 * 4]
-                                  + this.elements[2 + 2 * 4]
-                                  * rt.elements[2 + 1 * 4],
-                          this.elements[3 + 0 * 4] * rt.elements[0 + 1 * 4]
-                                  + this.elements[3 + 1 * 4]
-                                  * rt.elements[1 + 1 * 4]
-                                  + this.elements[3 + 2 * 4]
-                                  * rt.elements[2 + 1 * 4]
-                                  + rt.elements[3 + 1 * 4],
-                          this.elements[0 + 0 * 4] * rt.elements[0 + 2 * 4]
-                                  + this.elements[0 + 1 * 4]
-                                  * rt.elements[1 + 2 * 4]
-                                  + this.elements[0 + 2 * 4]
-                                  * rt.elements[2 + 2 * 4],
-                          this.elements[1 + 0 * 4] * rt.elements[0 + 2 * 4]
-                                  + this.elements[1 + 1 * 4]
-                                  * rt.elements[1 + 2 * 4]
-                                  + this.elements[1 + 2 * 4]
-                                  * rt.elements[2 + 2 * 4],
-                          this.elements[2 + 0 * 4] * rt.elements[0 + 2 * 4]
-                                  + this.elements[2 + 1 * 4]
-                                  * rt.elements[1 + 2 * 4]
-                                  + this.elements[2 + 2 * 4]
-                                  * rt.elements[2 + 2 * 4],
-                          this.elements[3 + 0 * 4] * rt.elements[0 + 2 * 4]
-                                  + this.elements[3 + 1 * 4]
-                                  * rt.elements[1 + 2 * 4]
-                                  + this.elements[3 + 2 * 4]
-                                  * rt.elements[2 + 2 * 4]
-                                  + rt.elements[3 + 2 * 4]);
+        return allocate(this.elements[0 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                + this.elements[0 + 1 * 4]
+                                * rt.elements[1 + 0 * 4]
+                                + this.elements[0 + 2 * 4]
+                                * rt.elements[2 + 0 * 4],
+                        this.elements[1 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                + this.elements[1 + 1 * 4]
+                                * rt.elements[1 + 0 * 4]
+                                + this.elements[1 + 2 * 4]
+                                * rt.elements[2 + 0 * 4],
+                        this.elements[2 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                + this.elements[2 + 1 * 4]
+                                * rt.elements[1 + 0 * 4]
+                                + this.elements[2 + 2 * 4]
+                                * rt.elements[2 + 0 * 4],
+                        this.elements[3 + 0 * 4] * rt.elements[0 + 0 * 4]
+                                + this.elements[3 + 1 * 4]
+                                * rt.elements[1 + 0 * 4]
+                                + this.elements[3 + 2 * 4]
+                                * rt.elements[2 + 0 * 4]
+                                + rt.elements[3 + 0 * 4],
+                        this.elements[0 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                + this.elements[0 + 1 * 4]
+                                * rt.elements[1 + 1 * 4]
+                                + this.elements[0 + 2 * 4]
+                                * rt.elements[2 + 1 * 4],
+                        this.elements[1 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                + this.elements[1 + 1 * 4]
+                                * rt.elements[1 + 1 * 4]
+                                + this.elements[1 + 2 * 4]
+                                * rt.elements[2 + 1 * 4],
+                        this.elements[2 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                + this.elements[2 + 1 * 4]
+                                * rt.elements[1 + 1 * 4]
+                                + this.elements[2 + 2 * 4]
+                                * rt.elements[2 + 1 * 4],
+                        this.elements[3 + 0 * 4] * rt.elements[0 + 1 * 4]
+                                + this.elements[3 + 1 * 4]
+                                * rt.elements[1 + 1 * 4]
+                                + this.elements[3 + 2 * 4]
+                                * rt.elements[2 + 1 * 4]
+                                + rt.elements[3 + 1 * 4],
+                        this.elements[0 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                + this.elements[0 + 1 * 4]
+                                * rt.elements[1 + 2 * 4]
+                                + this.elements[0 + 2 * 4]
+                                * rt.elements[2 + 2 * 4],
+                        this.elements[1 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                + this.elements[1 + 1 * 4]
+                                * rt.elements[1 + 2 * 4]
+                                + this.elements[1 + 2 * 4]
+                                * rt.elements[2 + 2 * 4],
+                        this.elements[2 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                + this.elements[2 + 1 * 4]
+                                * rt.elements[1 + 2 * 4]
+                                + this.elements[2 + 2 * 4]
+                                * rt.elements[2 + 2 * 4],
+                        this.elements[3 + 0 * 4] * rt.elements[0 + 2 * 4]
+                                + this.elements[3 + 1 * 4]
+                                * rt.elements[1 + 2 * 4]
+                                + this.elements[3 + 2 * 4]
+                                * rt.elements[2 + 2 * 4]
+                                + rt.elements[3 + 2 * 4]);
     }
 
     public Matrix concat(final Matrix dest, final Matrix rt)
@@ -958,6 +838,52 @@ public class Matrix
                            + rt.elements[3 + 2 * 4]);
     }
 
+    public Matrix concatAndSetAndFreeArg(final Matrix rt)
+    {
+        set(this,
+            this.elements[0 + 0 * 4] * rt.elements[0 + 0 * 4]
+                    + this.elements[0 + 1 * 4] * rt.elements[1 + 0 * 4]
+                    + this.elements[0 + 2 * 4] * rt.elements[2 + 0 * 4],
+            this.elements[1 + 0 * 4] * rt.elements[0 + 0 * 4]
+                    + this.elements[1 + 1 * 4] * rt.elements[1 + 0 * 4]
+                    + this.elements[1 + 2 * 4] * rt.elements[2 + 0 * 4],
+            this.elements[2 + 0 * 4] * rt.elements[0 + 0 * 4]
+                    + this.elements[2 + 1 * 4] * rt.elements[1 + 0 * 4]
+                    + this.elements[2 + 2 * 4] * rt.elements[2 + 0 * 4],
+            this.elements[3 + 0 * 4] * rt.elements[0 + 0 * 4]
+                    + this.elements[3 + 1 * 4] * rt.elements[1 + 0 * 4]
+                    + this.elements[3 + 2 * 4] * rt.elements[2 + 0 * 4]
+                    + rt.elements[3 + 0 * 4],
+            this.elements[0 + 0 * 4] * rt.elements[0 + 1 * 4]
+                    + this.elements[0 + 1 * 4] * rt.elements[1 + 1 * 4]
+                    + this.elements[0 + 2 * 4] * rt.elements[2 + 1 * 4],
+            this.elements[1 + 0 * 4] * rt.elements[0 + 1 * 4]
+                    + this.elements[1 + 1 * 4] * rt.elements[1 + 1 * 4]
+                    + this.elements[1 + 2 * 4] * rt.elements[2 + 1 * 4],
+            this.elements[2 + 0 * 4] * rt.elements[0 + 1 * 4]
+                    + this.elements[2 + 1 * 4] * rt.elements[1 + 1 * 4]
+                    + this.elements[2 + 2 * 4] * rt.elements[2 + 1 * 4],
+            this.elements[3 + 0 * 4] * rt.elements[0 + 1 * 4]
+                    + this.elements[3 + 1 * 4] * rt.elements[1 + 1 * 4]
+                    + this.elements[3 + 2 * 4] * rt.elements[2 + 1 * 4]
+                    + rt.elements[3 + 1 * 4],
+            this.elements[0 + 0 * 4] * rt.elements[0 + 2 * 4]
+                    + this.elements[0 + 1 * 4] * rt.elements[1 + 2 * 4]
+                    + this.elements[0 + 2 * 4] * rt.elements[2 + 2 * 4],
+            this.elements[1 + 0 * 4] * rt.elements[0 + 2 * 4]
+                    + this.elements[1 + 1 * 4] * rt.elements[1 + 2 * 4]
+                    + this.elements[1 + 2 * 4] * rt.elements[2 + 2 * 4],
+            this.elements[2 + 0 * 4] * rt.elements[0 + 2 * 4]
+                    + this.elements[2 + 1 * 4] * rt.elements[1 + 2 * 4]
+                    + this.elements[2 + 2 * 4] * rt.elements[2 + 2 * 4],
+            this.elements[3 + 0 * 4] * rt.elements[0 + 2 * 4]
+                    + this.elements[3 + 1 * 4] * rt.elements[1 + 2 * 4]
+                    + this.elements[3 + 2 * 4] * rt.elements[2 + 2 * 4]
+                    + rt.elements[3 + 2 * 4]);
+        rt.free();
+        return this;
+    }
+
     public static Matrix removeTranslate(final Matrix dest, final Matrix src)
     {
         return set(dest,
@@ -1004,32 +930,36 @@ public class Matrix
         System.out.println(toString());
     }
 
+    private static float[] gl_Matrix_mat = new float[16];
+    private static FloatBuffer gl_Matrix_buf = null;
+
     /** load <code>m</code> as the current OpenGL matrix
      * 
      * @param m
      *            the matrix to load */
     public static void glLoadMatrix(final Matrix m)
     {
-        float[] mat = new float[]
-        {
-            m.elements[0 + 0 * 4],
-            m.elements[0 + 1 * 4],
-            m.elements[0 + 2 * 4],
-            0,
-            m.elements[1 + 0 * 4],
-            m.elements[1 + 1 * 4],
-            m.elements[1 + 2 * 4],
-            0,
-            m.elements[2 + 0 * 4],
-            m.elements[2 + 1 * 4],
-            m.elements[2 + 2 * 4],
-            0,
-            m.elements[3 + 0 * 4],
-            m.elements[3 + 1 * 4],
-            m.elements[3 + 2 * 4],
-            1
-        };
-        FloatBuffer buf = Main.platform.createFloatBuffer(16);
+        float[] mat = gl_Matrix_mat;
+        mat[0] = m.elements[0 + 0 * 4];
+        mat[1] = m.elements[0 + 1 * 4];
+        mat[2] = m.elements[0 + 2 * 4];
+        mat[3] = 0;
+        mat[4] = m.elements[1 + 0 * 4];
+        mat[5] = m.elements[1 + 1 * 4];
+        mat[6] = m.elements[1 + 2 * 4];
+        mat[7] = 0;
+        mat[8] = m.elements[2 + 0 * 4];
+        mat[9] = m.elements[2 + 1 * 4];
+        mat[10] = m.elements[2 + 2 * 4];
+        mat[11] = 0;
+        mat[12] = m.elements[3 + 0 * 4];
+        mat[13] = m.elements[3 + 1 * 4];
+        mat[14] = m.elements[3 + 2 * 4];
+        mat[15] = 1;
+        if(gl_Matrix_buf == null)
+            gl_Matrix_buf = Main.platform.createFloatBuffer(16);
+        FloatBuffer buf = gl_Matrix_buf;
+        buf.clear();
         buf.put(mat);
         buf.flip();
         Main.opengl.glLoadMatrix(buf);
@@ -1041,36 +971,38 @@ public class Matrix
      *            the matrix to combine */
     public static void glMultMatrix(final Matrix m)
     {
-        float[] mat = new float[]
-        {
-            m.elements[0 + 0 * 4],
-            m.elements[0 + 1 * 4],
-            m.elements[0 + 2 * 4],
-            0,
-            m.elements[1 + 0 * 4],
-            m.elements[1 + 1 * 4],
-            m.elements[1 + 2 * 4],
-            0,
-            m.elements[2 + 0 * 4],
-            m.elements[2 + 1 * 4],
-            m.elements[2 + 2 * 4],
-            0,
-            m.elements[3 + 0 * 4],
-            m.elements[3 + 1 * 4],
-            m.elements[3 + 2 * 4],
-            1
-        };
-        FloatBuffer buf = Main.platform.createFloatBuffer(32);
+        float[] mat = gl_Matrix_mat;
+        mat[0] = m.elements[0 + 0 * 4];
+        mat[1] = m.elements[0 + 1 * 4];
+        mat[2] = m.elements[0 + 2 * 4];
+        mat[3] = 0;
+        mat[4] = m.elements[1 + 0 * 4];
+        mat[5] = m.elements[1 + 1 * 4];
+        mat[6] = m.elements[1 + 2 * 4];
+        mat[7] = 0;
+        mat[8] = m.elements[2 + 0 * 4];
+        mat[9] = m.elements[2 + 1 * 4];
+        mat[10] = m.elements[2 + 2 * 4];
+        mat[11] = 0;
+        mat[12] = m.elements[3 + 0 * 4];
+        mat[13] = m.elements[3 + 1 * 4];
+        mat[14] = m.elements[3 + 2 * 4];
+        mat[15] = 1;
+        if(gl_Matrix_buf == null)
+            gl_Matrix_buf = Main.platform.createFloatBuffer(16);
+        FloatBuffer buf = gl_Matrix_buf;
+        buf.clear();
         buf.put(mat);
         buf.flip();
         Main.opengl.glMultMatrix(buf);
     }
 
-    private static class ImmutableMatrix extends Matrix
+    private static final class ImmutableMatrix extends Matrix
     {
         public ImmutableMatrix(final Matrix m)
         {
-            super(m);
+            for(int i = 0; i < m.elements.length; i++)
+                this.elements[i] = m.elements[i];
         }
 
         public void unsupportedOp()
@@ -1096,5 +1028,97 @@ public class Matrix
         return new ImmutableMatrix(this);
     }
 
-    public static final Matrix IDENTITY = setToIdentity(new Matrix()).getImmutable();
+    public Matrix getImmutableAndFree()
+    {
+        Matrix retval = new ImmutableMatrix(this);
+        free();
+        return retval;
+    }
+
+    private static final Allocator<Matrix> allocator = new Allocator<Matrix>()
+    {
+        @Override
+        protected Matrix allocateInternal()
+        {
+            return new Matrix();
+        }
+    };
+
+    public static Matrix allocate(final Matrix rt)
+    {
+        return set(allocator.allocate(), rt);
+    }
+
+    public static Matrix allocate(final float x00,
+                                  final float x10,
+                                  final float x20,
+                                  final float x30,
+                                  final float x01,
+                                  final float x11,
+                                  final float x21,
+                                  final float x31,
+                                  final float x02,
+                                  final float x12,
+                                  final float x22,
+                                  final float x32)
+    {
+        return set(allocator.allocate(),
+                   x00,
+                   x10,
+                   x20,
+                   x30,
+                   x01,
+                   x11,
+                   x21,
+                   x31,
+                   x02,
+                   x12,
+                   x22,
+                   x32);
+    }
+
+    public static Matrix allocate()
+    {
+        return allocate(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+    }
+
+    @Override
+    public void free()
+    {
+        allocator.free(this);
+    }
+
+    public static final Matrix IDENTITY = setToIdentity(Matrix.allocate()).getImmutableAndFree();
+    public static final Matrix ROTATEX_PI_2 = setToRotateX(Matrix.allocate(),
+                                                           Math.PI / 2).getImmutableAndFree();
+    public static final Matrix ROTATEX_PI = setToRotateX(Matrix.allocate(),
+                                                         Math.PI).getImmutableAndFree();
+    public static final Matrix ROTATEX_3_PI_2 = setToRotateX(Matrix.allocate(),
+                                                             3 * Math.PI / 2).getImmutableAndFree();
+    public static final Matrix ROTATEY_PI_2 = setToRotateY(Matrix.allocate(),
+                                                           Math.PI / 2).getImmutableAndFree();
+    public static final Matrix ROTATEY_PI = setToRotateY(Matrix.allocate(),
+                                                         Math.PI).getImmutableAndFree();
+    public static final Matrix ROTATEY_3_PI_2 = setToRotateY(Matrix.allocate(),
+                                                             3 * Math.PI / 2).getImmutableAndFree();
+    public static final Matrix ROTATEZ_PI_2 = setToRotateZ(Matrix.allocate(),
+                                                           Math.PI / 2).getImmutableAndFree();
+    public static final Matrix ROTATEZ_PI = setToRotateZ(Matrix.allocate(),
+                                                         Math.PI).getImmutableAndFree();
+    public static final Matrix ROTATEZ_3_PI_2 = setToRotateZ(Matrix.allocate(),
+                                                             3 * Math.PI / 2).getImmutableAndFree();
+
+    @Override
+    public Allocatable dup()
+    {
+        return allocate(this);
+    }
+
+    public static Matrix setToThetaPhi(final Matrix retval,
+                                       final double theta,
+                                       final double phi)
+    {
+        Matrix t = Matrix.setToRotateX(Matrix.allocate(), -phi);
+        return setToRotateY(retval, theta).concatAndSetAndFreeArg(t);
+    }
 }

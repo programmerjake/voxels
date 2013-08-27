@@ -114,6 +114,13 @@ public interface Platform extends Closeable
      *             the IOException */
     public Audio loadAudio(InputStream is) throws IOException;
 
+    /** @param name
+     *            the file name
+     * @return the loaded Audio or null
+     * @throws IOException
+     *             the IOException */
+    public Audio loadAudioStream(String name) throws IOException;
+
     /** @return the current time in seconds */
     public double Timer();
 

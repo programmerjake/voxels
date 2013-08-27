@@ -91,43 +91,43 @@ public abstract class MenuScreen
 
         public Color getTextColor()
         {
-            return new Color(this.textColor);
+            return this.textColor.dup();
         }
 
         public void setTextColor(final Color textColor)
         {
-            this.textColor = new Color(textColor);
+            this.textColor = textColor.dup();
         }
 
         public Color getBackgroundColor()
         {
-            return new Color(this.backgroundColor);
+            return this.backgroundColor.dup();
         }
 
         public void setBackgroundColor(final Color backgroundColor)
         {
-            this.backgroundColor = new Color(backgroundColor);
+            this.backgroundColor = backgroundColor.dup();
         }
 
         public Color getSelectedTextColor()
         {
-            return new Color(this.selectedTextColor);
+            return this.selectedTextColor.dup();
         }
 
         public void setSelectedTextColor(final Color selectedTextColor)
         {
-            this.selectedTextColor = new Color(selectedTextColor);
+            this.selectedTextColor = selectedTextColor.dup();
         }
 
         public Color getSelectedBackgroundColor()
         {
-            return new Color(this.selectedBackgroundColor);
+            return this.selectedBackgroundColor.dup();
         }
 
         public void
             setSelectedBackgroundColor(final Color selectedBackgroundColor)
         {
-            this.selectedBackgroundColor = new Color(selectedBackgroundColor);
+            this.selectedBackgroundColor = selectedBackgroundColor.dup();
         }
 
         public String getText()
@@ -152,10 +152,10 @@ public abstract class MenuScreen
             super(Math.max(Text.sizeH("A"), Text.sizeH(text)) * 2.0f * 2.0f / 480.0f,
                   container);
             this.text = text;
-            this.textColor = new Color(textColor);
-            this.backgroundColor = new Color(backgroundColor);
-            this.selectedTextColor = new Color(selectedTextColor);
-            this.selectedBackgroundColor = new Color(selectedBackgroundColor);
+            this.textColor = textColor.dup();
+            this.backgroundColor = backgroundColor.dup();
+            this.selectedTextColor = selectedTextColor.dup();
+            this.selectedBackgroundColor = selectedBackgroundColor.dup();
             this.texture = RenderingStream.NO_TEXTURE;
             this.selectedTexture = RenderingStream.NO_TEXTURE;
         }
@@ -170,16 +170,16 @@ public abstract class MenuScreen
             super(Math.max(Text.sizeH("A"), Text.sizeH(text)) * 2.0f * 2.0f / 480.0f,
                   container);
             this.text = text;
-            this.textColor = new Color(textColor);
+            this.textColor = textColor.dup();
             this.backgroundColor = Color.RGB(1.0f, 1.0f, 1.0f);
-            this.selectedTextColor = new Color(selectedTextColor);
+            this.selectedTextColor = selectedTextColor.dup();
             this.selectedBackgroundColor = Color.RGB(1.0f, 1.0f, 1.0f);
             this.texture = texture;
             this.selectedTexture = selectedTexture;
         }
 
-        private static Matrix drawBackground_t1 = new Matrix();
-        private static Matrix drawBackground_t2 = new Matrix();
+        private static Matrix drawBackground_t1 = Matrix.allocate();
+        private static Matrix drawBackground_t2 = Matrix.allocate();
 
         protected void drawBackground(final Matrix tform,
                                       final boolean isSelected)
@@ -214,8 +214,8 @@ public abstract class MenuScreen
             RenderingStream.free(rs);
         }
 
-        private static Matrix draw_t1 = new Matrix();
-        private static Matrix draw_t2 = new Matrix();
+        private static Matrix draw_t1 = Matrix.allocate();
+        private static Matrix draw_t2 = Matrix.allocate();
 
         @Override
         public void draw(final Matrix tform, final boolean isSelected)
@@ -579,18 +579,18 @@ public abstract class MenuScreen
 
     protected void setBackgroundColor(final Color backgroundColor)
     {
-        this.backgroundColor = new Color(backgroundColor);
+        this.backgroundColor = backgroundColor.dup();
     }
 
     /** @param backgroundColor
      *            the background color */
     public MenuScreen(final Color backgroundColor)
     {
-        this.backgroundColor = backgroundColor;
+        this.backgroundColor = backgroundColor.dup();
     }
 
-    private Matrix drawTextBackground_t1 = new Matrix();
-    private Matrix drawTextBackground_t2 = new Matrix();
+    private Matrix drawTextBackground_t1 = Matrix.allocate();
+    private Matrix drawTextBackground_t2 = Matrix.allocate();
 
     protected void drawTextBackground(final String text, final Matrix tform)
     {
@@ -617,7 +617,7 @@ public abstract class MenuScreen
     {
     }
 
-    private static Matrix draw_t1 = new Matrix();
+    private static Matrix draw_t1 = Matrix.allocate();
 
     /**
      * 

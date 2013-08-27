@@ -41,6 +41,8 @@ public enum EntityType
     TransferItem,
     /** applies bone meal to a block or puts the bone meal back in a container */
     ApplyBoneMealOrPutBackInContainer,
+    /** mine cart */
+    MineCart,
     /** used to get <code>EntityType.count</code> */
     Last;
     /** the number of valid entity types */

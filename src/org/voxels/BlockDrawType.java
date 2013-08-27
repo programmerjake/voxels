@@ -28,4 +28,5 @@ enum BlockDrawType
     BDTLiquid,
     BDTButton,
     BDTSim3D,
+    BDTRail,
 }

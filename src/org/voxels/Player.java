@@ -28,64 +28,59 @@ import org.voxels.BlockType.ToolType;
 import org.voxels.platform.Mouse;
 
 /** @author jacob */
-public class Player implements GameObject
+public final class Player implements GameObject
 {
-    /**
-	 * 
-	 */
-    public static final float PlayerHeight = 2.0f;
-    private Vector position = Vector.allocate(0.5f, 1.5f, 0.5f);
-    private Vector velocity = Vector.allocate(0);
-    private float viewTheta = 0.0f;
-    private float viewPhi = 0.0f;
-    private static final float selectionDist = 8.0f;
-    private boolean wasPaused = true;
-    private int blockCount[] = new int[(Block.CHEST_ROWS + 1)
-            * Block.CHEST_COLUMNS];
-    private Block blockType[] = new Block[(Block.CHEST_ROWS + 1)
-            * Block.CHEST_COLUMNS];
-    private int selectionX = 0;
-    private boolean isShiftDown = false;
-    private float lastMouseX = -1, lastMouseY = -1;
-    private static final float distLimit = 0.2f;
-    private int dragCount = 0;
-    private Block dragType = null;
-    private float dragX = 0, dragY = 0;
-    private int creativeOffset = 0;
-    private float startMouseX = -1, startMouseY = -1;
-    private boolean isDragOperation = false;
-    private boolean isFlying = false, isSneaking = false;
-    private float touchWaitTime = 0.0f;
-
-    private static int getInventoryIndex(final int row, final int column)
+    private static final Allocator<Player> allocator = new Allocator<Player>()
     {
-        return row * Block.CHEST_COLUMNS + column;
-    }
+        @SuppressWarnings("synthetic-access")
+        @Override
+        protected Player allocateInternal()
+        {
+            return new Player();
+        }
+    };
 
-    private enum State
+    private Player init()
     {
-        Normal, Workbench, Chest, Furnace, DispenserDropper, Hopper
-    }
-
-    private State state = State.Normal;
-    private static final int workbenchMaxSize = 3;
-    private int workbenchSize = 2;
-    private int workbenchSelX = 1;
-    private int workbenchSelY = 1;
-    private int blockX = 0;
-    private int blockY = 0;
-    private int blockZ = 0;
-    private int blockOrientation = -1;
-    private final Block workbench[] = new Block[workbenchMaxSize
-            * workbenchMaxSize];
-    private float mouseDownTime = 0;
-    private float deleteAnimTime = 0;
-
-    /**
-	 * 
-	 */
-    public Player()
-    {
+        this.position = Vector.allocate(0.5f, 1.5f, 0.5f);
+        this.velocity = Vector.allocate(0);
+        this.viewTheta = 0.0f;
+        this.viewPhi = 0.0f;
+        this.wasPaused = true;
+        for(int i = 0; i < this.blockCount.length; i++)
+        {
+            this.blockCount[i] = 0;
+            this.blockType[i] = null;
+        }
+        this.selectionX = 0;
+        this.isShiftDown = false;
+        this.lastMouseX = -1;
+        this.lastMouseY = -1;
+        this.dragCount = 0;
+        this.dragType = null;
+        this.dragX = 0;
+        this.dragY = 0;
+        this.creativeOffset = 0;
+        this.startMouseX = -1;
+        this.startMouseY = -1;
+        this.isDragOperation = false;
+        this.isFlying = false;
+        this.isSneaking = false;
+        this.touchWaitTime = 0.0f;
+        this.state = State.Normal;
+        this.workbenchSize = 2;
+        this.workbenchSelX = 1;
+        this.workbenchSelY = 1;
+        this.blockX = 0;
+        this.blockY = 0;
+        this.blockZ = 0;
+        this.blockOrientation = -1;
+        for(int i = 0; i < this.workbench.length; i++)
+        {
+            this.workbench[i] = null;
+        }
+        this.mouseDownTime = 0;
+        this.deleteAnimTime = 0;
         // Block b;
         // int count = 0;
         // final int yoffset = World.Depth - 5;
@@ -120,6 +115,144 @@ public class Player implements GameObject
         // this.position.setY(this.position.getY() + 1.0f);
         // }
         this.position.setY(PlayerHeight + 0.201f + world.getLandHeight(0, 0));
+        return this;
+    }
+
+    private Player init(final Vector pos)
+    {
+        this.position = pos;
+        this.velocity = Vector.allocate(0);
+        this.viewTheta = 0.0f;
+        this.viewPhi = 0.0f;
+        this.wasPaused = true;
+        for(int i = 0; i < this.blockCount.length; i++)
+        {
+            this.blockCount[i] = 0;
+            this.blockType[i] = null;
+        }
+        this.selectionX = 0;
+        this.isShiftDown = false;
+        this.lastMouseX = -1;
+        this.lastMouseY = -1;
+        this.dragCount = 0;
+        this.dragType = null;
+        this.dragX = 0;
+        this.dragY = 0;
+        this.creativeOffset = 0;
+        this.startMouseX = -1;
+        this.startMouseY = -1;
+        this.isDragOperation = false;
+        this.isFlying = false;
+        this.isSneaking = false;
+        this.touchWaitTime = 0.0f;
+        this.state = State.Normal;
+        this.workbenchSize = 2;
+        this.workbenchSelX = 1;
+        this.workbenchSelY = 1;
+        this.blockX = 0;
+        this.blockY = 0;
+        this.blockZ = 0;
+        this.blockOrientation = -1;
+        for(int i = 0; i < this.workbench.length; i++)
+        {
+            this.workbench[i] = null;
+        }
+        this.mouseDownTime = 0;
+        this.deleteAnimTime = 0;
+        return this;
+    }
+
+    public void free()
+    {
+        this.position.free();
+        this.position = null;
+        this.velocity.free();
+        this.velocity = null;
+        for(int i = 0; i < this.blockCount.length; i++)
+        {
+            this.blockCount[i] = 0;
+            if(this.blockType[i] != null)
+                this.blockType[i].free();
+            this.blockType[i] = null;
+        }
+        if(this.dragType != null)
+            this.dragType.free();
+        this.dragType = null;
+        for(int i = 0; i < this.workbench.length; i++)
+        {
+            if(this.workbench[i] != null)
+                this.workbench[i].free();
+            this.workbench[i] = null;
+        }
+        allocator.free(this);
+    }
+
+    public static Player allocate()
+    {
+        return allocator.allocate().init();
+    }
+
+    private static Player allocate(final Vector pos)
+    {
+        return allocator.allocate().init(pos);
+    }
+
+    /**
+	 * 
+	 */
+    public static final float PlayerHeight = 2.0f;
+    private static final float selectionDist = 8.0f;
+    private static final float distLimit = 0.2f;
+    private Vector position;
+    private Vector velocity;
+    private float viewTheta;
+    private float viewPhi;
+    private boolean wasPaused;
+    private final int blockCount[] = new int[(Block.CHEST_ROWS + 1)
+            * Block.CHEST_COLUMNS];
+    private final Block blockType[] = new Block[(Block.CHEST_ROWS + 1)
+            * Block.CHEST_COLUMNS];
+    private int selectionX;
+    private boolean isShiftDown;
+    private float lastMouseX, lastMouseY;
+    private int dragCount;
+    private Block dragType;
+    private float dragX, dragY;
+    private int creativeOffset;
+    private float startMouseX, startMouseY;
+    private boolean isDragOperation;
+    private boolean isFlying, isSneaking;
+    private float touchWaitTime;
+
+    private static int getInventoryIndex(final int row, final int column)
+    {
+        return row * Block.CHEST_COLUMNS + column;
+    }
+
+    private enum State
+    {
+        Normal, Workbench, Chest, Furnace, DispenserDropper, Hopper
+    }
+
+    private static final int workbenchMaxSize = 3;
+    private State state;
+    private int workbenchSize;
+    private int workbenchSelX;
+    private int workbenchSelY;
+    private int blockX;
+    private int blockY;
+    private int blockZ;
+    private int blockOrientation;
+    private final Block workbench[] = new Block[workbenchMaxSize
+            * workbenchMaxSize];
+    private float mouseDownTime;
+    private float deleteAnimTime;
+
+    /**
+	 * 
+	 */
+    private Player()
+    {
     }
 
     private Player(final Vector position)
@@ -135,50 +268,50 @@ public class Player implements GameObject
         return false;
     }
 
-    private Matrix getWorldToCamera_retval = new Matrix();
-    private Matrix getWorldToCamera_t1 = new Matrix();
-    private Vector getWorldToCamera_t2 = Vector.allocate();
+    private static Matrix getWorldToCamera_retval = Matrix.allocate();
+    private static Matrix getWorldToCamera_t1 = Matrix.allocate();
+    private static Vector getWorldToCamera_t2 = Vector.allocate();
 
     /** @return the transformation that converts world coordinates to this
      *         player's camera coordinates */
     public Matrix getWorldToCamera()
     {
-        return Matrix.setToTranslate(this.getWorldToCamera_retval,
-                                     Vector.neg(this.getWorldToCamera_t2,
+        return Matrix.setToTranslate(Player.getWorldToCamera_retval,
+                                     Vector.neg(Player.getWorldToCamera_t2,
                                                 this.position))
-                     .concatAndSet(Matrix.setToRotateY(this.getWorldToCamera_t1,
+                     .concatAndSet(Matrix.setToRotateY(Player.getWorldToCamera_t1,
                                                        this.viewTheta))
-                     .concatAndSet(Matrix.setToRotateX(this.getWorldToCamera_t1,
+                     .concatAndSet(Matrix.setToRotateX(Player.getWorldToCamera_t1,
                                                        this.viewPhi));
     }
 
-    private Vector getForwardVector_retval = Vector.allocate();
-    private Matrix getForwardVector_t1 = new Matrix();
-    private Matrix getForwardVector_t2 = new Matrix();
+    private static Vector getForwardVector_retval = Vector.allocate();
+    private static Matrix getForwardVector_t1 = Matrix.allocate();
+    private static Matrix getForwardVector_t2 = Matrix.allocate();
 
     /** @return the vector pointing in the direction this player is looking */
     public Vector getForwardVector()
     {
-        return Matrix.setToRotateX(this.getForwardVector_t1, -this.viewPhi)
-                     .concatAndSet(Matrix.setToRotateY(this.getForwardVector_t2,
+        return Matrix.setToRotateX(Player.getForwardVector_t1, -this.viewPhi)
+                     .concatAndSet(Matrix.setToRotateY(Player.getForwardVector_t2,
                                                        -this.viewTheta))
-                     .apply(this.getForwardVector_retval,
-                            Vector.set(this.getForwardVector_retval,
+                     .apply(Player.getForwardVector_retval,
+                            Vector.set(Player.getForwardVector_retval,
                                        0.0f,
                                        0.0f,
                                        -1.0f));
     }
 
-    private Vector getMoveForwardVector_retval = Vector.allocate();
-    private Matrix getMoveForwardVector_t1 = new Matrix();
+    private static Vector getMoveForwardVector_retval = Vector.allocate();
+    private static Matrix getMoveForwardVector_t1 = Matrix.allocate();
 
     /** @return the vector pointing in the direction this player is facing */
     public Vector getMoveForwardVector()
     {
-        return Matrix.setToRotateY(this.getMoveForwardVector_t1,
+        return Matrix.setToRotateY(Player.getMoveForwardVector_t1,
                                    -this.viewTheta)
-                     .apply(this.getMoveForwardVector_retval,
-                            Vector.set(this.getMoveForwardVector_retval,
+                     .apply(Player.getMoveForwardVector_retval,
+                            Vector.set(Player.getMoveForwardVector_retval,
                                        0.0f,
                                        0.0f,
                                        -1.0f));
@@ -192,11 +325,11 @@ public class Player implements GameObject
         return getPosition_retval.set(this.position);
     }
 
-    private World.BlockHitDescriptor getSelectedBlock_t1 = new World.BlockHitDescriptor();
+    private static World.BlockHitDescriptor getSelectedBlock_t1 = new World.BlockHitDescriptor();
 
     private Block getSelectedBlock()
     {
-        World.BlockHitDescriptor bhd = world.getPointedAtBlock(this.getSelectedBlock_t1,
+        World.BlockHitDescriptor bhd = world.getPointedAtBlock(Player.getSelectedBlock_t1,
                                                                getWorldToCamera(),
                                                                selectionDist,
                                                                this.isShiftDown);
@@ -205,6 +338,15 @@ public class Player implements GameObject
         this.blockZ = bhd.z;
         this.blockOrientation = bhd.orientation;
         return bhd.b;
+    }
+
+    private Entity getSelectedEntity()
+    {
+        World.BlockHitDescriptor bhd = world.getPointedAtBlock(getSelectedBlock_t1,
+                                                               getWorldToCamera(),
+                                                               selectionDist,
+                                                               this.isShiftDown);
+        return bhd.e;
     }
 
     private void internalDrawSelectedBlockH(final float minX,
@@ -311,12 +453,12 @@ public class Player implements GameObject
     private static final int hopperLeft = 41;
     private static final int hopperBottom = 255 - 148;
 
-    private float getPlaceButtonLeft()
+    private float getUseButtonLeft()
     {
         return Main.aspectRatio() - touchButtonWidth;
     }
 
-    private float getPlaceButtonBottom()
+    private float getUseButtonBottom()
     {
         return -touchButtonHeight / 2;
     }
@@ -421,8 +563,8 @@ public class Player implements GameObject
         return -1.0f;
     }
 
-    private static Matrix drawButton_t1 = new Matrix();
-    private static Matrix drawButton_t2 = new Matrix();
+    private static Matrix drawButton_t1 = Matrix.allocate();
+    private static Matrix drawButton_t2 = Matrix.allocate();
 
     private void drawButton(final String text,
                             final float left,
@@ -477,8 +619,8 @@ public class Player implements GameObject
         Text.draw(textTransform, Color.V(0.0f), text);
     }
 
-    private static Matrix drawCenteredText_t1 = new Matrix();
-    private static Matrix drawCenteredText_t2 = new Matrix();
+    private static Matrix drawCenteredText_t1 = Matrix.allocate();
+    private static Matrix drawCenteredText_t2 = Matrix.allocate();
 
     private void drawCenteredText(final String str,
                                   final float xCenter,
@@ -501,8 +643,8 @@ public class Player implements GameObject
         Text.draw(textTransform, str);
     }
 
-    private static Matrix drawCell_t1 = new Matrix();
-    private static Matrix drawCell_t2 = new Matrix();
+    private static Matrix drawCell_t1 = Matrix.allocate();
+    private static Matrix drawCell_t2 = Matrix.allocate();
 
     private void drawCell(final Block b,
                           final int count,
@@ -593,8 +735,8 @@ public class Player implements GameObject
         return 255 - 148;
     }
 
-    private static Matrix getImageMat_retval = new Matrix();
-    private static Matrix getImageMat_t1 = new Matrix();
+    private static Matrix getImageMat_retval = Matrix.allocate();
+    private static Matrix getImageMat_t1 = Matrix.allocate();
 
     private static Matrix getImageMatInternal()
     {
@@ -651,8 +793,8 @@ public class Player implements GameObject
         return top;
     }
 
-    private static Matrix drawAll_t1 = new Matrix();
-    private static Matrix drawAll_t2 = new Matrix();
+    private static Matrix drawAll_t1 = Matrix.allocate();
+    private static Matrix drawAll_t2 = Matrix.allocate();
     private static Vector drawAll_t3 = Vector.allocate();
 
     /** draw everything from this player's perspective */
@@ -902,7 +1044,7 @@ public class Player implements GameObject
             drawInventory();
             Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
             if(chest == null || chest.getType() != BlockType.BTChest)
-                chest = Block.NewChest();
+                break;
             for(int row = 0; row < Block.CHEST_ROWS; row++)
             {
                 for(int column = 0; column < Block.CHEST_COLUMNS; column++)
@@ -951,7 +1093,7 @@ public class Player implements GameObject
                                            this.blockY,
                                            this.blockZ);
             if(furnace == null || furnace.getType() != BlockType.BTFurnace)
-                furnace = Block.NewFurnace();
+                break;
             drawCell(furnace.furnaceGetSrcBlock(),
                      furnace.furnaceGetSrcBlockCount(),
                      furnaceSrcLeft,
@@ -1001,7 +1143,7 @@ public class Player implements GameObject
                                                     this.blockZ);
             if(dispenserDropper == null
                     || (dispenserDropper.getType() != BlockType.BTDispenser && dispenserDropper.getType() != BlockType.BTDropper))
-                dispenserDropper = Block.NewDropper(-1);
+                break;
             for(int row = 0; row < Block.DISPENSER_DROPPER_ROWS; row++)
             {
                 for(int column = 0; column < Block.DISPENSER_DROPPER_COLUMNS; column++)
@@ -1050,7 +1192,7 @@ public class Player implements GameObject
             drawInventory();
             Block hopper = world.getBlock(this.blockX, this.blockY, this.blockZ);
             if(hopper == null || hopper.getType() != BlockType.BTHopper)
-                hopper = Block.NewHopper(-1);
+                break;
             for(int slot = 0; slot < Block.HOPPER_SLOTS; slot++)
             {
                 int count = hopper.hopperGetBlockCount(slot);
@@ -1077,9 +1219,9 @@ public class Player implements GameObject
         {
             if(this.state == State.Normal)
             {
-                drawButton("Place",
-                           getPlaceButtonLeft(),
-                           getPlaceButtonBottom(),
+                drawButton("Use",
+                           getUseButtonLeft(),
+                           getUseButtonBottom(),
                            false);
                 drawButton("Inven\ntory",
                            getInventoryButtonLeft(),
@@ -1544,13 +1686,12 @@ public class Player implements GameObject
         return false;
     }
 
-    private boolean
-        mouseIsInPlaceButton(final float mouseX, final float mouseY)
+    private boolean mouseIsInUseButton(final float mouseX, final float mouseY)
     {
         return mouseIsInButton(mouseX,
                                mouseY,
-                               getPlaceButtonLeft(),
-                               getPlaceButtonBottom());
+                               getUseButtonLeft(),
+                               getUseButtonBottom());
     }
 
     private boolean
@@ -1713,6 +1854,8 @@ public class Player implements GameObject
         GrabbedAndCentered
     }
 
+    private static final Block.BlockDigDescriptor handleMouseMove_bdd = new Block.BlockDigDescriptor();
+
     /** @param mouseX
      *            mouse x position
      * @param mouseY
@@ -1788,9 +1931,21 @@ public class Player implements GameObject
                             && (!mouseIsInFlyButton(mouseX, mouseY) || !Main.isCreativeMode)
                             && !mouseIsInSneakButton(mouseX, mouseY)
                             && !mouseIsInHotbar(mouseX, mouseY)
-                            && !mouseIsInPauseButton(mouseX, mouseY) && !mouseIsInPlaceButton(mouseX,
-                                                                                              mouseY)) || !Main.platform.isTouchScreen()))
+                            && !mouseIsInPauseButton(mouseX, mouseY) && !mouseIsInUseButton(mouseX,
+                                                                                            mouseY)) || !Main.platform.isTouchScreen()))
             {
+                Entity e = getSelectedEntity();
+                if(e != null)
+                {
+                    if(Main.platform.isTouchScreen() && this.touchWaitTime > 0)
+                    {
+                        this.touchWaitTime -= Main.getFrameDuration();
+                    }
+                    else
+                    {
+                        e.onPunch(Main.getFrameDuration());
+                    }
+                }
                 int x = this.blockX, y = this.blockY, z = this.blockZ;
                 Block b = getSelectedBlock();
                 boolean isSameBlock = true;
@@ -1810,7 +1965,9 @@ public class Player implements GameObject
                 }
                 Block.BlockDigDescriptor bdd = null;
                 if(b != null)
-                    bdd = b.getDigDescriptor(toolType, toolLevel);
+                    bdd = b.getDigDescriptor(handleMouseMove_bdd,
+                                             toolType,
+                                             toolLevel);
                 float deletePeriod = -1;
                 if(Main.isCreativeMode)
                 {
@@ -1820,9 +1977,7 @@ public class Player implements GameObject
                     if(b != null)
                     {
                         if(b.canDig())
-                            bdd = new Block.BlockDigDescriptor(0.25f,
-                                                               false,
-                                                               false);
+                            bdd = handleMouseMove_bdd.init(0.25f, false, false);
                     }
                 }
                 if(bdd != null)
@@ -1846,23 +2001,27 @@ public class Player implements GameObject
                 {
                     this.deleteAnimTime = -1;
                     this.mouseDownTime = 0;
-                    world.setBlock(this.blockX,
-                                   this.blockY,
-                                   this.blockZ,
-                                   new Block());
                     b.digBlock(this.blockX,
                                this.blockY,
                                this.blockZ,
                                bdd.makesBlock,
                                toolType);
+                    Block temp = world.getBlock(this.blockX,
+                                                this.blockY,
+                                                this.blockZ);
+                    world.setBlock(this.blockX,
+                                   this.blockY,
+                                   this.blockZ,
+                                   Block.NewEmpty());
+                    temp.free();
                     Main.play(Main.destructAudio);
                     if(bdd.usesTool && toolType.diggingUsesTool())
                     {
-                        curHotbar = takeBlock();
-                        curHotbar = new Block(curHotbar);
+                        curHotbar = takeBlock().dup();
                         if(curHotbar.toolUseTool())
                             if(!giveBlock(curHotbar, true))
                                 dropBlock(curHotbar);
+                        curHotbar.free();
                     }
                 }
             }
@@ -1981,7 +2140,7 @@ public class Player implements GameObject
         if(this.blockCount[index] <= 0)
         {
             this.blockCount[index] = Math.min(count, Block.BLOCK_STACK_SIZE);
-            this.blockType[index] = b;
+            this.blockType[index] = b.dup();
             return this.blockCount[index];
         }
         if(this.blockType[index].equals(b))
@@ -2040,11 +2199,14 @@ public class Player implements GameObject
         int index = getInventoryIndex(Block.CHEST_ROWS, this.selectionX);
         if(this.blockCount[index] <= 0)
             return null;
-        Block retval = this.blockType[index];
+        Block retval = this.blockType[index].dup();
         if(Main.isCreativeMode)
             return retval;
         if(--this.blockCount[index] <= 0)
+        {
+            this.blockType[index].free();
             this.blockType[index] = null;
+        }
         return retval;
     }
 
@@ -2059,11 +2221,14 @@ public class Player implements GameObject
                 int index = getInventoryIndex(row, column);
                 if(this.blockCount[index] <= 0)
                     continue;
-                Block retval = this.blockType[index];
+                Block retval = this.blockType[index].dup();
                 if(!retval.equals(type))
                     continue;
                 if(--this.blockCount[index] <= 0)
+                {
+                    this.blockType[index].free();
                     this.blockType[index] = null;
+                }
                 return retval;
             }
         }
@@ -2091,7 +2256,9 @@ public class Player implements GameObject
                 }
             }
             this.dragCount += count;
-            this.dragType = b;
+            if(this.dragType != null)
+                this.dragType.free();
+            this.dragType = b.dup();
         }
     }
 
@@ -2302,7 +2469,10 @@ public class Player implements GameObject
                 this.dragCount += transferCount;
                 this.blockCount[index] -= transferCount;
                 if(this.blockCount[index] <= 0)
+                {
+                    this.blockType[index].free();
                     this.blockType[index] = null;
+                }
             }
             return true;
         }
@@ -2511,12 +2681,13 @@ public class Player implements GameObject
         Block container = getContainer();
         if(container == null)
             return;
-        container = new Block(container);
         if(this.dragCount <= 0)
         {
             if(getSelectedBlockCount(container, row, column) > 0)
             {
                 this.dragType = getSelectedBlockType(container, row, column);
+                if(this.dragType != null)
+                    this.dragType = this.dragType.dup();
                 this.dragCount = removeFromSelectedBlock(container,
                                                          row,
                                                          column,
@@ -2527,7 +2698,10 @@ public class Player implements GameObject
                 if(Main.isCreativeMode)
                     this.dragCount = 0;
                 if(this.dragCount <= 0)
+                {
+                    this.dragType.free();
                     this.dragType = null;
+                }
             }
         }
         else if(getSelectedBlockCount(container, row, column) <= 0
@@ -2541,7 +2715,10 @@ public class Player implements GameObject
             if(!Main.isCreativeMode)
                 this.dragCount -= addedCount;
             if(this.dragCount <= 0)
+            {
+                this.dragType.free();
                 this.dragType = null;
+            }
         }
         else
         // pick
@@ -2564,7 +2741,7 @@ public class Player implements GameObject
         world.setBlock(this.blockX, this.blockY, this.blockZ, container);
     }
 
-    private Vector handleMouseUpDown_t1 = Vector.allocate();
+    private static Vector handleMouseUpDown_t1 = Vector.allocate();
 
     /** @param event
      *            the event */
@@ -2661,9 +2838,14 @@ public class Player implements GameObject
             }
             else if((!Main.platform.isTouchScreen() && event.isDown && event.button == Main.MouseEvent.RIGHT)
                     || (Main.platform.isTouchScreen() && !event.isDown
-                            && !this.isDragOperation && mouseIsInPlaceButton(event.mouseX,
-                                                                             event.mouseY)))
+                            && !this.isDragOperation && mouseIsInUseButton(event.mouseX,
+                                                                           event.mouseY)))
             {
+                Entity e = getSelectedEntity();
+                if(e != null)
+                {
+                    e.onUseButtonPress(this);
+                }
                 if(getCurrentHotbarBlock() == null)
                     return;
                 if(getCurrentHotbarBlock().getType() == BlockType.BTSnow)
@@ -2674,6 +2856,7 @@ public class Player implements GameObject
                                                              Vector.mul(throwBlock_t1,
                                                                         getForwardVector(),
                                                                         15.0f)));
+                    b.free();
                     return;
                 }
                 Block oldb;
@@ -2689,54 +2872,83 @@ public class Player implements GameObject
                         {
                             if(!giveBlock(oldb.getItemInBucket(), false))
                                 dropBlock(oldb.getItemInBucket());
-                            newb = new Block();
+                            newb.free();
+                            newb = Block.NewEmpty();
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
                                            newb);
+                            newb.onPlace(this.blockX, this.blockY, this.blockZ);
+                            newb = null;
+                            oldb.free();
+                            oldb = null;
                             didAnything = true;
                         }
                     }
-                    if(newb.getToolType() == ToolType.Hoe)
+                    else if(newb.getToolType() == ToolType.Hoe)
                     {
                         if(oldb.getType() == BlockType.BTGrass
                                 || oldb.getType() == BlockType.BTDirt)
                         {
                             oldb = Block.NewFarmland(false);
-                            newb = new Block(newb);
                             if(!newb.toolUseTool())
+                            {
+                                newb.free();
                                 newb = null;
+                            }
+                            Block temp = world.getBlock(this.blockX,
+                                                        this.blockY,
+                                                        this.blockZ);
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
                                            oldb);
+                            oldb.onPlace(this.blockX, this.blockY, this.blockZ);
+                            temp.free();
                             didAnything = true;
                         }
                     }
-                    if(newb.getToolType() == ToolType.FlintAndSteel)
+                    else if(newb.getToolType() == ToolType.FlintAndSteel)
                     {
                         if(oldb.getType() == BlockType.BTTNT)
                         {
                             oldb.TNTExplode(this.blockX,
                                             this.blockY,
                                             this.blockZ);
-                            newb = new Block(newb);
                             if(!newb.toolUseTool())
+                            {
+                                newb.free();
                                 newb = null;
+                            }
                             didAnything = true;
                         }
                     }
-                    if(newb.getType() == BlockType.BTBoneMeal)
+                    else if(newb.getType() == BlockType.BTBoneMeal)
                     {
                         if(oldb.onUseBoneMeal(this.blockX,
                                               this.blockY,
                                               this.blockZ))
                         {
+                            newb.free();
                             return;
+                        }
+                    }
+                    else if(newb.isMineCart())
+                    {
+                        if(oldb.isRail())
+                        {
+                            world.insertEntity(Entity.NewMineCart(handleMouseUpDown_t1.set(this.blockX + 0.5f,
+                                                                                           this.blockY + 0.5f,
+                                                                                           this.blockZ + 0.5f),
+                                                                  newb.minecartMakeContainedBlock()));
+                            newb = null;
+                            didAnything = true;
                         }
                     }
                     if(!giveBlock(newb, true))
                         dropBlock(newb);
+                    if(newb != null)
+                        newb.free();
                     if(didAnything)
                         return;
                 }
@@ -2751,7 +2963,7 @@ public class Player implements GameObject
                     world.setBlock(this.blockX,
                                    this.blockY,
                                    this.blockZ,
-                                   new Block());
+                                   Block.NewEmpty());
                 }
                 this.isShiftDown = true;
                 oldb = getSelectedBlock();
@@ -2763,7 +2975,9 @@ public class Player implements GameObject
                             + Math.abs(tempZ + this.blockZ);
                     if(dist > 1)
                     {
+                        Block freeMe = world.getBlock(tempX, tempY, tempZ);
                         world.setBlock(tempX, tempY, tempZ, tempBlock);
+                        freeMe.free();
                         tempBlock = null;
                         oldb = getSelectedBlock();
                         if(oldb == null)
@@ -2776,15 +2990,25 @@ public class Player implements GameObject
                     Block newb = takeBlock();
                     if(newb != null)
                     {
+                        Block temp = world.getBlock(this.blockX,
+                                                    this.blockY,
+                                                    this.blockZ);
+                        Block fire = Block.NewFire(0);
                         world.setBlock(this.blockX,
                                        this.blockY,
                                        this.blockZ,
-                                       Block.NewFire(0));
-                        newb = new Block(newb);
+                                       fire);
+                        fire.onPlace(this.blockX, this.blockY, this.blockZ);
+                        temp.free();
                         if(!newb.toolUseTool())
+                        {
+                            newb.free();
                             newb = null;
+                        }
                         if(!giveBlock(newb, true))
                             dropBlock(newb);
+                        if(newb != null)
+                            newb.free();
                     }
                     return;
                 }
@@ -2793,29 +3017,42 @@ public class Player implements GameObject
                     Block newb = takeBlock();
                     boolean isItemInBucket = newb.isItemInBucket();
                     if(newb != null)
+                    {
+                        Block freeMe = newb;
                         newb = newb.makePlacedBlock(this.blockOrientation,
                                                     Block.getOrientationFromVector(getForwardVector()),
                                                     Block.getOrientationFromVector(getMoveForwardVector()));
+                        freeMe.free();
+                    }
                     if(newb != null)
                     {
+                        Block freeMe = world.getBlock(this.blockX,
+                                                      this.blockY,
+                                                      this.blockZ);
                         world.setBlock(this.blockX,
                                        this.blockY,
                                        this.blockZ,
                                        newb);
+                        newb.onPlace(this.blockX, this.blockY, this.blockZ);
+                        freeMe.free();
+                        Block bucket = Block.NewBucket();
                         if(!Main.isCreativeMode && isItemInBucket)
-                            if(!giveBlock(Block.NewBucket(), false))
-                                dropBlock(Block.NewBucket());
+                            if(!giveBlock(bucket, false))
+                                dropBlock(bucket);
+                        bucket.free();
                         Main.play(Main.popAudio);
-                        internalSetPosition(this.handleMouseUpDown_t1.set(this.position));
+                        internalSetPosition(Player.handleMouseUpDown_t1.set(this.position));
                         this.deleteAnimTime = -1;
                         return;
                     }
-                    internalSetPosition(this.handleMouseUpDown_t1.set(this.position));
+                    internalSetPosition(Player.handleMouseUpDown_t1.set(this.position));
                     this.deleteAnimTime = -1;
                 }
                 if(tempBlock != null)
                 {
+                    Block freeMe = world.getBlock(tempX, tempY, tempZ);
                     world.setBlock(tempX, tempY, tempZ, tempBlock);
+                    freeMe.free();
                 }
             }
             else if(event.dWheel > 0)
@@ -2868,31 +3105,39 @@ public class Player implements GameObject
                 }
                 else if(b != null && b.getType() == BlockType.BTStoneButton)
                 {
+                    Block freeMe = b;
                     b = Block.NewStoneButton(b.getType().getOnTime(),
                                              b.getOrientation());
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
+                    freeMe.free();
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTWoodButton)
                 {
+                    Block freeMe = b;
                     b = Block.NewWoodButton(b.getType().getOnTime(),
                                             b.getOrientation());
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
+                    freeMe.free();
                     didAction = true;
                 }
                 else if(b != null
                         && (b.getType() == BlockType.BTRedstoneRepeaterOff || b.getType() == BlockType.BTRedstoneRepeaterOn))
                 {
-                    b = new Block(b);
+                    Block freeMe = b;
+                    b = b.dup();
                     b.redstoneRepeaterStepDelay();
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
+                    freeMe.free();
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTLever)
                 {
-                    b = new Block(b);
+                    Block freeMe = b;
+                    b = b.dup();
                     b.leverToggle();
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
+                    freeMe.free();
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTTNT)
@@ -2902,9 +3147,11 @@ public class Player implements GameObject
                 else if(b != null
                         && b.getType() == BlockType.BTRedstoneComparator)
                 {
-                    b = new Block(b);
+                    Block freeMe = b;
+                    b = b.dup();
                     b.redstoneComparatorToggleSubtractMode();
                     world.setBlock(this.blockX, this.blockY, this.blockZ, b);
+                    freeMe.free();
                     didAction = true;
                 }
                 else if(b != null && b.getType() == BlockType.BTHopper)
@@ -2960,12 +3207,14 @@ public class Player implements GameObject
                                 if(count > 0)
                                 {
                                     this.dragCount = count;
-                                    this.dragType = b;
+                                    this.dragType = b.dup();
                                 }
                             }
                             else if(count <= 0)
                             {
                                 this.dragCount = 0;
+                                if(this.dragType != null)
+                                    this.dragType.free();
                                 this.dragType = null;
                             }
                             else if(b.equals(this.dragType))
@@ -2978,6 +3227,8 @@ public class Player implements GameObject
                             else
                             {
                                 this.dragCount = 0;
+                                if(this.dragType != null)
+                                    this.dragType.free();
                                 this.dragType = null;
                             }
                         }
@@ -3004,9 +3255,12 @@ public class Player implements GameObject
                             {
                                 this.workbench[this.workbenchSelX
                                         + this.workbenchSize
-                                        * this.workbenchSelY] = this.dragType;
+                                        * this.workbenchSelY] = this.dragType.dup();
                                 if(--this.dragCount <= 0)
+                                {
+                                    this.dragType.free();
                                     this.dragType = null;
+                                }
                             }
                         }
                         else
@@ -3016,6 +3270,8 @@ public class Player implements GameObject
                                     && this.dragCount < Block.BLOCK_STACK_SIZE)
                             {
                                 this.dragCount++;
+                                if(this.dragType != null)
+                                    this.dragType.free();
                                 this.dragType = this.workbench[this.workbenchSelX
                                         + this.workbenchSize
                                         * this.workbenchSelY];
@@ -3029,6 +3285,18 @@ public class Player implements GameObject
                     {
                         runWorkbenchReduce();
                     }
+                }
+                else if(event.dWheel < 0 && this.workbenchSize == 2
+                        && Main.isCreativeMode)
+                {
+                    if(this.creativeOffset < getMaxCreativeOffset())
+                        this.creativeOffset++;
+                }
+                else if(event.dWheel > 0 && this.workbenchSize == 2
+                        && Main.isCreativeMode)
+                {
+                    if(this.creativeOffset > 0)
+                        this.creativeOffset--;
                 }
                 else if(!event.isDown)
                 {
@@ -3072,7 +3340,7 @@ public class Player implements GameObject
                                                      this.blockY,
                                                      this.blockZ);
                             if(b != null && b.getType() == BlockType.BTFurnace)
-                                b = new Block(b);
+                                b = b.dup();
                             else
                             {
                                 quitToNormal();
@@ -3087,25 +3355,34 @@ public class Player implements GameObject
                                     {
                                         if(this.dragType.isItemInBucket())
                                         {
+                                            this.dragType.free();
                                             this.dragType = Block.NewBucket();
                                             this.dragCount = 1;
                                         }
                                         else
+                                        {
+                                            this.dragType.free();
                                             this.dragType = null;
+                                        }
                                     }
                                     else
                                     {
+                                        Block bucket = Block.NewBucket();
                                         if(this.dragType.isItemInBucket()
-                                                && !giveBlock(Block.NewBucket(),
-                                                              false))
-                                            dropBlock(Block.NewBucket());
+                                                && !giveBlock(bucket, false))
+                                            dropBlock(bucket);
+                                        bucket.free();
                                     }
                                 }
                             }
+                            Block freeMe = world.getBlock(this.blockX,
+                                                          this.blockY,
+                                                          this.blockZ);
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
                                            b);
+                            freeMe.free();
                         }
                     }
                     else if(mouseIsInSourceFurnace(event.mouseX, event.mouseY))
@@ -3116,7 +3393,7 @@ public class Player implements GameObject
                                                      this.blockY,
                                                      this.blockZ);
                             if(b != null && b.getType() == BlockType.BTFurnace)
-                                b = new Block(b);
+                                b = b.dup();
                             else
                             {
                                 quitToNormal();
@@ -3127,13 +3404,20 @@ public class Player implements GameObject
                                 if(!Main.isCreativeMode)
                                 {
                                     if(--this.dragCount <= 0)
+                                    {
+                                        this.dragType.free();
                                         this.dragType = null;
+                                    }
                                 }
                             }
+                            Block freeMe = world.getBlock(this.blockX,
+                                                          this.blockY,
+                                                          this.blockZ);
                             world.setBlock(this.blockX,
                                            this.blockY,
                                            this.blockZ,
                                            b);
+                            freeMe.free();
                         }
                     }
                     else if(mouseIsInResultFurnace(event.mouseX, event.mouseY))
@@ -3142,23 +3426,32 @@ public class Player implements GameObject
                                                  this.blockY,
                                                  this.blockZ);
                         if(b != null && b.getType() == BlockType.BTFurnace)
-                            b = new Block(b);
+                            b = b.dup();
                         else
                         {
                             quitToNormal();
                             return;
                         }
-                        if((this.dragCount <= 0 || this.dragType.equals(b.furnaceGetDestBlock()))
+                        Block temp = b.furnaceGetDestBlock();
+                        if((this.dragCount <= 0 || this.dragType.equals(temp))
                                 && this.dragCount < Block.BLOCK_STACK_SIZE)
                         {
                             Block newB = b.furnaceRemoveBlock();
                             if(newB != null && !Main.isCreativeMode)
                             {
                                 this.dragCount++;
+                                if(this.dragType != null)
+                                    this.dragType.free();
                                 this.dragType = newB;
                             }
                         }
+                        if(temp != null)
+                            temp.free();
+                        Block freeMe = world.getBlock(this.blockX,
+                                                      this.blockY,
+                                                      this.blockZ);
                         world.setBlock(this.blockX, this.blockY, this.blockZ, b);
+                        freeMe.free();
                     }
                 }
             }
@@ -3289,11 +3582,11 @@ public class Player implements GameObject
         }
     }
 
-    private Vector checkForStandingOnPressurePlate_newpos = Vector.allocate();
+    private static Vector checkForStandingOnPressurePlate_newpos = Vector.allocate();
 
     private void checkForStandingOnPressurePlate()
     {
-        Vector newpos = Vector.add(this.checkForStandingOnPressurePlate_newpos,
+        Vector newpos = Vector.add(Player.checkForStandingOnPressurePlate_newpos,
                                    this.position,
                                    0,
                                    0.25f,
@@ -3303,7 +3596,6 @@ public class Player implements GameObject
         if(b != null
                 && (b.getType() == BlockType.BTWoodPressurePlate || b.getType() == BlockType.BTStonePressurePlate))
         {
-            b = new Block(b);
             b.pressurePlatePress();
             world.setBlock(x, y - 1, z, b);
         }
@@ -3331,6 +3623,8 @@ public class Player implements GameObject
     @Override
     public void move()
     {
+        if(this.isSneaking)
+            this.isRiding = false;
         internalSetPosition(move_t1.set(this.position));
         switch(this.state)
         {
@@ -3340,7 +3634,7 @@ public class Player implements GameObject
                     : Main.isKeyDown(Main.KEY_F)) && Main.isCreativeMode;
             boolean inWater = isInWater();
             boolean inClimbableBlock = isInClimbableBlock();
-            boolean isSneaking = Main.platform.isTouchScreen() ? this.isSneaking
+            this.isSneaking = Main.platform.isTouchScreen() ? this.isSneaking
                     : Main.isKeyDown(Main.KEY_SHIFT);
             if(isFlying)
             {
@@ -3367,7 +3661,7 @@ public class Player implements GameObject
             }
             else if(inClimbableBlock)
             {
-                if(!isSneaking)
+                if(!this.isSneaking)
                     this.velocity.setY(Math.max(-1.5f,
                                                 this.velocity.getY()
                                                         - World.GravityAcceleration
@@ -3529,6 +3823,11 @@ public class Player implements GameObject
             for(int i = 0; i < this.dragCount; i++)
                 if(!internalGiveBlock(this.dragType, false))
                     dropBlock(this.dragType);
+            if(this.dragType != null)
+            {
+                this.dragType.free();
+                this.dragType = null;
+            }
             this.state = State.Normal;
             for(int x = 0; x < this.workbenchSize; x++)
             {
@@ -3539,6 +3838,7 @@ public class Player implements GameObject
                     if(!internalGiveBlock(this.workbench[x + this.workbenchSize
                             * y], false))
                         dropBlock(this.workbench[x + this.workbenchSize * y]);
+                    this.workbench[x + this.workbenchSize * y].free();
                     this.workbench[x + this.workbenchSize * y] = null;
                 }
             }
@@ -3553,6 +3853,11 @@ public class Player implements GameObject
             for(int i = 0; i < this.dragCount; i++)
                 if(!internalGiveBlock(this.dragType, false))
                     dropBlock(this.dragType);
+            if(this.dragType != null)
+            {
+                this.dragType.free();
+                this.dragType = null;
+            }
             this.state = State.Normal;
             this.wasPaused = true;
             break;
@@ -3563,6 +3868,11 @@ public class Player implements GameObject
             for(int i = 0; i < this.dragCount; i++)
                 if(!internalGiveBlock(this.dragType, false))
                     dropBlock(this.dragType);
+            if(this.dragType != null)
+            {
+                this.dragType.free();
+                this.dragType = null;
+            }
             this.state = State.Normal;
             this.wasPaused = true;
             break;
@@ -3602,7 +3912,10 @@ public class Player implements GameObject
                 }
                 if(event.key == Main.KEY_Q)
                 {
-                    throwBlock(takeBlock());
+                    Block b = takeBlock();
+                    throwBlock(b);
+                    if(b != null)
+                        b.free();
                 }
                 break;
             }
@@ -3671,7 +3984,8 @@ public class Player implements GameObject
      *             the exception thrown */
     public static Player read(final DataInput i) throws IOException
     {
-        Player retval = new Player(Vector.read(i));
+        Player retval = allocate(Vector.read(i));
+        retval.velocity.free();
         retval.velocity = Vector.read(i);
         retval.viewPhi = i.readFloat();
         if(Float.isInfinite(retval.viewPhi) || Float.isNaN(retval.viewPhi)
@@ -3736,5 +4050,20 @@ public class Player implements GameObject
         if(!doPush)
             return;
         internalSetPosition(Vector.add(push_t1, this.position, dx, dy, dz));
+    }
+
+    public boolean isRiding = false;
+    private String name = "";
+
+    public String getName()
+    {
+        return this.name;
+    }
+
+    void setName(final String name)
+    {
+        if(name == null)
+            throw new NullPointerException("name is null");
+        this.name = name;
     }
 }

@@ -25,6 +25,14 @@ import org.voxels.*;
 /** @author jacob */
 public final class Tree extends Plant
 {
+    private static final Allocator<Tree> allocator = new Allocator<Tree>()
+    {
+        @Override
+        protected Tree allocateInternal()
+        {
+            return new Tree();
+        }
+    };
     public static final float defaultBiomeColorR = 91f / 255f;
     public static final float defaultBiomeColorG = 171f / 255f;
     public static final float defaultBiomeColorB = 71f / 255f;
@@ -57,9 +65,11 @@ public final class Tree extends Plant
             this.woodImgName = woodImgName;
             this.saplingImgName = saplingImgName;
         }
+
+        public static final TreeType[] values = values();
     }
 
-    private final TreeType treeType;
+    private TreeType treeType;
 
     private int getWoodOrientation(final int x, final int y, final int z)
     {
@@ -90,7 +100,7 @@ public final class Tree extends Plant
         return 0;
     }
 
-    private final int positionalRandSeed;
+    private int positionalRandSeed;
 
     /** return a random integer x in the range 0 &le; x &lt; <code>limit</code>
      * 
@@ -379,13 +389,18 @@ public final class Tree extends Plant
         }
     }
 
+    public static Tree allocate(final TreeType treeType, final float t)
+    {
+        return allocator.allocate().init(treeType, t);
+    }
+
     /** @param treeType
      *            the tree type
      * @param t
      *            the random parameter */
-    public Tree(final TreeType treeType, final float t)
+    private Tree init(final TreeType treeType, final float t)
     {
-        super(maxXZExtent, maxYExtent, PlantType.make(treeType));
+        super.init(maxXZExtent, maxYExtent, PlantType.make(treeType));
         this.treeType = treeType;
         Random rand = new Random((long)(t * Math.PI * 100000.0));
         switch(treeType)
@@ -566,6 +581,13 @@ public final class Tree extends Plant
         }
         }
         this.positionalRandSeed = rand.nextInt();
+        return this;
+    }
+
+    @Override
+    public void free()
+    {
+        allocator.free(this);
     }
 
     /** generate a tree
@@ -581,13 +603,13 @@ public final class Tree extends Plant
      * @param t
      *            the tree's random parameter
      * @return if this tree generated */
-    public static boolean generate(final Block type,
+    public static boolean generate(final TreeType type,
                                    final int tx,
                                    final int ty,
                                    final int tz,
                                    final float t)
     {
-        Tree tree = new Tree(type.treeGetTreeType(), t);
+        Tree tree = allocate(type, t);
         for(int dx = -tree.XZExtent; dx <= tree.XZExtent; dx++)
         {
             for(int dy = 0; dy <= tree.YExtent; dy++)
@@ -600,45 +622,61 @@ public final class Tree extends Plant
                     if(blockType == BlockType.BTEmpty)
                         continue;
                     if(b == null)
-                        return false;
-                    BlockType.Replaceability replaceability = b.getReplaceability(blockType);
-                    if(replaceability == BlockType.Replaceability.CanNotGrow)
-                        return false;
-                }
-            }
-        }
-        for(int dx = -tree.XZExtent; dx <= tree.XZExtent; dx++)
-        {
-            for(int dy = 0; dy <= tree.YExtent; dy++)
-            {
-                for(int dz = -tree.XZExtent; dz <= tree.XZExtent; dz++)
-                {
-                    int x = tx + dx, y = ty + dy, z = tz + dz;
-                    Block b = world.getBlockEval(x, y, z);
-                    BlockType blockType = tree.getBlockType(dx, dy, dz);
-                    if(blockType == BlockType.BTEmpty)
-                        continue;
-                    if(b == null)
-                        return false;
-                    BlockType.Replaceability replaceability = b.getReplaceability(blockType);
-                    if(replaceability == BlockType.Replaceability.CanNotGrow)
-                        return false;
-                    if(replaceability == BlockType.Replaceability.Replace)
                     {
-                        b = tree.getBlock(dx, dy, dz);
-                        if(b != null)
-                            world.setBlock(x, y, z, b);
+                        tree.free();
+                        return false;
+                    }
+                    BlockType.Replaceability replaceability = b.getReplaceability(blockType);
+                    if(replaceability == BlockType.Replaceability.CanNotGrow)
+                    {
+                        tree.free();
+                        return false;
                     }
                 }
             }
         }
+        for(int dx = -tree.XZExtent; dx <= tree.XZExtent; dx++)
+        {
+            for(int dy = 0; dy <= tree.YExtent; dy++)
+            {
+                for(int dz = -tree.XZExtent; dz <= tree.XZExtent; dz++)
+                {
+                    int x = tx + dx, y = ty + dy, z = tz + dz;
+                    Block b = world.getBlockEval(x, y, z);
+                    BlockType blockType = tree.getBlockType(dx, dy, dz);
+                    if(blockType == BlockType.BTEmpty)
+                        continue;
+                    if(b == null)
+                    {
+                        tree.free();
+                        return false;
+                    }
+                    BlockType.Replaceability replaceability = b.getReplaceability(blockType);
+                    if(replaceability == BlockType.Replaceability.CanNotGrow)
+                    {
+                        tree.free();
+                        return false;
+                    }
+                    if(replaceability == BlockType.Replaceability.Replace)
+                    {
+                        Block newB = tree.getBlock(dx, dy, dz);
+                        if(newB != null)
+                        {
+                            world.setBlock(x, y, z, newB);
+                            b.free();
+                        }
+                    }
+                }
+            }
+        }
+        tree.free();
         return true;
     }
 
     /** generate a tree with a random height
      * 
      * @param type
-     *            the sapling generating this tree
+     *            the sapling generating this tree (free() is called)
      * @param tx
      *            the tree's x coordinate
      * @param ty
@@ -650,7 +688,14 @@ public final class Tree extends Plant
                                 final int ty,
                                 final int tz)
     {
-        if(!generate(type, tx, ty, tz, World.fRand(0, 1)))
+        if(!generate(type.treeGetTreeType(), tx, ty, tz, World.fRand(0, 1)))
+        {
+            Block b = world.getBlockEval(tx, ty, tz);
             world.setBlock(tx, ty, tz, type);
+            if(b != null)
+                b.free();
+        }
+        else
+            type.free();
     }
 }
