@@ -25,6 +25,7 @@ import java.io.*;
 import org.voxels.TextureAtlas.TextureHandle;
 import org.voxels.World.BlockHitDescriptor;
 
+//TODO finish adding hopper moving to/from minecart with container
 /** @author jacob */
 public class Entity implements GameObject
 {
@@ -99,15 +100,29 @@ public class Entity implements GameObject
 
     static void init()
     {
-        Main.pushProgress(0.0f / 3, 1.0f / 3);
-        imgSmokeAnimation = genAnimation(new SmokeSimulation(), 1);
-        Main.popProgress();
-        Main.pushProgress(1.0f / 3, 1.0f / 3);
-        imgFireAnimation = genAnimation(new FireSimulation(), 2);
-        Main.popProgress();
-        Main.pushProgress(2.0f / 3, 1.0f / 3);
-        imgRedstoneFireAnimation = genAnimation(new RedstoneFireSimulation(), 2);
-        Main.popProgress();
+        final boolean runSmokeAnimation = true, runFireAnimation = false, runRedstoneFireAnimation = false;
+        int count = (runSmokeAnimation ? 1 : 0) + (runFireAnimation ? 1 : 0)
+                + (runRedstoneFireAnimation ? 1 : 0);
+        int index = 0;
+        if(runSmokeAnimation)
+        {
+            Main.pushProgress((float)(index++) / count, 1.0f / count);
+            imgSmokeAnimation = genAnimation(new SmokeSimulation(), 1);
+            Main.popProgress();
+        }
+        if(runFireAnimation)
+        {
+            Main.pushProgress((float)(index++) / count, 1.0f / count);
+            imgFireAnimation = genAnimation(new FireSimulation(), 2);
+            Main.popProgress();
+        }
+        if(runRedstoneFireAnimation)
+        {
+            Main.pushProgress((float)(index++) / count, 1.0f / count);
+            imgRedstoneFireAnimation = genAnimation(new RedstoneFireSimulation(),
+                                                    2);
+            Main.popProgress();
+        }
     }
 
     private static class Data
@@ -291,6 +306,13 @@ public class Entity implements GameObject
 
     private static Matrix draw_t1 = Matrix.allocate();
     private static Matrix draw_t2 = Matrix.allocate();
+    private static final Matrix minecartDrawBlockMatrix = Matrix.setToScale(Matrix.allocate(),
+                                                                            10 / 16f)
+                                                                .concatAndSetAndFreeArg(Matrix.setToTranslate(Matrix.allocate(),
+                                                                                                              3 / 16f,
+                                                                                                              3 / 16f,
+                                                                                                              3 / 16f))
+                                                                .getImmutableAndFree();
 
     @Override
     public RenderingStream draw(final RenderingStream rs,
@@ -348,6 +370,8 @@ public class Entity implements GameObject
                 break;
             case FireAnim:
             {
+                if(imgFireAnimation == null)
+                    return rs;
                 isAnim = true;
                 int frame = (int)Math.floor(this.data.frame)
                         % SimulationAnimationFrameCount;
@@ -358,6 +382,8 @@ public class Entity implements GameObject
             }
             case RedstoneFireAnim:
             {
+                if(imgRedstoneFireAnimation == null)
+                    return rs;
                 isAnim = true;
                 int frame = (int)Math.floor(this.data.frame)
                         % SimulationAnimationFrameCount;
@@ -368,6 +394,8 @@ public class Entity implements GameObject
             }
             case SmokeAnim:
             {
+                if(imgSmokeAnimation == null)
+                    return rs;
                 isAnim = true;
                 int frame = (int)Math.floor(this.data.frame)
                         % SimulationAnimationFrameCount;
@@ -476,6 +504,10 @@ public class Entity implements GameObject
             rs.pushMatrixStack();
             rs.concatMatrix(worldToCamera);
             b.drawAsEntity(rs, getMinecartDrawMatrix());
+            if(this.data.block != null)
+                this.data.block.drawAsEntity(rs,
+                                             minecartDrawBlockMatrix.concat(draw_t1,
+                                                                            getMinecartDrawMatrix()));
             rs.popMatrixStack();
             b.free();
             return rs;
@@ -2107,6 +2139,11 @@ public class Entity implements GameObject
             break;
         case MineCart:
         {
+            if(this.data.block != null)
+            {
+                p.openContainerEntity(this);
+                break;
+            }
             this.data.ridingPlayerName = p.getName();
             p.isRiding = true;
             break;
@@ -2122,5 +2159,10 @@ public class Entity implements GameObject
     public EntityType getType()
     {
         return this.type;
+    }
+
+    public Block minecartGetBlock()
+    {
+        return this.data.block;
     }
 }

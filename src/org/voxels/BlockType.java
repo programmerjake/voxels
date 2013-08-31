@@ -6102,8 +6102,51 @@ public enum BlockType
             return make(vieworientation);
         }
     },
+    /** mine cart with chest */
+    BTMineCartWithChest(125, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("minecartwithchest.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewMinecartWithChest();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(125, false, BlockDrawType.BDTNone, null)
+    BTLast(126, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -6653,6 +6696,7 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return 0;
         }
         return 0;
@@ -6812,6 +6856,7 @@ public enum BlockType
         case BTFlint:
         case BTFlintAndSteel:
         case BTMineCart:
+        case BTMineCartWithChest:
             return true;
         case BTRail:
         case BTDetectorRail:
@@ -6976,6 +7021,7 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return false;
         case BTDispenser:
         case BTDropper:
@@ -7140,6 +7186,7 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return false;
         case BTDispenser:
         case BTDropper:
@@ -7252,6 +7299,7 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return true;
         case BTPlank:
         case BTLeaves:
@@ -7428,6 +7476,7 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -7615,6 +7664,7 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return true;
         }
         return false;
@@ -7778,6 +7828,7 @@ public enum BlockType
         case BTFlint:
         case BTFlintAndSteel:
         case BTMineCart:
+        case BTMineCartWithChest:
             return Replaceability.Replace;
         case BTDispenser:
         case BTDropper:
@@ -8096,6 +8147,7 @@ public enum BlockType
         case BTFlint:
         case BTFlintAndSteel:
         case BTMineCart:
+        case BTMineCartWithChest:
             return 0;
         case BTRail:
         case BTDetectorRail:
@@ -8362,6 +8414,7 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return Flammability.NotFlammable;
         case BTLeaves:
         case BTPlank:

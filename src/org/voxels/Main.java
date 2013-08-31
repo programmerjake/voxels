@@ -499,6 +499,7 @@ public final class Main
         boolean done = false;
         while(!done)
         {
+            updateBackgroundMusic();
             setFullscreen(isFullscreen);
             menu.draw();
             platform.update();
@@ -547,6 +548,7 @@ public final class Main
             if(platform.isCloseRequested())
                 done = true;
         }
+        updateBackgroundMusic();
         while(true)
             if(!mouse.nextEvent())
                 break;
@@ -1124,6 +1126,26 @@ public final class Main
                     }
                 });
                 add(new SpacerMenuItem(Color.V(0), this));
+                add(new CheckMenuItem("Background Music",
+                                      Color.RGB(0.0f, 0.0f, 0.0f),
+                                      getBackgroundColor(),
+                                      Color.RGB(0.0f, 0.0f, 0.0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
+                {
+                    @Override
+                    public boolean isChecked()
+                    {
+                        return Main.runBackgroundMusic;
+                    }
+
+                    @Override
+                    public void setChecked(final boolean checked)
+                    {
+                        Main.runBackgroundMusic = checked;
+                    }
+                });
+                add(new SpacerMenuItem(Color.V(0), this));
                 add(new TextMenuItem("Return To Main Menu",
                                      Color.RGB(0.0f, 0.0f, 0.0f),
                                      getBackgroundColor(),
@@ -1339,8 +1361,17 @@ public final class Main
             fireBurnAudioPlaying = false;
         }
         needFireBurnAudio = false;
-        if(backgroundAudio != null && !backgroundAudio.isPlaying())
+        updateBackgroundMusic();
+    }
+
+    public static void updateBackgroundMusic()
+    {
+        if(backgroundAudio != null && !backgroundAudio.isPlaying()
+                && runBackgroundMusic)
             playloop(backgroundAudio);
+        if(backgroundAudio != null && backgroundAudio.isPlaying()
+                && !runBackgroundMusic)
+            stoploop(backgroundAudio);
     }
 
     public static void stopAllSound()
@@ -1353,6 +1384,7 @@ public final class Main
         fireBurnAudioPlaying = false;
     }
 
+    public static boolean runBackgroundMusic = true;// TODO finish
     public static boolean needPause = false;
 
     /** @param args
@@ -1371,7 +1403,8 @@ public final class Main
         curTime = Timer();
         init();
         curTime = Timer();
-        playloop(backgroundAudio);
+        if(runBackgroundMusic)
+            playloop(backgroundAudio);
         runMainMenu();
         if(!didLoad)
         {
@@ -1681,8 +1714,8 @@ public final class Main
             {
                 fis = new BufferedInputStream(new FileInputStream(saveFile));
                 DataInputStream dis = new DataInputStream(fis);
-                World.read(dis);
-                PlayerList.read(dis);
+                int version = World.read(dis);
+                PlayerList.read(dis, version);
                 dis.close();
                 hideProgressDialog();
                 needHide = false;

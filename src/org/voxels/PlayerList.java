@@ -343,12 +343,15 @@ public final class PlayerList
      * 
      * @param i
      *            <code>DataInput</code> to read from
+     * @param fileVersion
+     *            the file version
      * @throws IOException
      *             the exception thrown */
-    public static void read(final DataInput i) throws IOException
+    public static void
+        read(final DataInput i, final int fileVersion) throws IOException
     {
         players.clear();
-        players.insertPlayer(Player.read(i), null, "", "");
+        players.insertPlayer(Player.read(i, fileVersion), null, "", "");
     }
 
     /** push all players inside of &lt;<code>bx</code>, <code>by</code>,
@@ -379,6 +382,16 @@ public final class PlayerList
         for(Node pnode = this.head; pnode != null; pnode = pnode.next)
         {
             pnode.p.push(bx, by, bz, dx, dy, dz);
+        }
+    }
+
+    public void handleEntityRemove(final Entity e)
+    {
+        if(PlayerCount > 0 && !Main.isServer)
+            return;
+        for(Node pnode = this.head; pnode != null; pnode = pnode.next)
+        {
+            pnode.p.handleEntityRemove(e);
         }
     }
 }

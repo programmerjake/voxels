@@ -1042,7 +1042,16 @@ public final class Player implements GameObject
             Main.opengl.glEnd();
             Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
             drawInventory();
-            Block chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
+            Block chest;
+            if(this.containerEntity != null)
+            {
+                if(this.containerEntity.getType() == EntityType.MineCart)
+                    chest = this.containerEntity.minecartGetBlock();
+                else
+                    chest = null;
+            }
+            else
+                chest = world.getBlock(this.blockX, this.blockY, this.blockZ);
             if(chest == null || chest.getType() != BlockType.BTChest)
                 break;
             for(int row = 0; row < Block.CHEST_ROWS; row++)
@@ -1138,9 +1147,18 @@ public final class Player implements GameObject
             Main.opengl.glEnd();
             Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
             drawInventory();
-            Block dispenserDropper = world.getBlock(this.blockX,
-                                                    this.blockY,
-                                                    this.blockZ);
+            Block dispenserDropper;
+            if(this.containerEntity != null)
+            {
+                if(this.containerEntity.getType() == EntityType.MineCart)
+                    dispenserDropper = this.containerEntity.minecartGetBlock();
+                else
+                    dispenserDropper = null;
+            }
+            else
+                dispenserDropper = world.getBlock(this.blockX,
+                                                  this.blockY,
+                                                  this.blockZ);
             if(dispenserDropper == null
                     || (dispenserDropper.getType() != BlockType.BTDispenser && dispenserDropper.getType() != BlockType.BTDropper))
                 break;
@@ -1190,7 +1208,16 @@ public final class Player implements GameObject
             Main.opengl.glEnd();
             Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
             drawInventory();
-            Block hopper = world.getBlock(this.blockX, this.blockY, this.blockZ);
+            Block hopper;
+            if(this.containerEntity != null)
+            {
+                if(this.containerEntity.getType() == EntityType.MineCart)
+                    hopper = this.containerEntity.minecartGetBlock();
+                else
+                    hopper = null;
+            }
+            else
+                hopper = world.getBlock(this.blockX, this.blockY, this.blockZ);
             if(hopper == null || hopper.getType() != BlockType.BTHopper)
                 break;
             for(int slot = 0; slot < Block.HOPPER_SLOTS; slot++)
@@ -2506,9 +2533,20 @@ public final class Player implements GameObject
         world.insertEntity(Entity.NewBlock(this.position, b, Vector.ZERO));
     }
 
+    private Entity containerEntity = null;
+
     private Block getContainer()
     {
-        Block c = world.getBlock(this.blockX, this.blockY, this.blockZ);
+        Block c;
+        if(this.containerEntity != null)
+        {
+            if(this.containerEntity.getType() != EntityType.MineCart)
+                c = null;
+            else
+                c = this.containerEntity.minecartGetBlock();
+        }
+        else
+            c = world.getBlock(this.blockX, this.blockY, this.blockZ);
         if(c == null)
         {
             quitToNormal();
@@ -2738,7 +2776,8 @@ public final class Player implements GameObject
                                                     transferCount);
             this.dragCount += transferCount;
         }
-        world.setBlock(this.blockX, this.blockY, this.blockZ, container);
+        if(this.containerEntity == null)
+            world.setBlock(this.blockX, this.blockY, this.blockZ, container);
     }
 
     private static Vector handleMouseUpDown_t1 = Vector.allocate();
@@ -3813,6 +3852,7 @@ public final class Player implements GameObject
 
     private void quitToNormal()
     {
+        this.containerEntity = null;
         switch(this.state)
         {
         case Normal:
@@ -3973,16 +4013,20 @@ public final class Player implements GameObject
                 this.blockType[i].write(o);
             }
         }
+        o.writeBoolean(this.isRiding);
     }
 
     /** read from a <code>DataInput</code>
      * 
      * @param i
      *            <code>DataInput</code> to read from
+     * @param fileVersion
+     *            the file version
      * @return the read <code>Player</code>
      * @throws IOException
      *             the exception thrown */
-    public static Player read(final DataInput i) throws IOException
+    public static Player
+        read(final DataInput i, final int fileVersion) throws IOException
     {
         Player retval = allocate(Vector.read(i));
         retval.velocity.free();
@@ -4006,6 +4050,9 @@ public final class Player implements GameObject
             else
                 retval.blockType[index] = null;
         }
+        retval.isRiding = false;
+        if(fileVersion >= 3)
+            retval.isRiding = i.readBoolean();
         return retval;
     }
 
@@ -4065,5 +4112,49 @@ public final class Player implements GameObject
         if(name == null)
             throw new NullPointerException("name is null");
         this.name = name;
+    }
+
+    public void handleEntityRemove(final Entity e)
+    {
+        if(this.containerEntity == e)
+        {
+            quitToNormal();
+            this.containerEntity = null;
+        }
+    }
+
+    public void openContainerEntity(final Entity e)
+    {
+        if(e.getType() != EntityType.MineCart)
+            return;
+        if(e.minecartGetBlock() == null)
+            return;
+        switch(e.minecartGetBlock().getType())
+        {
+        case BTChest:
+            quitToNormal();
+            this.state = State.Chest;
+            this.dragCount = 0;
+            this.dragType = null;
+            this.containerEntity = e;
+            return;
+        case BTHopper:
+            quitToNormal();
+            this.state = State.Hopper;
+            this.dragCount = 0;
+            this.dragType = null;
+            this.containerEntity = e;
+            return;
+        case BTDispenser:
+        case BTDropper:
+            quitToNormal();
+            this.state = State.DispenserDropper;
+            this.dragCount = 0;
+            this.dragType = null;
+            this.containerEntity = e;
+            return;
+        default:
+            return;
+        }
     }
 }

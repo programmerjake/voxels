@@ -1395,6 +1395,11 @@ public class Block implements GameObject, Allocatable
         return retval;
     }
 
+    public static Block NewMinecartWithChest()
+    {
+        return allocate(BlockType.BTMineCartWithChest);
+    }
+
     private static Vector drawFace_t1 = Vector.allocate();
     private static Vector drawFace_t2 = Vector.allocate();
 
@@ -5935,6 +5940,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return;
         case BTFire:
         case BTLava:
@@ -6624,6 +6630,7 @@ public class Block implements GameObject, Allocatable
             return null;
         }
         case BTMineCart:
+        case BTMineCartWithChest:
             return null;
         }
         return null;
@@ -7118,6 +7125,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return null;
         }
         return null;
@@ -7740,6 +7748,7 @@ public class Block implements GameObject, Allocatable
             return null;
         }
         case BTMineCart:
+        case BTMineCartWithChest:
             return null;
         }
         return null;
@@ -8064,6 +8073,7 @@ public class Block implements GameObject, Allocatable
             return null;
         }
         case BTMineCart:
+        case BTMineCartWithChest:
         {
             Entity e = minecartMakeMinecartEntity(onDispenseAndFree_t1.set(destX + 0.5f,
                                                                            destY + 0.5f,
@@ -8613,6 +8623,7 @@ public class Block implements GameObject, Allocatable
         case BTFlint:
         case BTFlintAndSteel:
         case BTMineCart:
+        case BTMineCartWithChest:
             return PushType.Pushed;
         }
         return PushType.NonPushable;
@@ -8939,6 +8950,7 @@ public class Block implements GameObject, Allocatable
             return null;
         }
         case BTMineCart:
+        case BTMineCartWithChest:
             return Entity.NewMineCart(Vector.set(evalBlockToEntity_t1,
                                                  0.5f + bx,
                                                  0.5f + by,
@@ -9321,6 +9333,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return 1;
         case BTBed:
         case BTBedFoot:
@@ -9767,6 +9780,7 @@ public class Block implements GameObject, Allocatable
             }
         }
         case BTMineCart:
+        case BTMineCartWithChest:
         {
             Block b = minecartMakeContainedBlock();
             float retval = minecartRayIntersects(hitpos, dir, b);
@@ -10035,6 +10049,7 @@ public class Block implements GameObject, Allocatable
         case BTStonePick:
         case BTWoodShovel:
         case BTStoneShovel:
+        case BTMineCartWithChest:
         {
             drawImgAsEntity(rs, blockToWorld, this.type.textures[0]);
             return rs;
@@ -10383,6 +10398,7 @@ public class Block implements GameObject, Allocatable
         case BTBedFoot:
         case BTFire:
         case BTMineCart:
+        case BTMineCartWithChest:
         {
             draw(rs, blockToWorld, false, true);
             return rs;
@@ -10840,11 +10856,11 @@ public class Block implements GameObject, Allocatable
         new ReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTCobblestone)
-        }, 1, NewStoneButton(0, 0), 1),
+        }, 1, NewStoneButton(0, -1), 1),
         new ReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTPlank)
-        }, 1, NewWoodButton(0, 0), 1),
+        }, 1, NewWoodButton(0, -1), 1),
         new ReduceStruct(new BlockDescriptor[]
         {
             new BlockDescriptorBlockType(BlockType.BTRedstoneDustOff),
@@ -11459,6 +11475,25 @@ public class Block implements GameObject, Allocatable
             new BlockDescriptorBlockType(BlockType.BTIronIngot),
             new BlockDescriptorBlockType(BlockType.BTIronIngot)
         }, 3, NewMinecart(-1, true), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTChest),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTIronIngot),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 3, NewHopper(-1), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTChest),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTMineCart),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewMinecartWithChest(), 1),
     };
     private static final int reduceCount = reduceArray.length;
     private static final ReduceDescriptor reduce_emptyRetval = new ReduceDescriptor();
@@ -12036,6 +12071,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return position;
         }
         return null;
@@ -12080,6 +12116,7 @@ public class Block implements GameObject, Allocatable
         case BTEmpty:
         case BTBedrock:
         case BTMineCart:
+        case BTMineCartWithChest:
             return false;
         case BTChest:
         case BTCoalOre:
@@ -12872,6 +12909,7 @@ public class Block implements GameObject, Allocatable
             return;
         }
         case BTMineCart:
+        case BTMineCartWithChest:
             return;
         }
     }
@@ -13084,6 +13122,7 @@ public class Block implements GameObject, Allocatable
         case BTPoweredRail:
             return REDSTONE_POWER_INPUT;
         case BTMineCart:
+        case BTMineCartWithChest:
             return REDSTONE_POWER_NONE;
         }
         return REDSTONE_POWER_NONE;
@@ -13256,6 +13295,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return false;
         case BTBedrock:
         case BTChest:
@@ -13583,6 +13623,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return false;
         case BTRedstoneBlock:
         case BTRedstoneDustOff:
@@ -13779,6 +13820,7 @@ public class Block implements GameObject, Allocatable
         case BTBoneMeal:
         case BTBone:
         case BTFlint:
+        case BTMineCartWithChest:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -14030,6 +14072,7 @@ public class Block implements GameObject, Allocatable
         case BTBoneMeal:
         case BTBone:
         case BTFlint:
+        case BTMineCartWithChest:
             return;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -14527,6 +14570,7 @@ public class Block implements GameObject, Allocatable
         case BTBoneMeal:
         case BTBone:
         case BTFlint:
+        case BTMineCartWithChest:
             return true;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -14751,6 +14795,7 @@ public class Block implements GameObject, Allocatable
         case BTBoneMeal:
         case BTBone:
         case BTFlint:
+        case BTMineCartWithChest:
             return hash;
         case BTDiamondPick:
         case BTDiamondShovel:
@@ -15153,6 +15198,7 @@ public class Block implements GameObject, Allocatable
         case BTEmpty:
         case BTBedrock:
         case BTMineCart:
+        case BTMineCartWithChest:
             return null;
         case BTBlazePowder:
         case BTBlazeRod:
@@ -15995,6 +16041,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return -1;
         }
         return -1;
@@ -16227,6 +16274,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return false;
         case BTChest:
         case BTDispenser:
@@ -16376,6 +16424,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return false;
         case BTChest:
         {
@@ -16597,6 +16646,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return -1;
         case BTChest:
         {
@@ -16797,6 +16847,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return null;
         case BTChest:
         {
@@ -17048,6 +17099,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             return null;
         case BTChest:
         {
@@ -17393,6 +17445,7 @@ public class Block implements GameObject, Allocatable
         case BTActivatorRail:
         case BTPoweredRail:
         case BTMineCart:
+        case BTMineCartWithChest:
             break;
         }
         return false;
@@ -18030,6 +18083,7 @@ public class Block implements GameObject, Allocatable
         case BTBedrock:
         case BTEmpty:
         case BTMineCart:
+        case BTMineCartWithChest:
             break;
         case BTBlazePowder:
         case BTBlazeRod:
@@ -18245,7 +18299,8 @@ public class Block implements GameObject, Allocatable
 
     public boolean isMineCart()
     {
-        if(this.type == BlockType.BTMineCart)
+        if(this.type == BlockType.BTMineCart
+                || this.type == BlockType.BTMineCartWithChest)
             return true;
         return false;
     }
@@ -18254,12 +18309,15 @@ public class Block implements GameObject, Allocatable
     {
         if(this.type == BlockType.BTMineCart)
             return null;
+        if(this.type == BlockType.BTMineCartWithChest)
+            return NewChest();
         return null;
     }
 
     public Entity minecartMakeMinecartEntity(final Vector position)
     {
-        if(this.type == BlockType.BTMineCart)
+        if(this.type == BlockType.BTMineCart
+                || this.type == BlockType.BTMineCartWithChest)
             return Entity.NewMineCart(position, minecartMakeContainedBlock());
         return null;
     }

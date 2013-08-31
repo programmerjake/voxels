@@ -252,6 +252,7 @@ public final class World
         {
             EntityNode freeMe = head;
             head = head.next;
+            players.handleEntityRemove(freeMe.e);
             freeMe.free();
         }
     }
@@ -543,23 +544,14 @@ public final class World
         return v - (v & (Chunk.generatedChunkSize - 1));
     }
 
-    private static final int WorldHashPrimePowOf2 = 17;
-    private static final int WorldHashPrime = (1 << WorldHashPrimePowOf2) - 1;
-
-    private static int ModWorldHashPrime(final int v_in)
-    {
-        int v = v_in;
-        v = (v >>> WorldHashPrimePowOf2) + (v & WorldHashPrime);
-        if(v >= WorldHashPrime)
-            v = (v >>> WorldHashPrimePowOf2) + (v & WorldHashPrime);
-        if(v >= WorldHashPrime)
-            v -= WorldHashPrime;
-        return v;
-    }
+    private static final int WorldHashPrime = 22051;
 
     private static int hashPos(final int x, final int y, final int z)
     {
-        return ModWorldHashPrime((x * 9 + y) * 9 + z);
+        int retval = (x * 20903 + y * 35363 + z) % WorldHashPrime;
+        if(retval < 0)
+            return retval + WorldHashPrime;
+        return retval;
     }
 
     private int hashChunkPos(final int cx, final int cy, final int cz)
@@ -568,6 +560,18 @@ public final class World
     }
 
     private final Chunk[] hashTable = new Chunk[WorldHashPrime];
+    private long chunkCount = 0;
+    private int maxBucketSize = 0;
+
+    public long getChunkCount()
+    {
+        return this.chunkCount;
+    }
+
+    public int getMaxBucketSize()
+    {
+        return this.maxBucketSize;
+    }
 
     private void clearHashTable()
     {
@@ -584,6 +588,8 @@ public final class World
             }
         }
         this.chunksHead = null;
+        this.chunkCount = 0;
+        this.maxBucketSize = 0;
     }
 
     private EvalNode[][] genEvalNodeHashTable()
@@ -888,6 +894,7 @@ public final class World
         int hash = hashChunkPos(cx, cy, cz);
         Chunk lastNode = null;
         Chunk node = this.hashTable[hash];
+        int bucketSize = 0;
         while(node != null)
         {
             if(node.orgx == cx && node.orgy == cy && node.orgz == cz)
@@ -903,8 +910,12 @@ public final class World
             }
             lastNode = node;
             node = node.next;
+            bucketSize++;
         }
         node = Chunk.allocate(cx, cy, cz);
+        this.chunkCount++;
+        bucketSize++;
+        this.maxBucketSize = Math.max(this.maxBucketSize, bucketSize);
         node.next = this.hashTable[hash];
         this.hashTable[hash] = node;
         node.listnext = this.chunksHead;
@@ -1636,6 +1647,12 @@ public final class World
                      final RenderingStream transparentRenderingStream,
                      final Matrix worldToCamera)
     {
+        if(Main.DEBUG)
+            Main.addToFrameText("Chunk Count : " + this.chunkCount
+                    + "\nEach bucket has "
+                    + ((float)this.chunkCount / WorldHashPrime)
+                    + " chunks on average.\nMaximum bucket size : "
+                    + this.maxBucketSize + "\n");
         RenderingStream rs[] = draw_rs;
         rs[0] = renderingStream;
         rs[1] = transparentRenderingStream;
@@ -1990,6 +2007,21 @@ public final class World
         return fl;
     }
 
+    static float getLighting(final float x,
+                             final float y,
+                             final float z,
+                             final int l[])
+    {
+        float nx = 1 - x, ny = 1 - y, nz = 1 - z;
+        float l00 = nz * l[0 + 2 * (0 + 2 * 0)] + z * l[0 + 2 * (0 + 2 * 1)];
+        float l10 = nz * l[1 + 2 * (0 + 2 * 0)] + z * l[1 + 2 * (0 + 2 * 1)];
+        float l01 = nz * l[0 + 2 * (1 + 2 * 0)] + z * l[0 + 2 * (1 + 2 * 1)];
+        float l11 = nz * l[1 + 2 * (1 + 2 * 0)] + z * l[1 + 2 * (1 + 2 * 1)];
+        float l0 = ny * l00 + y * l01;
+        float l1 = ny * l10 + y * l11;
+        return (nx * l0 + x * l1) / 15.0f;
+    }
+
     float getLighting(final float x_in,
                       final float y_in,
                       final float z_in,
@@ -2001,14 +2033,7 @@ public final class World
         float x = x_in - bx;
         float y = y_in - by;
         float z = z_in - bz;
-        float nx = 1 - x, ny = 1 - y, nz = 1 - z;
-        float l00 = nz * l[0 + 2 * (0 + 2 * 0)] + z * l[0 + 2 * (0 + 2 * 1)];
-        float l10 = nz * l[1 + 2 * (0 + 2 * 0)] + z * l[1 + 2 * (0 + 2 * 1)];
-        float l01 = nz * l[0 + 2 * (1 + 2 * 0)] + z * l[0 + 2 * (1 + 2 * 1)];
-        float l11 = nz * l[1 + 2 * (1 + 2 * 0)] + z * l[1 + 2 * (1 + 2 * 1)];
-        float l0 = ny * l00 + y * l01;
-        float l1 = ny * l10 + y * l11;
-        return (nx * l0 + x * l1) / 15.0f;
+        return getLighting(x, y, z, l);
     }
 
     float getLighting(final Vector p, final int bx, final int by, final int bz)
@@ -2211,7 +2236,10 @@ public final class World
             if(!node.e.isEmpty())
                 insertEntity(node);
             else
+            {
+                players.handleEntityRemove(node.e);
                 node.free();
+            }
         }
         players.entityCheckHitPlayers();
     }
@@ -2287,7 +2315,10 @@ public final class World
             if(!node.e.isEmpty())
                 insertEntity(node);
             else
+            {
+                players.handleEntityRemove(node.e);
                 node.free();
+            }
         }
     }
 
@@ -2301,7 +2332,10 @@ public final class World
             if(!node.e.isEmpty())
                 insertEntity(node);
             else
+            {
+                players.handleEntityRemove(node.e);
                 node.free();
+            }
         }
     }
 
@@ -2475,24 +2509,46 @@ public final class World
 
     private void runRandomMove()
     {
-        for(Chunk node = this.chunksHead; node != null; node = node.listnext)
+        if(this.chunkCount == 0)
+            return;
+        int count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size * 3
+                / 16f / 16f / 16f * this.chunkCount + fRand(0, 1) % 1f);
+        for(int i = 0; i < count; i++)
         {
-            int count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size
-                    * 3f / 16f / 16f / 16f + fRand(0.0f, 1.0f));
-            for(int i = 0; i < count; i++)
+            int hash = (int)Math.floor(fRand(0, WorldHashPrime))
+                    % WorldHashPrime;
+            while(this.hashTable[hash] == null)
             {
-                int x = node.orgx + (int)Math.floor(fRand(0.0f, Chunk.size));
-                int y = node.orgy + (int)Math.floor(fRand(0.0f, Chunk.size));
-                int z = node.orgz + (int)Math.floor(fRand(0.0f, Chunk.size));
-                Block b = getBlockEval(x, y, z);
-                if(b != null)
+                hash++;
+                hash %= WorldHashPrime;
+            }
+            int bucketSize = 0;
+            for(Chunk node = this.hashTable[hash]; node != null; node = node.next)
+                bucketSize++;
+            int index = (int)Math.floor(fRand(0, bucketSize));
+            if(index >= bucketSize)
+                index = bucketSize - 1;
+            for(Chunk node = this.hashTable[hash]; node != null; node = node.next)
+            {
+                if(index-- <= 0)
                 {
-                    Block destB = b.moveRandom(x, y, z);
-                    if(destB != null)
+                    int x = node.orgx
+                            + (int)Math.floor(fRand(0.0f, Chunk.size));
+                    int y = node.orgy
+                            + (int)Math.floor(fRand(0.0f, Chunk.size));
+                    int z = node.orgz
+                            + (int)Math.floor(fRand(0.0f, Chunk.size));
+                    Block b = getBlockEval(x, y, z);
+                    if(b != null)
                     {
-                        setBlock(x, y, z, destB);
-                        b.free();
+                        Block destB = b.moveRandom(x, y, z);
+                        if(destB != null)
+                        {
+                            setBlock(x, y, z, destB);
+                            b.free();
+                        }
                     }
+                    break;
                 }
             }
         }
@@ -3113,7 +3169,7 @@ public final class World
                                                                   this.treeGenerateListHead);
     }
 
-    private static final int fileVersion = 2;
+    private static final int fileVersion = 3;
 
     /** write to a <code>DataOutput</code>
      * 
@@ -3245,13 +3301,23 @@ public final class World
      * 
      * @param i
      *            <code>DataInput</code> to read from
+     * @return the file version
      * @throws IOException
      *             the exception thrown */
-    public static void read(final DataInput i) throws IOException
+    public static int read(final DataInput i) throws IOException
     {
         int v = i.readInt();
-        readVer2(i, v);
-        return;
+        readVer3(i, v);
+        return v;
+    }
+
+    private static void
+        readVer3(final DataInput i, final int v) throws IOException
+    {
+        if(v == 3)
+            readVer2(i, 2);
+        else
+            readVer2(i, v);
     }
 
     private static void
