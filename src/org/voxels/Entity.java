@@ -25,7 +25,6 @@ import java.io.*;
 import org.voxels.TextureAtlas.TextureHandle;
 import org.voxels.World.BlockHitDescriptor;
 
-//TODO finish adding hopper moving to/from minecart with container
 /** @author jacob */
 public class Entity implements GameObject
 {
@@ -80,7 +79,7 @@ public class Entity implements GameObject
     private static TextureHandle[] imgRedstoneFireAnimation = null;
     private static TextureHandle imgExplosion = TextureAtlas.addImage(new Image("explosion.png"));
     private static final int explosionFrameCount = 16;
-    private static final float explosionFrameRate = 20f;
+    private static final float explosionFrameRate = 30f;
 
     private static TextureHandle[] genAnimation(final FireSimulation sim,
                                                 final int stepCount)
@@ -263,6 +262,7 @@ public class Entity implements GameObject
             retval.data.ridingPlayerName = rt.data.ridingPlayerName;
             retval.data.cornerVelocity = Vector.allocate(rt.data.cornerVelocity);
             retval.data.wasOverOnActivatorRail = rt.data.wasOverOnActivatorRail;
+            retval.data.frame = rt.data.frame;
             break;
         }
         return retval;
@@ -295,6 +295,15 @@ public class Entity implements GameObject
                                               -0.5f);
         retval = retval.concatAndSet(Matrix.setToScale(getMinecartDrawMatrix_t2,
                                                        minecartScale));
+        retval = retval.concatAndSet(Matrix.setToRotateZ(getMinecartDrawMatrix_t2,
+                                                         (MINECART_DELETE_TIME - this.data.existduration)
+                                                                 / MINECART_DELETE_TIME
+                                                                 * Math.PI
+                                                                 / 4
+                                                                 * Math.cos(2
+                                                                         * 2
+                                                                         * Math.PI
+                                                                         * world.getCurTime())));
         retval = retval.concatAndSet(Matrix.setToRotateX(getMinecartDrawMatrix_t2,
                                                          -this.data.phi));
         retval = retval.concatAndSet(Matrix.setToRotateY(getMinecartDrawMatrix_t2,
@@ -313,6 +322,36 @@ public class Entity implements GameObject
                                                                                                               3 / 16f,
                                                                                                               3 / 16f))
                                                                 .getImmutableAndFree();
+    private static final Matrix drawPrimedTNT_t1 = Matrix.allocate();
+    private static final Matrix drawPrimedTNT_t2 = Matrix.allocate();
+
+    private RenderingStream drawPrimedTNT(final RenderingStream rs,
+                                          final Matrix blockToWorld,
+                                          final float timeLeft)
+    {
+        // TODO finish making TNT blink and expand right before going off
+        Block b;
+        if(timeLeft * 1.5f - (float)Math.floor(timeLeft * 1.5f) < 0.5f)
+            b = Block.NewTNTBlink();
+        else
+            b = Block.NewTNT();
+        Matrix tform = Matrix.setToTranslate(drawPrimedTNT_t1,
+                                             -0.5f,
+                                             -0.5f,
+                                             -0.5f);
+        tform.concatAndSet(Matrix.setToScale(drawPrimedTNT_t2,
+                                             1 + 0.3f * (float)Math.pow(1 - Math.min(1,
+                                                                                     timeLeft * 4),
+                                                                        2)));
+        tform.concatAndSet(Matrix.setToTranslate(drawPrimedTNT_t2,
+                                                 0.5f,
+                                                 0.5f,
+                                                 0.5f));
+        tform.concatAndSet(blockToWorld);
+        b.drawAsEntity(rs, tform);
+        b.free();
+        return rs;
+    }
 
     @Override
     public RenderingStream draw(final RenderingStream rs,
@@ -476,20 +515,19 @@ public class Entity implements GameObject
         }
         case PrimedTNT:
         {
-            Block b = Block.NewTNT();
             rs.pushMatrixStack();
             rs.concatMatrix(worldToCamera);
-            b.drawAsEntity(rs,
-                           Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, -0.5f)
-                                 .concatAndSet(Matrix.setToScale(draw_t2,
-                                                                 2 * tntItemSize))
-                                 .concatAndSet(Matrix.setToTranslate(draw_t2,
-                                                                     this.position))
-                                 .concatAndSet(Matrix.setToTranslate(draw_t2,
-                                                                     0.5f,
-                                                                     0.5f,
-                                                                     0.5f)));
-            b.free();
+            drawPrimedTNT(rs,
+                          Matrix.setToTranslate(draw_t1, -0.5f, -0.5f, -0.5f)
+                                .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                2 * tntItemSize))
+                                .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                    this.position))
+                                .concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                                    0.5f,
+                                                                    0.5f,
+                                                                    0.5f)),
+                          (float)this.data.existduration);
             rs.popMatrixStack();
             break;
         }
@@ -505,9 +543,22 @@ public class Entity implements GameObject
             rs.concatMatrix(worldToCamera);
             b.drawAsEntity(rs, getMinecartDrawMatrix());
             if(this.data.block != null)
-                this.data.block.drawAsEntity(rs,
-                                             minecartDrawBlockMatrix.concat(draw_t1,
-                                                                            getMinecartDrawMatrix()));
+            {
+                if(this.data.block.getType() == BlockType.BTTNT
+                        && this.data.frame > 0)
+                {
+                    drawPrimedTNT(rs,
+                                  minecartDrawBlockMatrix.concat(draw_t1,
+                                                                 getMinecartDrawMatrix()),
+                                  this.data.frame);
+                }
+                else
+                {
+                    this.data.block.drawAsEntity(rs,
+                                                 minecartDrawBlockMatrix.concat(draw_t1,
+                                                                                getMinecartDrawMatrix()));
+                }
+            }
             rs.popMatrixStack();
             b.free();
             return rs;
@@ -695,7 +746,8 @@ public class Entity implements GameObject
         Player p = players.getPlayer(this.data.ridingPlayerName);
         if(p == null)
             return;
-        if(!p.isRiding)
+        if(!p.isRiding()
+                || (p.currentlyRidingEntity != null && p.currentlyRidingEntity != this))
         {
             this.data.ridingPlayerName = null;
             return;
@@ -735,6 +787,27 @@ public class Entity implements GameObject
                   .apply(this.data.velocity, this.data.velocity);
             tform.free();
             return;
+        }
+    }
+
+    private void minecartPush(final Vector pushVector)
+    {
+        if(minecartIsPosOnTrack(this.position))
+        {
+            Vector facingDir = Vector.setToSphericalCoordinates(Vector.allocate(),
+                                                                1,
+                                                                this.data.theta,
+                                                                this.data.phi);
+            this.data.momentum += facingDir.dot(pushVector)
+                    * (float)Main.getFrameDuration();
+            facingDir.free();
+        }
+        else
+        {
+            Vector t1 = Vector.allocate(pushVector)
+                              .mulAndSet((float)Main.getFrameDuration());
+            this.data.velocity.addAndSet(t1);
+            t1.free();
         }
     }
 
@@ -806,7 +879,15 @@ public class Entity implements GameObject
         {
             if(b.b.railIsPowered())
             {
-                returnedAcceleration = Math.signum(this.data.momentum) * 5;
+                if(this.data.momentum == 0 && facingDir.getY() == 0)
+                {
+                    Vector accelDir = b.b.poweredRailIsPushingWhileFlat(b.bx,
+                                                                        b.by,
+                                                                        b.bz);
+                    if(accelDir != null)
+                        returnedAcceleration += Math.signum(accelDir.dot(facingDir)) * 5;
+                }
+                returnedAcceleration += Math.signum(this.data.momentum) * 5;
             }
             else
             {
@@ -818,6 +899,32 @@ public class Entity implements GameObject
                 : (facingDir.getY() == 0 ? returnedAcceleration
                         : returnedAcceleration + 1);
     }
+
+    private static final Vector minecartIsBlockClose_t1 = Vector.allocate();
+
+    private boolean minecartIsBlockClose(final Vector blockPos)
+    {
+        Vector disp = Vector.sub(minecartIsBlockClose_t1,
+                                 this.position,
+                                 blockPos);
+        if(disp.getY() < -1.8f || disp.getY() > 0.8f)
+            return false;
+        disp.setY(0);
+        if(disp.abs() < 0.8f)
+            return true;
+        return false;
+    }
+
+    private boolean minecartIsSucking()
+    {
+        if(this.data.block != null
+                && this.data.block.getType() == BlockType.BTHopper
+                && !this.data.wasOverOnActivatorRail)
+            return true;
+        return false;
+    }
+
+    private static final float MAX_BLOCK_SUCK_DISTANCE = 1.8f;
 
     @Override
     public void move()
@@ -855,6 +962,38 @@ public class Entity implements GameObject
             {
                 clear();
                 return;
+            }
+            {
+                World.EntityIterator iter = world.getEntityList(this.position.getX()
+                                                                        - MAX_BLOCK_SUCK_DISTANCE,
+                                                                this.position.getX()
+                                                                        + MAX_BLOCK_SUCK_DISTANCE,
+                                                                this.position.getY()
+                                                                        - MAX_BLOCK_SUCK_DISTANCE,
+                                                                this.position.getY()
+                                                                        + MAX_BLOCK_SUCK_DISTANCE,
+                                                                this.position.getZ()
+                                                                        - MAX_BLOCK_SUCK_DISTANCE,
+                                                                this.position.getZ()
+                                                                        + MAX_BLOCK_SUCK_DISTANCE);
+                for(Entity e = iter.next(); e != null; e = iter.next())
+                {
+                    if(e.getType() == EntityType.MineCart
+                            && e.minecartIsSucking())
+                    {
+                        if(e.minecartIsBlockClose(this.position))
+                        {
+                            Block b = e.minecartGetBlock();
+                            if(b.addBlockToContainer(this.data.block, 5))
+                            {
+                                iter.free();
+                                clear();
+                                return;
+                            }
+                        }
+                    }
+                }
+                iter.free();
             }
             this.data.velocity = this.data.velocity.addAndSet(Vector.set(move_t1,
                                                                          0.0f,
@@ -1059,7 +1198,7 @@ public class Entity implements GameObject
             }
             if(this.data.existduration <= 0)
             {
-                world.addExplosion(x, y, z, TNTStrength);
+                world.addExplosion(x, y, z, TNTStrength, false);
                 clear();
                 return;
             }
@@ -1096,7 +1235,7 @@ public class Entity implements GameObject
             }
             if(adjustedNewPos == null)
             {
-                world.addExplosion(x, y, z, TNTStrength);
+                world.addExplosion(x, y, z, TNTStrength, false);
                 clear();
                 return;
             }
@@ -1142,7 +1281,7 @@ public class Entity implements GameObject
             int destX = Math.round(this.data.velocity.getX());
             int destY = Math.round(this.data.velocity.getY());
             int destZ = Math.round(this.data.velocity.getZ());
-            Block src = world.getBlockEval(srcX, srcY, srcZ);
+            Block src = Block.getTransferBlock(srcX, srcY, srcZ);
             if(src != null)
                 src.runTransferItem(srcX, srcY, srcZ, destX, destY, destZ);
             clear();
@@ -1209,6 +1348,20 @@ public class Entity implements GameObject
         }
         case MineCart:
         {
+            if(this.data.ridingPlayerName != null)
+            {
+                Player p = players.getPlayer(this.data.ridingPlayerName);
+                if(p.isRiding() && p.currentlyRidingEntity == this)
+                {
+                    Vector origPos = move_t1.set(p.getPosition());
+                    minecartOnSetPosition();
+                    Vector deltaPos = move_t2.set(p.getPosition())
+                                             .subAndSet(origPos);
+                    deltaPos.setY(0);
+                    minecartPush(deltaPos.mulAndSet(-0.3f
+                            / Math.max(0.01f, (float)Main.getFrameDuration())));
+                }
+            }
             if(this.data.existduration <= 0)
             {
                 minecartDropAllItems();
@@ -1218,6 +1371,25 @@ public class Entity implements GameObject
             this.data.existduration += 0.33 * Main.getFrameDuration();
             if(this.data.existduration > MINECART_DELETE_TIME)
                 this.data.existduration = MINECART_DELETE_TIME;
+            if(this.data.block != null && this.data.block.isContainer())
+            {
+                int bx = (int)Math.floor(this.position.getX());
+                int by = (int)Math.floor(this.position.getY());
+                int bz = (int)Math.floor(this.position.getZ());
+                Block b = world.getBlockEval(bx, by, bz);
+                if(b != null && b.getType() == BlockType.BTHopper)
+                {
+                    minecartTransferAllToContainer(b, bx, by, bz);
+                }
+                else
+                {
+                    b = world.getBlockEval(bx, by - 1, bz);
+                    if(b != null && b.getType() == BlockType.BTHopper)
+                    {
+                        minecartTransferAllToContainer(b, bx, by - 1, bz);
+                    }
+                }
+            }
             this.data.velocity.addAndSet(0, -World.GravityAcceleration
                     * (float)Main.getFrameDuration(), 0);
             if(minecartIsPosOnTrack(this.position))
@@ -1244,14 +1416,50 @@ public class Entity implements GameObject
                 }
                 if(Main.DEBUG)
                     Main.addToFrameText("Momentum : " + this.data.momentum
-                            + "\n");
+                            + "\n");// TODO finish
+                this.data.momentum *= (float)Math.pow(0.95f,
+                                                      (float)Main.getFrameDuration());
+                if(Math.abs(this.data.momentum) < 0.2f * (float)Main.getFrameDuration())
+                    this.data.momentum = 0;
             }
             else
             {
-                this.data.momentum *= (float)Math.pow(0.9,
-                                                      Main.getFrameDuration());
+                this.data.momentum *= (float)Math.pow(0.1f,
+                                                      (float)Main.getFrameDuration());
                 this.data.phi = 0;
                 this.data.cornerVelocity.set(Vector.ZERO);
+                boolean needSpeedReduce = false;
+                {
+                    float minY = this.position.getY(), maxY = minY;
+                    final float yOffset = 0.0f;
+                    Vector testPos = move_t1.set(this.position)
+                                            .subAndSet(0, yOffset, 0);
+                    while(itemHits(minecartScale / 2, testPos))
+                    {
+                        minY = this.position.getY();
+                        this.data.velocity.setY(Math.max(0,
+                                                         this.data.velocity.getY()));
+                        this.position.addAndSet(0, 0.1f, 0);
+                        needSpeedReduce = true;
+                        testPos = move_t1.set(this.position).subAndSet(0,
+                                                                       yOffset,
+                                                                       0);
+                    }
+                    maxY = this.position.getY();
+                    while(maxY - minY > 1e-5)
+                    {
+                        float avgY = (maxY + minY) * 0.5f;
+                        this.position.setY(avgY);
+                        testPos = move_t1.set(this.position).subAndSet(0,
+                                                                       yOffset,
+                                                                       0);
+                        if(itemHits(minecartScale / 2, testPos))
+                            minY = avgY;
+                        else
+                            maxY = avgY;
+                    }
+                    this.position.setY((minY + maxY) * 0.5f);
+                }
                 Vector deltaPos = Vector.mul(move_t1,
                                              this.data.velocity,
                                              (float)Main.getFrameDuration());
@@ -1261,9 +1469,9 @@ public class Entity implements GameObject
                 deltaPos.divAndSet(count);
                 for(int i = 0; i < count; i++)
                 {
-                    if(itemHits(minecartScale / 2, newPos))
+                    if(itemHits(minecartScale / 2 - 0.1f, newPos))
                     {
-                        this.data.velocity.set(Vector.ZERO);
+                        needSpeedReduce = true;
                         newPos.set(lastPos);
                         break;
                     }
@@ -1275,7 +1483,9 @@ public class Entity implements GameObject
                 if(adjustedNewPos != null)
                 {
                     if(!newPos.equals(adjustedNewPos))
-                        this.data.velocity.set(Vector.ZERO);
+                    {
+                        needSpeedReduce = true;
+                    }
                     this.position.set(adjustedNewPos);
                     minecartOnSetPosition();
                     adjustedNewPos.free();
@@ -1283,12 +1493,112 @@ public class Entity implements GameObject
                 else
                 {
                     this.data.velocity.set(Vector.ZERO);
-                    return;
+                    needSpeedReduce = false; // already reduced to nothing
+                }
+                if(needSpeedReduce)
+                {
+                    this.data.velocity.setY(0);
+                    float curSpeed = this.data.velocity.abs();
+                    float newSpeed = curSpeed
+                            * (float)Math.pow(0.1f,
+                                              (float)Main.getFrameDuration())
+                            - 0.2f * (float)Main.getFrameDuration();
+                    if(newSpeed <= 0 || curSpeed <= 0)
+                        this.data.velocity.set(Vector.ZERO);
+                    else
+                        this.data.velocity.mulAndSet(newSpeed / curSpeed);// TODO
+                                                                          // finish
+                }
+                if(Main.DEBUG)
+                    Main.addToFrameText("Velocity : " + this.data.velocity
+                            + "\n");
+            }
+            if(this.data.block != null
+                    && this.data.block.getType() == BlockType.BTHopper)
+            {
+                if(this.data.wasOverOnActivatorRail)
+                {
+                    this.data.frame = 0;
+                }
+                else
+                {
+                    this.data.frame += (float)Main.getFrameDuration();
+                    if(this.data.frame > 0.4f)
+                    {
+                        this.data.frame %= 0.4f;
+                        int x = (int)Math.floor(this.position.getX());
+                        int y = (int)Math.floor(this.position.getY());
+                        int z = (int)Math.floor(this.position.getZ());
+                        Block b = Block.getTransferBlock(x, y + 1, z);
+                        if(b != null)
+                        {
+                            if(b.runTransferItem(this.data.block, 4))
+                            {
+                                if(world.getBlockEval(x, y + 1, z) == b)
+                                    world.setBlock(x, y + 1, z, b);
+                            }
+                        }
+                    }
+                }
+            }
+            if(this.data.block != null
+                    && this.data.block.getType() == BlockType.BTTNT)
+            {
+                if(this.data.frame > 0)
+                {
+                    final float ParticlesPerSecond = 5;
+                    int startcount = (int)Math.floor(this.data.frame
+                            * ParticlesPerSecond);
+                    this.data.frame -= (float)Main.getFrameDuration();
+                    int endcount = (int)Math.floor(this.data.frame
+                            * ParticlesPerSecond);
+                    int count = startcount - endcount;
+                    for(int i = 0; i < count; i++)
+                    {
+                        world.insertEntity(NewParticle(Vector.add(move_t1,
+                                                                  this.position,
+                                                                  Vector.set(move_t2,
+                                                                             0.0f,
+                                                                             7 / 16f,
+                                                                             0.0f)),
+                                                       ParticleType.SmokeAnim,
+                                                       Vector.ZERO));
+                    }
+                    if(this.data.frame <= 0)
+                    {
+                        int x = (int)Math.floor(this.position.getX());
+                        int y = (int)Math.floor(this.position.getY());
+                        int z = (int)Math.floor(this.position.getZ());
+                        world.addExplosion(x, y, z, TNTStrength, true);
+                        clear();
+                        return;
+                    }
+                }
+                else if(this.data.wasOverOnActivatorRail)
+                {
+                    this.data.frame = 4.0f;
                 }
             }
             return;
         }
         }
+    }
+
+    private void minecartTransferAllToContainer(final Block container,
+                                                final int bx,
+                                                final int by,
+                                                final int bz)
+    {
+        Block.ContainerItemIterator iter = this.data.block.getContainerItemIterator();
+        while(!iter.isAtEnd())
+        {
+            if(container.addBlockToContainer(iter.getCurrentType(), 5))
+                iter.removeBlock();
+            else
+                iter.next();
+        }
+        iter.free();
+        world.setBlock(bx, by, bz, container);
     }
 
     private void minecartDropAllItems()
@@ -1365,7 +1675,7 @@ public class Entity implements GameObject
         {
             Vector ppos = p.getPosition();
             Vector disp = Vector.sub(checkHitPlayer_t1, ppos, this.position);
-            if(disp.abs_squared() <= 15 * 15)
+            if(disp.abs_squared() <= 15 * 15 && players.front() == p)
                 Main.needFuseBurnAudio = true;
             break;
         }
@@ -1379,6 +1689,46 @@ public class Entity implements GameObject
             break;
         case MineCart:
         {
+            Vector disp = checkHitPlayer_t1.set(p.getPosition())
+                                           .subAndSet(this.position);
+            if(this.data.block != null
+                    && this.data.block.getType() == BlockType.BTTNT
+                    && this.data.frame > 0 && disp.abs_squared() <= 15 * 15
+                    && players.front() == p)
+                Main.needFuseBurnAudio = true;
+            if(disp.getY() >= 0 && disp.getY() <= Player.PlayerHeight)
+            {
+                disp.setY(0);
+            }
+            else if(disp.getY() > Player.PlayerHeight)
+            {
+                disp.setY(disp.getY() - Player.PlayerHeight);
+            }
+            if(Math.abs(disp.getY()) < 0.2f)
+            {
+                disp.setY(0);
+                float magnitude = disp.abs();
+                if(magnitude < 0.2f && this.data.block == null)
+                {
+                    if(!p.isRiding() && this.data.ridingPlayerName == null)
+                    {
+                        p.setRiding(true);
+                        p.currentlyRidingEntity = this;
+                        this.data.ridingPlayerName = p.getName();
+                        minecartOnSetPosition();
+                    }
+                }
+                else if(magnitude < 0.55f)
+                {
+                    Vector pushVector = Vector.allocate(disp)
+                                              .negAndSet()
+                                              .normalizeAndSet()
+                                              .mulAndSet((float)Math.pow(0.55f - magnitude,
+                                                                         2) * 200);
+                    minecartPush(pushVector);
+                    pushVector.free();
+                }
+            }
             // TODO finish
         }
         }
@@ -1503,8 +1853,34 @@ public class Entity implements GameObject
         case RemoveBlockIfEqual:
         case TransferItem:
         case ApplyBoneMealOrPutBackInContainer:
-        case MineCart:
             break;
+        case MineCart:
+        {
+            final float impact = 3
+                    * (1.0f - Vector.sub(this.explode_t1, this.position, pos)
+                                    .addAndSet(0.5f, 0.5f, 0.5f)
+                                    .abs()
+                            / explosionRadius)
+                    * getBoxExposure(Vector.add(this.explode_t1,
+                                                this.position,
+                                                0.5f - tntItemSize,
+                                                0.5f - tntItemSize,
+                                                0.5f - tntItemSize),
+                                     Vector.add(this.explode_t2,
+                                                this.position,
+                                                0.5f + tntItemSize,
+                                                0.5f + tntItemSize,
+                                                0.5f + tntItemSize),
+                                     pos);
+            if(impact <= 0)
+                return;
+            Vector dir = Vector.sub(this.explode_t1, this.position, pos)
+                               .normalizeAndSet()
+                               .mulAndSet(impact * GravityAcceleration
+                                       / (float)Main.getFrameDuration());
+            minecartPush(dir);
+            break;
+        }
         }
     }
 
@@ -1704,6 +2080,7 @@ public class Entity implements GameObject
         retval.data.ridingPlayerName = null;
         retval.data.cornerVelocity = Vector.allocate(Vector.ZERO);
         retval.data.wasOverOnActivatorRail = false;
+        retval.data.frame = 0;
         return retval;
     }
 
@@ -1717,6 +2094,23 @@ public class Entity implements GameObject
         if(Float.isInfinite(this.data.theta) || Float.isNaN(this.data.theta)
                 || Math.abs(this.data.theta) > 1e-4 + Math.PI * 2)
             throw new IOException("theta out of range");
+    }
+
+    private static boolean minecartHasExtraFloat(final Block b)
+    {
+        if(b == null)
+            return false;
+        switch(b.getType())
+        {
+        case BTChest:
+            return false;
+        case BTHopper:
+        case BTTNT:
+            return true;
+        default:
+            break;
+        }
+        throw new RuntimeException("illegal block type");
     }
 
     private void internalRead(final DataInput i) throws IOException
@@ -1824,6 +2218,13 @@ public class Entity implements GameObject
                 this.data.block = Block.read(i);
             else
                 this.data.block = null;
+            if(minecartHasExtraFloat(this.data.block))
+            {
+                this.data.frame = i.readFloat();
+                if(Float.isInfinite(this.data.frame)
+                        || Float.isNaN(this.data.frame))
+                    throw new IOException("frame out of range");
+            }
             readPhiTheta(i);
             this.data.existduration = i.readDouble();
             if(Double.isInfinite(this.data.existduration)
@@ -1958,6 +2359,10 @@ public class Entity implements GameObject
             o.writeBoolean(this.data.block != null);
             if(this.data.block != null)
                 this.data.block.write(o);
+            if(minecartHasExtraFloat(this.data.block))
+            {
+                o.writeFloat(this.data.frame);
+            }
             o.writeFloat(this.data.phi);
             o.writeFloat(this.data.theta);
             o.writeDouble(this.data.existduration);
@@ -2145,7 +2550,9 @@ public class Entity implements GameObject
                 break;
             }
             this.data.ridingPlayerName = p.getName();
-            p.isRiding = true;
+            p.setRiding(true);
+            p.currentlyRidingEntity = this;
+            minecartOnSetPosition();
             break;
         }
         }

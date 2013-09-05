@@ -2817,7 +2817,7 @@ public final class Rand
             int RockHeight = getRockHeight(x + cx, z + cz);
             if(RockHeight >= WaterHeight
                     && !isInCave(x + cx, RockHeight, z + cz)
-                    && !waterInArea(x, WaterHeight - 1, z))
+                    && !waterInArea(x + cx, WaterHeight - 1, z + cz))
             {
                 float probFactor = 1.0f;
                 final int searchDist = 5;
@@ -3156,6 +3156,8 @@ public final class Rand
                 return Block.NewEmpty();
             }
             if(ftype - type > 0.5f)
+                return Block.NewEmpty();
+            if(ftype - type > 0.25f)
                 return Block.NewBrownMushroom();
             return Block.NewRedMushroom();
         }
@@ -3163,10 +3165,13 @@ public final class Rand
         {
             int againstWallCount = 0;
             for(int o = 0; o < 6; o++)
-                if(!isInCave(x + Block.getOrientationDX(o),
-                             y + Block.getOrientationDY(o),
-                             z + Block.getOrientationDZ(o)))
+            {
+                int tx = x + Block.getOrientationDX(o), ty = y
+                        + Block.getOrientationDY(o), tz = z
+                        + Block.getOrientationDZ(o);
+                if(!isInCave(tx, ty, tz) && getRockHeight(tx, tz) >= ty)
                     againstWallCount++;
+            }
             if(againstWallCount >= 2)
                 return Block.NewCobweb();
             return Block.NewEmpty();
@@ -3177,13 +3182,15 @@ public final class Rand
             {
                 return Block.NewEmpty();
             }
+            if(ftype - type > 0.5f)
+                return Block.NewEmpty();
             return Block.NewTorch(4);
         }
         case Chest:
         {
             if(isInCave(x, y - 1, z))
                 return Block.NewEmpty();
-            if(ftype - type > 0.25)
+            if(ftype - type > 0.25f)
                 return Block.NewEmpty();
             Block retval = Block.NewChest();
             int i = 0;

@@ -2941,9 +2941,10 @@ public enum BlockType
         }
     },
     /** TNT */
-    BTTNT(61, true, BlockDrawType.BDTSolid, new TextureAtlas.TextureHandle[]
+    BTTNT(61, true, BlockDrawType.BDTCustom, new TextureAtlas.TextureHandle[]
     {
-        TextureAtlas.addImage(new Image("tnt.png"))
+        TextureAtlas.addImage(new Image("tnt.png")),
+        TextureAtlas.addImage(new Image("tntblink.png"))
     })
     {
         @Override
@@ -6145,8 +6146,94 @@ public enum BlockType
             return 0;
         }
     },
+    /** mine cart with hopper */
+    BTMineCartWithHopper(126, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("minecartwithhopper.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewMinecartWithHopper();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
+    /** mine cart with TNT */
+    BTMineCartWithTNT(127, false, BlockDrawType.BDTItem,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("minecartwithtnt.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewMinecartWithTNT();
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(126, false, BlockDrawType.BDTNone, null)
+    BTLast(128, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -6697,6 +6784,8 @@ public enum BlockType
         case BTPoweredRail:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return 0;
         }
         return 0;
@@ -6857,6 +6946,8 @@ public enum BlockType
         case BTFlintAndSteel:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return true;
         case BTRail:
         case BTDetectorRail:
@@ -7022,6 +7113,8 @@ public enum BlockType
         case BTPoweredRail:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return false;
         case BTDispenser:
         case BTDropper:
@@ -7187,6 +7280,8 @@ public enum BlockType
         case BTPoweredRail:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return false;
         case BTDispenser:
         case BTDropper:
@@ -7300,6 +7395,8 @@ public enum BlockType
         case BTPoweredRail:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return true;
         case BTPlank:
         case BTLeaves:
@@ -7477,6 +7574,8 @@ public enum BlockType
         case BTPoweredRail:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -7665,7 +7764,162 @@ public enum BlockType
         case BTPoweredRail:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return true;
+        }
+        return false;
+    }
+
+    /** @return true if this block is glowing */
+    public boolean isGlowing()
+    {
+        switch(this)
+        {
+        case BTSun:
+        case BTMoon:
+        case BTDeleteBlock:
+            return true;
+        case BTLast:
+            return false;
+        case BTEmpty:
+            return false;
+        case BTCoal:
+        case BTDiamond:
+        case BTDiamondPick:
+        case BTDiamondShovel:
+        case BTEmerald:
+        case BTGoldIngot:
+        case BTGoldPick:
+        case BTGoldShovel:
+        case BTIronIngot:
+        case BTIronPick:
+        case BTIronShovel:
+        case BTLapisLazuli:
+        case BTPlank:
+        case BTRedstoneBlock:
+        case BTRedstoneDustOff:
+        case BTRedstoneDustOn:
+        case BTRedstoneTorchOff:
+            return false;
+        case BTRedstoneTorchOn:
+            return true;
+        case BTSapling:
+        case BTStick:
+        case BTStoneButton:
+        case BTStonePick:
+        case BTStoneShovel:
+            return false;
+        case BTTorch:
+            return true;
+        case BTWater:
+        case BTWoodButton:
+        case BTWoodPick:
+        case BTWoodShovel:
+        case BTLadder:
+        case BTLever:
+        case BTSlime:
+        case BTLeaves:
+            return false;
+        case BTLava:
+            return true;
+        case BTGlass:
+        case BTBedrock:
+        case BTChest:
+        case BTCoalOre:
+        case BTCobblestone:
+        case BTDiamondOre:
+        case BTDirt:
+        case BTEmeraldOre:
+        case BTFurnace:
+        case BTGoldOre:
+        case BTGrass:
+        case BTGravel:
+        case BTIronOre:
+        case BTLapisLazuliOre:
+        case BTRedstoneOre:
+        case BTSand:
+        case BTStone:
+        case BTWood:
+        case BTWorkbench:
+        case BTRedstoneRepeaterOff:
+        case BTRedstoneRepeaterOn:
+        case BTObsidian:
+        case BTPiston:
+        case BTStickyPiston:
+        case BTPistonHead:
+        case BTStickyPistonHead:
+        case BTGunpowder:
+        case BTTNT:
+        case BTBlazeRod:
+        case BTBlazePowder:
+        case BTStonePressurePlate:
+        case BTWoodPressurePlate:
+        case BTSnow:
+        case BTVines:
+        case BTWoodAxe:
+        case BTStoneAxe:
+        case BTIronAxe:
+        case BTGoldAxe:
+        case BTDiamondAxe:
+        case BTShears:
+        case BTBucket:
+        case BTRedstoneComparator:
+        case BTQuartz:
+        case BTDispenser:
+        case BTDropper:
+        case BTCobweb:
+        case BTString:
+        case BTBow:
+        case BTHopper:
+        case BTCactus:
+        case BTRedMushroom:
+        case BTBrownMushroom:
+        case BTDeadBush:
+        case BTDandelion:
+        case BTRose:
+        case BTFarmland:
+        case BTSeeds:
+        case BTTallGrass:
+        case BTWheat:
+        case BTWoodHoe:
+        case BTStoneHoe:
+        case BTIronHoe:
+        case BTGoldHoe:
+        case BTDiamondHoe:
+        case BTCocoa:
+        case BTInkSac:
+        case BTRoseRed:
+        case BTCactusGreen:
+        case BTPurpleDye:
+        case BTCyanDye:
+        case BTLightGrayDye:
+        case BTGrayDye:
+        case BTPinkDye:
+        case BTLimeDye:
+        case BTDandelionYellow:
+        case BTLightBlueDye:
+        case BTMagentaDye:
+        case BTOrangeDye:
+        case BTBoneMeal:
+        case BTBone:
+        case BTWool:
+        case BTBed:
+        case BTBedFoot:
+            return false;
+        case BTFire:
+            return true;
+        case BTFlint:
+        case BTFlintAndSteel:
+        case BTRail:
+        case BTDetectorRail:
+        case BTActivatorRail:
+        case BTPoweredRail:
+        case BTMineCart:
+        case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
+            return false;
         }
         return false;
     }
@@ -7829,6 +8083,8 @@ public enum BlockType
         case BTFlintAndSteel:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return Replaceability.Replace;
         case BTDispenser:
         case BTDropper:
@@ -8148,6 +8404,8 @@ public enum BlockType
         case BTFlintAndSteel:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return 0;
         case BTRail:
         case BTDetectorRail:
@@ -8415,6 +8673,8 @@ public enum BlockType
         case BTPoweredRail:
         case BTMineCart:
         case BTMineCartWithChest:
+        case BTMineCartWithHopper:
+        case BTMineCartWithTNT:
             return Flammability.NotFlammable;
         case BTLeaves:
         case BTPlank:

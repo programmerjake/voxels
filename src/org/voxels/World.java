@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.voxels.BlockType.ToolType;
 import org.voxels.generate.*;
 
+//FIXME change move entity to move entities then remove them in separate loops so that Entity.move can find other entities 
 /** @author jacob */
 public final class World
 {
@@ -217,15 +218,22 @@ public final class World
         public EntityNode next;
         public EntityNode prev;
         public Entity e;
+        boolean isFree = false;
+        public boolean isInList = false;
 
         public void free()
         {
+            if(this.isFree)
+                throw new RuntimeException("double free");
+            if(this.isInList)
+                throw new RuntimeException("free called on node in list");
             this.hashnext = null;
             this.hashprev = null;
             this.prev = null;
             if(this.e != null)
                 this.e.free();
             this.e = null;
+            this.isFree = true;
             this.next = freeEntityNodeHead;
             freeEntityNodeHead = this;
         }
@@ -238,12 +246,13 @@ public final class World
                 return new EntityNode();
             EntityNode retval = freeEntityNodeHead;
             freeEntityNodeHead = retval.next;
+            retval.isFree = false;
             return retval;
         }
     }
 
-    @SuppressWarnings("unused")
     private EntityNode entityHead = null, entityTail = null;
+    private long entityCount = 0;
 
     private void clearEntities()
     {
@@ -252,9 +261,9 @@ public final class World
         {
             EntityNode freeMe = head;
             head = head.next;
-            players.handleEntityRemove(freeMe.e);
             freeMe.free();
         }
+        this.entityCount = 0;
     }
 
     private static class Chunk
@@ -402,6 +411,24 @@ public final class World
 
     private void insertEntity(final EntityNode node)
     {
+        if(node.isFree || node.isInList || node == this.entityHead
+                || node == this.entityTail)
+            throw new RuntimeException("can't insert currently used entity");
+        node.isInList = true;
+        if(node.e.isEmpty())
+        {
+            node.next = this.entityHead;
+            node.prev = null;
+            node.hashnext = null;
+            node.hashprev = null;
+            if(this.entityHead != null)
+                this.entityHead.prev = node;
+            else
+                this.entityTail = node;
+            this.entityHead = node;
+            this.entityCount++;
+            return;
+        }
         Vector pos = node.e.getPosition();
         int x = (int)Math.floor(pos.getX());
         int y = (int)Math.floor(pos.getY());
@@ -421,6 +448,7 @@ public final class World
         else
             c.tail = node;
         c.head = node;
+        this.entityCount++;
     }
 
     private EntityNode removeAllEntities()
@@ -430,28 +458,25 @@ public final class World
         this.entityTail = null;
         for(EntityNode node = retval; node != null; node = node.next)
         {
+            node.isInList = false;
             Chunk c = null;
-            if(node.hashnext == null || node.hashprev == null)
+            if(!node.e.isEmpty())
             {
                 Vector pos = node.e.getPosition();
                 int x = (int)Math.floor(pos.getX());
                 int y = (int)Math.floor(pos.getY());
                 int z = (int)Math.floor(pos.getZ());
                 c = find(getChunkX(x), getChunkY(y), getChunkZ(z));
-                if(c == null)
-                    continue;
             }
-            if(node.hashnext != null)
-                node.hashnext.hashprev = node.hashprev;
-            else
-                c.tail = node.hashprev;
-            if(node.hashprev != null)
-                node.hashprev.hashnext = node.hashnext;
-            else
-                c.head = node.hashnext;
+            if(c != null)
+            {
+                c.head = null;
+                c.tail = null;
+            }
             node.hashnext = null;
             node.hashprev = null;
         }
+        this.entityCount = 0;
         return retval;
     }
 
@@ -697,16 +722,21 @@ public final class World
         this.evalNodeListHead[eti] = node;
     }
 
+    @SuppressWarnings("unused")
     private EvalNode removeAllEvalNodes(final EvalType et)
     {
         int eti = et.ordinal();
         assert eti >= 0 && eti < EvalTypeCount;
         EvalNode retval = this.evalNodeListHead[eti];
         this.evalNodeListHead[eti] = null;
+        int count = 0;
         for(EvalNode node = retval; node != null; node = node.listnext)
         {
             this.evalNodeHashTable[eti][node.hash] = null;
+            count++;
         }
+        if(Main.DEBUG && false)
+            Main.addToFrameText("EvalNode remove count : " + count + "\n");
         return retval;
     }
 
@@ -1652,7 +1682,8 @@ public final class World
                     + "\nEach bucket has "
                     + ((float)this.chunkCount / WorldHashPrime)
                     + " chunks on average.\nMaximum bucket size : "
-                    + this.maxBucketSize + "\n");
+                    + this.maxBucketSize + "\nEntity Count : "
+                    + this.entityCount + "\n");
         RenderingStream rs[] = draw_rs;
         rs[0] = renderingStream;
         rs[1] = transparentRenderingStream;
@@ -1893,6 +1924,58 @@ public final class World
         }
     }
 
+    private int getLightingArrayIndex(final int xOff,
+                                      final int yOff,
+                                      final int zOff,
+                                      final int x_in,
+                                      final int y_in,
+                                      final int z_in)
+    {
+        int x = x_in, y = y_in, z = z_in;
+        if(xOff > 0)
+            x = 1 - x;
+        if(yOff > 0)
+            y = 1 - y;
+        if(zOff > 0)
+            z = 1 - z;
+        x += xOff;
+        y += yOff;
+        z += zOff;
+        return x + 3 * (y + 3 * z);
+    }
+
+    @SuppressWarnings("unused")
+    private int getDarkeningFactor(final int xOff,
+                                   final int yOff,
+                                   final int zOff,
+                                   final boolean[] o)
+    {
+        if(true)
+            return 0;
+        if(o[getLightingArrayIndex(xOff, yOff, zOff, 1, 1, 1)])
+        {
+            if(o[getLightingArrayIndex(xOff, yOff, zOff, 0, 0, 0)]
+                    && o[getLightingArrayIndex(xOff, yOff, zOff, 1, 1, 0)]
+                    && o[getLightingArrayIndex(xOff, yOff, zOff, 1, 0, 1)])
+                return 2;
+            if(o[getLightingArrayIndex(xOff, yOff, zOff, 1, 1, 0)]
+                    && o[getLightingArrayIndex(xOff, yOff, zOff, 0, 0, 0)]
+                    && o[getLightingArrayIndex(xOff, yOff, zOff, 0, 1, 1)])
+                return 2;
+            if(o[getLightingArrayIndex(xOff, yOff, zOff, 1, 0, 1)]
+                    && o[getLightingArrayIndex(xOff, yOff, zOff, 0, 1, 1)]
+                    && o[getLightingArrayIndex(xOff, yOff, zOff, 0, 0, 0)])
+                return 2;
+            return 0;
+        }
+        if(o[getLightingArrayIndex(xOff, yOff, zOff, 1, 0, 0)]
+                && o[getLightingArrayIndex(xOff, yOff, zOff, 0, 1, 0)]
+                && o[getLightingArrayIndex(xOff, yOff, zOff, 0, 0, 1)])
+            return 2;
+        // TODO finish
+        return 0;
+    }
+
     private final int[] getLightingArray_l = new int[3 * 3 * 3];
     private final boolean[] getLightingArray_o = new boolean[3 * 3 * 3];
     private static final int[] getLightingArray_empty = new int[]
@@ -1999,6 +2082,7 @@ public final class World
                             }
                         }
                     }
+                    v = Math.max(0, v - getDarkeningFactor(x, y, z, o) * 3);
                     fl[x + 2 * (y + 2 * z)] = v;
                 }
             }
@@ -2226,26 +2310,104 @@ public final class World
         insertEntity(node);
     }
 
-    private void moveEntities()
+    private void removeAllClearEntities()
     {
+        for(EntityNode node = this.entityHead; node != null; node = node.next)
+        {
+            if(node.e.isEmpty())
+                players.handleEntityRemove(node.e);
+        }
         for(EntityNode node = removeAllEntities(), nextNode = (node != null ? node.next
                 : null); node != null; node = nextNode, nextNode = (node != null ? node.next
                 : null))
         {
-            node.e.move();
             if(!node.e.isEmpty())
                 insertEntity(node);
             else
-            {
-                players.handleEntityRemove(node.e);
                 node.free();
+        }
+    }
+
+    private static final class EntityListNode
+    {
+        public EntityListNode next;
+        public EntityNode node;
+
+        private EntityListNode()
+        {
+        }
+
+        private static final Allocator<EntityListNode> allocator = new Allocator<World.EntityListNode>()
+        {
+            @SuppressWarnings("synthetic-access")
+            @Override
+            protected EntityListNode allocateInternal()
+            {
+                return new EntityListNode();
             }
+        };
+
+        public void free()
+        {
+            this.next = null;
+            this.node = null;
+            allocator.free(this);
+        }
+
+        public static EntityListNode allocate()
+        {
+            return allocator.allocate();
+        }
+    }
+
+    private EntityListNode makeEntityList()
+    {
+        EntityListNode retval = null;
+        for(EntityNode node = this.entityHead; node != null; node = node.next)
+        {
+            EntityListNode newNode = EntityListNode.allocate();
+            newNode.next = retval;
+            newNode.node = node;
+            retval = newNode;
+        }
+        return retval;
+    }
+
+    private void moveEntities()
+    {
+        for(EntityListNode node = makeEntityList(), freeMe = node; node != null; node = node.next, freeMe.free(), freeMe = node)
+        {
+            removeEntityNode(node.node);
+            node.node.e.move();
+            insertEntity(node.node);
         }
         players.entityCheckHitPlayers();
+        removeAllClearEntities();
     }
 
     private void removeEntityNode(final EntityNode node)
     {
+        node.isInList = false;
+        if(node.e.isEmpty())
+        {
+            if(node.prev == null)
+                this.entityHead = node.next;
+            else
+                node.prev.next = node.next;
+            if(node.next == null)
+                this.entityTail = node.prev;
+            else
+                node.next.prev = node.prev;
+            node.next = null;
+            node.prev = null;
+            node.hashnext = null;
+            node.hashprev = null;
+            if(node.isFree || node.isInList || node == this.entityHead
+                    || node == this.entityTail)
+                throw new RuntimeException("can't insert currently used entity");
+            this.entityCount--;
+            return;
+        }
         Vector pos = node.e.getPosition();
         int x = (int)Math.floor(pos.getX());
         int y = (int)Math.floor(pos.getY());
@@ -2273,6 +2435,10 @@ public final class World
             node.hashnext.hashprev = node.hashprev;
         node.hashnext = null;
         node.hashprev = null;
+        if(node.isFree || node.isInList || node == this.entityHead
+                || node == this.entityTail)
+            throw new RuntimeException("can't insert currently used entity");
+        this.entityCount--;
     }
 
     private void explodeEntities(final Vector pos, final float strength)
@@ -2324,18 +2490,11 @@ public final class World
 
     void checkHitPlayer(final Player p)
     {
-        for(EntityNode node = removeAllEntities(), nextNode = (node != null ? node.next
-                : null); node != null; node = nextNode, nextNode = (node != null ? node.next
-                : null))
+        for(EntityListNode node = makeEntityList(), freeMe = node; node != null; node = node.next, freeMe.free(), freeMe = node)
         {
-            node.e.checkHitPlayer(p);
-            if(!node.e.isEmpty())
-                insertEntity(node);
-            else
-            {
-                players.handleEntityRemove(node.e);
-                node.free();
-            }
+            removeEntityNode(node.node);
+            node.node.e.checkHitPlayer(p);
+            insertEntity(node.node);
         }
     }
 
@@ -2816,7 +2975,7 @@ public final class World
                             EntityNode node = c.head;
                             while(node != null)
                             {
-                                if(node.e != null)
+                                if(node.e != null && !node.e.isEmpty())
                                 {
                                     float t = node.e.rayHitEntity(pos_in, dir);
                                     if(t >= 0 && t <= maxDist)
@@ -3225,7 +3384,8 @@ public final class World
         int entitycount = 0;
         for(EntityNode node = world.entityHead; node != null; node = node.next)
         {
-            entitycount++;
+            if(!node.e.isEmpty())
+                entitycount++;
         }
         o.writeInt(entitycount);
         if(world.entityHead != null)
@@ -3234,6 +3394,8 @@ public final class World
             int progress = 0;
             for(EntityNode node = world.entityHead; node != null; node = node.next)
             {
+                if(node.e.isEmpty())
+                    continue;
                 node.e.write(o);
                 Main.setProgress(progress++);
             }
@@ -3635,6 +3797,7 @@ public final class World
         public int x, y, z;
         public float strength;
         public ExplosionNode next;
+        public boolean ignoreRails;
 
         ExplosionNode()
         {
@@ -3644,22 +3807,30 @@ public final class World
                                              final int y,
                                              final int z,
                                              final float strength,
-                                             final ExplosionNode next)
+                                             final ExplosionNode next,
+                                             final boolean ignoreRails)
         {
-            return allocator.allocate().init(x, y, z, strength, next);
+            return allocator.allocate().init(x,
+                                             y,
+                                             z,
+                                             strength,
+                                             next,
+                                             ignoreRails);
         }
 
         private ExplosionNode init(final int x,
                                    final int y,
                                    final int z,
                                    final float strength,
-                                   final ExplosionNode next)
+                                   final ExplosionNode next,
+                                   final boolean ignoreRails)
         {
             this.x = x;
             this.y = y;
             this.z = z;
             this.strength = strength;
             this.next = next;
+            this.ignoreRails = ignoreRails;
             return this;
         }
 
@@ -3682,17 +3853,21 @@ public final class World
      * @param z
      *            the z coordinate of the new explosion
      * @param strength
-     *            the strength of the new explosion */
+     *            the strength of the new explosion
+     * @param ignoreRails
+     *            if rails and supporting blocks should be ignored */
     public void addExplosion(final int x,
                              final int y,
                              final int z,
-                             final float strength)
+                             final float strength,
+                             final boolean ignoreRails)
     {
         this.explosionList = ExplosionNode.allocate(x,
                                                     y,
                                                     z,
                                                     strength,
-                                                    this.explosionList);
+                                                    this.explosionList,
+                                                    ignoreRails);
         int particleCount = Math.max(1,
                                      (int)Math.floor(strength * strength
                                              * strength / 8));
@@ -3710,14 +3885,19 @@ public final class World
         }
     }
 
+    private static final Block getExplosionStrength_empty = Block.NewEmpty();
+
     private float getExplosionStrength(final int x,
                                        final int y,
                                        final int z,
-                                       final float strength)
+                                       final float strength,
+                                       final boolean ignoreRails)
     {
         Block b = getBlockEval(x, y, z);
         if(b == null)
             return 0.0f;
+        if(ignoreRails && Block.isRailOrSupportingRails(x, y, z))
+            b = getExplosionStrength_empty;
         if(!b.isExplodable())
             return 0.0f;
         return Math.max(0, strength - (b.getBlastResistance() / 5 + 0.3f)
@@ -3787,7 +3967,8 @@ public final class World
         runExplosionRay(final AllocatorHashMap<BlockLoc, BlockLoc> destroyedBlocks,
                         final Vector init_pos,
                         final Vector dir,
-                        final float init_strength)
+                        final float init_strength,
+                        final boolean ignoreRails)
     {
         Vector step = Vector.normalize(runExplosionRay_step, dir)
                             .mulAndSet(0.3f);
@@ -3820,17 +4001,23 @@ public final class World
             strength = getExplosionStrength(curBlockX,
                                             curBlockY,
                                             curBlockZ,
-                                            strength);
+                                            strength,
+                                            ignoreRails);
             pos = pos.addAndSet(step);
         }
     }
 
     private static Vector runExplosion_t1 = Vector.allocate();
 
-    private void runExplosion(final int x, final int y, final int z)
+    private void runExplosion(final int x,
+                              final int y,
+                              final int z,
+                              final boolean ignoreRails)
     {
         Block b = getBlockEval(x, y, z);
         if(b == null)
+            return;
+        if(ignoreRails && Block.isRailOrSupportingRails(x, y, z))
             return;
         if(b.getType() == BlockType.BTEmpty)
             return;
@@ -3883,7 +4070,8 @@ public final class World
                     runExplosionRay(destroyedBlocks,
                                     pos,
                                     dir,
-                                    fRand(0.7f, 1.3f) * explosion.strength);
+                                    fRand(0.7f, 1.3f) * explosion.strength,
+                                    explosion.ignoreRails);
                 }
             }
         }
@@ -3891,7 +4079,7 @@ public final class World
         for(; !iter.isEnd(); iter.next())
         {
             BlockLoc i = iter.getKey();
-            runExplosion(i.x, i.y, i.z);
+            runExplosion(i.x, i.y, i.z, explosion.ignoreRails);
         }
         iter.free();
         destroyedBlocks.free();
@@ -4025,5 +4213,144 @@ public final class World
     private void clearDisplayListValidTag()
     {
         this.displayListValidTag = 0;
+    }
+
+    public static final class EntityIterator
+    {
+        public static final class ListNode
+        {
+            public ListNode next;
+            public Entity e;
+            private static final Allocator<ListNode> allocator = new Allocator<ListNode>()
+            {
+                @SuppressWarnings("synthetic-access")
+                @Override
+                protected ListNode allocateInternal()
+                {
+                    return new ListNode();
+                }
+            };
+
+            private ListNode()
+            {
+            }
+
+            public void free()
+            {
+                this.next = null;
+                this.e = null;
+                allocator.free(this);
+            }
+
+            public static ListNode
+                allocate(final ListNode next, final Entity e)
+            {
+                ListNode retval = allocator.allocate();
+                retval.next = next;
+                retval.e = e;
+                return retval;
+            }
+        }
+
+        private ListNode list = null;
+
+        private EntityIterator()
+        {
+        }
+
+        private static final Allocator<EntityIterator> allocator = new Allocator<EntityIterator>()
+        {
+            @SuppressWarnings("synthetic-access")
+            @Override
+            protected EntityIterator allocateInternal()
+            {
+                return new EntityIterator();
+            }
+        };
+
+        private EntityIterator init(final ListNode list)
+        {
+            this.list = list;
+            return this;
+        }
+
+        public static EntityIterator allocate(final ListNode list)
+        {
+            return allocator.allocate().init(list);
+        }
+
+        public boolean hasNext()
+        {
+            return this.list != null;
+        }
+
+        public Entity next()
+        {
+            if(this.list == null)
+                return null;
+            Entity retval = this.list.e;
+            ListNode freeMe = this.list;
+            this.list = this.list.next;
+            freeMe.free();
+            return retval;
+        }
+
+        public void free()
+        {
+            while(hasNext())
+                next();
+            this.list = null;
+            allocator.free(this);
+        }
+    }
+
+    public EntityIterator getEntityList(final float minx,
+                                        final float maxx,
+                                        final float miny,
+                                        final float maxy,
+                                        final float minz,
+                                        final float maxz)
+    {
+        EntityIterator.ListNode head = null;
+        int mincx = getChunkX((int)Math.floor(minx));
+        int maxcx = getChunkX((int)Math.floor(maxx));
+        int mincy = getChunkY((int)Math.floor(miny));
+        int maxcy = getChunkY((int)Math.floor(maxy));
+        int mincz = getChunkZ((int)Math.floor(minz));
+        int maxcz = getChunkZ((int)Math.floor(maxz));
+        for(int cx = mincx; cx <= maxcx; cx += Chunk.size)
+        {
+            for(int cy = mincy; cy <= maxcy; cy += Chunk.size)
+            {
+                for(int cz = mincz; cz <= maxcz; cz += Chunk.size)
+                {
+                    Chunk c = find(cx, cy, cz);
+                    if(c == null)
+                        continue;
+                    for(EntityNode node = c.head; node != null; node = node.hashnext)
+                    {
+                        Entity e = node.e;
+                        if(e.isEmpty())
+                            continue;
+                        Vector pos = e.getPosition();
+                        if(pos.getX() < minx || pos.getX() >= maxx)
+                            continue;
+                        if(pos.getY() < miny || pos.getY() >= maxy)
+                            continue;
+                        if(pos.getZ() < minz || pos.getZ() >= maxz)
+                            continue;
+                        head = EntityIterator.ListNode.allocate(head, e);
+                    }
+                }
+            }
+        }
+        return EntityIterator.allocate(head);
+    }
+
+    public EntityIterator getBlockEntityList(final int bx,
+                                             final int by,
+                                             final int bz)
+    {
+        return getEntityList(bx, bx + 1, by, by + 1, bz, bz + 1);
     }
 }

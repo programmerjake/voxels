@@ -3027,11 +3027,13 @@ public final class Player implements GameObject
                         && getCurrentHotbarBlock().getType() == BlockType.BTFlintAndSteel)
                 {
                     Block newb = takeBlock();
-                    if(newb != null)
+                    if(newb == null)
+                        return;
+                    Block temp = world.getBlock(this.blockX,
+                                                this.blockY,
+                                                this.blockZ);
+                    if(temp != null && temp.isReplaceable())
                     {
-                        Block temp = world.getBlock(this.blockX,
-                                                    this.blockY,
-                                                    this.blockZ);
                         Block fire = Block.NewFire(0);
                         world.setBlock(this.blockX,
                                        this.blockY,
@@ -3048,8 +3050,12 @@ public final class Player implements GameObject
                             dropBlock(newb);
                         if(newb != null)
                             newb.free();
+                        return;
                     }
-                    return;
+                    if(!giveBlock(newb, true))
+                        dropBlock(newb);
+                    if(newb != null)
+                        newb.free();
                 }
                 if(canPlaceBlock(oldb, this.blockX, this.blockY, this.blockZ))
                 {
@@ -3663,7 +3669,7 @@ public final class Player implements GameObject
     public void move()
     {
         if(this.isSneaking)
-            this.isRiding = false;
+            setRiding(false);
         internalSetPosition(move_t1.set(this.position));
         switch(this.state)
         {
@@ -4013,7 +4019,7 @@ public final class Player implements GameObject
                 this.blockType[i].write(o);
             }
         }
-        o.writeBoolean(this.isRiding);
+        o.writeBoolean(isRiding());
     }
 
     /** read from a <code>DataInput</code>
@@ -4050,9 +4056,9 @@ public final class Player implements GameObject
             else
                 retval.blockType[index] = null;
         }
-        retval.isRiding = false;
+        retval.setRiding(false);
         if(fileVersion >= 3)
-            retval.isRiding = i.readBoolean();
+            retval.setRiding(i.readBoolean());
         return retval;
     }
 
@@ -4099,7 +4105,8 @@ public final class Player implements GameObject
         internalSetPosition(Vector.add(push_t1, this.position, dx, dy, dz));
     }
 
-    public boolean isRiding = false;
+    private boolean riding = false;
+    public Entity currentlyRidingEntity = null;
     private String name = "";
 
     public String getName()
@@ -4156,5 +4163,19 @@ public final class Player implements GameObject
         default:
             return;
         }
+    }
+
+    public boolean isRiding()
+    {
+        return this.riding;
+    }
+
+    public void setRiding(final boolean riding)
+    {
+        this.riding = riding;
+        if(this.isSneaking)
+            this.riding = false;
+        if(this.riding == false)
+            this.currentlyRidingEntity = null;
     }
 }
