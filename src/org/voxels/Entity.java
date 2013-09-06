@@ -30,6 +30,8 @@ public class Entity implements GameObject
 {
     private Entity next = null; // for free entity list
     private Vector position = null;
+    private final Vector oldPosition = Vector.allocate();
+    private final Vector oldVelocity = Vector.allocate();
     private EntityType type;
     private static Entity freeEntityListHead = null;
     private static final Object freeEntityListSyncObject = new Object();
@@ -924,6 +926,96 @@ public class Entity implements GameObject
         return false;
     }
 
+    private static final Vector minecartCollide_t1 = Vector.allocate();
+    private static final Vector minecartCollide_t2 = Vector.allocate();
+    private static final Vector minecartCollide_t3 = Vector.allocate();
+    private static final Vector minecartCollide_newPos = Vector.allocate();
+    private static final Vector minecartCollide_newVelocity = Vector.allocate();
+
+    private void minecartCollide()
+    {
+        World.EntityIterator iter = world.getEntityList(this.position.getX() - 4f,
+                                                        this.position.getX() + 4f,
+                                                        this.position.getY() - 4f,
+                                                        this.position.getY() + 4f,
+                                                        this.position.getZ() - 4f,
+                                                        this.position.getZ() + 4f);
+        int collideCount = 0;
+        Vector newPos = minecartCollide_newPos.set(this.position);
+        Vector newVelocity = minecartCollide_newVelocity.set(this.data.velocity);
+        for(Entity e = iter.next(); e != null; e = iter.next())
+        {
+            switch(e.getType())
+            {
+            case Block:
+            case ThrownBlock:
+            {
+                if(minecartIsSucking())
+                    break;
+                Matrix tform = getMinecartDrawMatrix();
+                Matrix invtform = Matrix.allocate(tform).invertAndSet();
+                Vector pos = invtform.apply(minecartCollide_t1, e.oldPosition);
+                if(pos.getX() >= 0
+                        && pos.getX() <= 1
+                        && pos.getY() >= 0
+                        && pos.getY() <= 1
+                        && pos.getZ() >= 0
+                        && pos.getZ() <= 1
+                        && minecartCollide_t3.set(e.oldPosition)
+                                             .subAndSet(this.position)
+                                             .dot(this.data.velocity) >= 0)
+                {
+                    this.data.velocity.set(Vector.ZERO);
+                    this.data.momentum = 0;
+                    invtform.free();
+                    iter.free();
+                    return;
+                }
+                invtform.free();
+                break;
+            }
+            case MineCart:
+            {
+                Vector displacement = Vector.sub(minecartCollide_t1,
+                                                 e.oldPosition,
+                                                 this.position);
+                displacement.divAndSet(1, 10f / 16f, 1);
+                if(displacement.equals(Vector.ZERO))
+                {
+                    displacement = World.vRand(displacement, 0.01f);
+                }
+                float moveDist = minecartScale
+                        - displacement.cylindricalMaximumAbs();
+                if(moveDist < 0)
+                    break;
+                displacement.cylindricalMaximumNormalizeAndSet();
+                displacement.mulAndSet(-moveDist);
+                displacement.mulAndSet(1, 10f / 16f, 1);
+                Vector moveToPos = minecartCollide_t3.set(this.position)
+                                                     .addAndSet(displacement);
+                newPos.addAndSet(moveToPos);
+                newVelocity.addAndSet(e.oldVelocity);
+                collideCount++;
+                break;
+            }
+            default:
+                break;
+            }
+        }
+        iter.free();
+        final float bounciness = 0.5f;
+        if(collideCount > 0)
+        {
+            newPos.divAndSet(collideCount + 1);
+            newVelocity.divAndSet(collideCount + 1);
+            this.position.set(newPos);
+            newVelocity.set(minecartCollide_t1.set(newVelocity)
+                                              .subAndSet(this.data.velocity)
+                                              .mulAndSet(1 + bounciness)
+                                              .addAndSet(this.data.velocity));
+        }
+    }
+
     private static final float MAX_BLOCK_SUCK_DISTANCE = 1.8f;
 
     @Override
@@ -1348,6 +1440,7 @@ public class Entity implements GameObject
         }
         case MineCart:
         {
+            minecartCollide();
             if(this.data.ridingPlayerName != null)
             {
                 Player p = players.getPlayer(this.data.ridingPlayerName);
@@ -2571,5 +2664,13 @@ public class Entity implements GameObject
     public Block minecartGetBlock()
     {
         return this.data.block;
+    }
+
+    public void recordPosition()
+    {
+        if(!isEmpty())
+            this.oldPosition.set(this.position);
+        if(this.data != null && this.data.velocity != null)
+            this.oldVelocity.set(this.data.velocity);
     }
 }

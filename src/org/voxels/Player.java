@@ -2884,6 +2884,7 @@ public final class Player implements GameObject
                 if(e != null)
                 {
                     e.onUseButtonPress(this);
+                    return;
                 }
                 if(getCurrentHotbarBlock() == null)
                     return;

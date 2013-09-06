@@ -676,12 +676,13 @@ public class Vector implements Allocatable
         return this.div(a);
     }
 
+    @Deprecated
     public static Vector normalize(final float x, final float y, final float z)
     {
         float a = (float)Math.sqrt(x * x + y * y + z * z);
         if(a == 0)
             a = 1;
-        return new Vector(x / a, y / a, z / a);
+        return allocate(x / a, y / a, z / a);
     }
 
     public Vector normalizeAndSet()
@@ -1122,5 +1123,72 @@ public class Vector implements Allocatable
                                               final float y)
     {
         return set(r * (float)Math.sin(theta), y, r * (float)Math.cos(theta));
+    }
+
+    public float maximumAbs()
+    {
+        return Math.max(Math.max(Math.abs(this.x), Math.abs(this.y)),
+                        Math.abs(this.z));
+    }
+
+    public Vector maximumNormalizeAndSet()
+    {
+        float a = maximumAbs();
+        if(a == 0)
+            a = 1;
+        return divAndSet(a);
+    }
+
+    public static Vector maximumNormalize(final Vector dest, final Vector src)
+    {
+        float a = src.maximumAbs();
+        if(a == 0)
+            a = 1;
+        return div(dest, src, a);
+    }
+
+    public static Vector maximumNormalize(final Vector dest,
+                                          final float x,
+                                          final float y,
+                                          final float z)
+    {
+        float a = Math.max(Math.max(Math.abs(x), Math.abs(y)), Math.abs(z));
+        if(a == 0)
+            a = 1;
+        return set(dest, x / a, y / a, z / a);
+    }
+
+    public float cylindricalMaximumAbs()
+    {
+        return Math.max((float)Math.sqrt(this.x * this.x + this.z * this.z),
+                        Math.abs(this.y));
+    }
+
+    public Vector cylindricalMaximumNormalizeAndSet()
+    {
+        float a = cylindricalMaximumAbs();
+        if(a == 0)
+            a = 1;
+        return divAndSet(a);
+    }
+
+    public static Vector cylindricalMaximumNormalize(final Vector dest,
+                                                     final Vector src)
+    {
+        float a = src.cylindricalMaximumAbs();
+        if(a == 0)
+            a = 1;
+        return div(dest, src, a);
+    }
+
+    public static Vector cylindricalMaximumNormalize(final Vector dest,
+                                                     final float x,
+                                                     final float y,
+                                                     final float z)
+    {
+        float a = Math.max((float)Math.sqrt(x * x + z * z), Math.abs(y));
+        if(a == 0)
+            a = 1;
+        return set(dest, x / a, y / a, z / a);
     }
 }

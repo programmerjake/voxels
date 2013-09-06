@@ -2375,6 +2375,10 @@ public final class World
 
     private void moveEntities()
     {
+        for(EntityNode node = this.entityHead; node != null; node = node.next)
+        {
+            node.e.recordPosition();
+        }
         for(EntityListNode node = makeEntityList(), freeMe = node; node != null; node = node.next, freeMe.free(), freeMe = node)
         {
             removeEntityNode(node.node);

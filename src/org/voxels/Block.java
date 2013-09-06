@@ -11961,6 +11961,20 @@ public class Block implements GameObject, Allocatable
             new BlockDescriptorBlockType(BlockType.BTMineCart),
             new BlockDescriptorBlockType(BlockType.BTEmpty)
         }, 2, NewMinecartWithChest(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTHopper),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTMineCart),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewMinecartWithHopper(), 1),
+        new ReduceStruct(new BlockDescriptor[]
+        {
+            new BlockDescriptorBlockType(BlockType.BTTNT),
+            new BlockDescriptorBlockType(BlockType.BTEmpty),
+            new BlockDescriptorBlockType(BlockType.BTMineCart),
+            new BlockDescriptorBlockType(BlockType.BTEmpty)
+        }, 2, NewMinecartWithTNT(), 1),
     };
     private static final int reduceCount = reduceArray.length;
     private static final ReduceDescriptor reduce_emptyRetval = new ReduceDescriptor();

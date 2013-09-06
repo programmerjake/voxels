@@ -284,8 +284,8 @@ public class LWJGLPlatform implements Platform
 
     private static int getModeDist(final DisplayMode mode)
     {
-        return Math.abs(mode.getWidth() - 640)
-                + Math.abs(mode.getHeight() - 480);
+        return Math.abs(mode.getWidth() - 1024)
+                + Math.abs(mode.getHeight() - 768);
     }
 
     @Override
