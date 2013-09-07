@@ -928,7 +928,7 @@ public class Entity implements GameObject
 
     private static final Vector minecartCollide_t1 = Vector.allocate();
     private static final Vector minecartCollide_t2 = Vector.allocate();
-    private static final Vector minecartCollide_t3 = Vector.allocate();
+    // private static final Vector minecartCollide_t3 = Vector.allocate();
     private static final Vector minecartCollide_newPos = Vector.allocate();
     private static final Vector minecartCollide_newVelocity = Vector.allocate();
 
@@ -961,7 +961,7 @@ public class Entity implements GameObject
                         && pos.getY() <= 1
                         && pos.getZ() >= 0
                         && pos.getZ() <= 1
-                        && minecartCollide_t3.set(e.oldPosition)
+                        && minecartCollide_t2.set(e.oldPosition)
                                              .subAndSet(this.position)
                                              .dot(this.data.velocity) >= 0)
                 {
@@ -991,7 +991,7 @@ public class Entity implements GameObject
                 displacement.cylindricalMaximumNormalizeAndSet();
                 displacement.mulAndSet(-moveDist);
                 displacement.mulAndSet(1, 10f / 16f, 1);
-                Vector moveToPos = minecartCollide_t3.set(this.position)
+                Vector moveToPos = minecartCollide_t2.set(this.position)
                                                      .addAndSet(displacement);
                 newPos.addAndSet(moveToPos);
                 newVelocity.addAndSet(e.oldVelocity);
