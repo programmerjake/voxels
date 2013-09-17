@@ -394,4 +394,59 @@ public final class PlayerList
             pnode.p.handleEntityRemove(e);
         }
     }
+
+    public static final class PlayerIterator
+    {
+        private Node node;
+
+        private PlayerIterator()
+        {
+        }
+
+        private static final Allocator<PlayerIterator> allocator = new Allocator<PlayerList.PlayerIterator>()
+        {
+            @SuppressWarnings("synthetic-access")
+            @Override
+            protected PlayerIterator allocateInternal()
+            {
+                return new PlayerIterator();
+            }
+        };
+
+        public void free()
+        {
+            this.node = null;
+            allocator.free(this);
+        }
+
+        public void next()
+        {
+            if(this.node != null)
+            {
+                this.node = this.node.next;
+            }
+        }
+
+        public boolean isEnd()
+        {
+            return this.node == null;
+        }
+
+        public Player get()
+        {
+            return this.node.p;
+        }
+
+        public static PlayerIterator allocate(final Node node)
+        {
+            PlayerIterator retval = allocator.allocate();
+            retval.node = node;
+            return retval;
+        }
+    }
+
+    public PlayerIterator iterator()
+    {
+        return PlayerIterator.allocate(this.head);
+    }
 }

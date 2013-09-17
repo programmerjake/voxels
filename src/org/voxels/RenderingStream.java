@@ -18,8 +18,6 @@ package org.voxels;
 
 import java.nio.FloatBuffer;
 
-import org.voxels.TextureAtlas.TextureHandle;
-
 /** @author jacob */
 public final class RenderingStream
 {
@@ -67,8 +65,7 @@ public final class RenderingStream
 
     /** if <code>RenderingStream</code> should use vertex arrays and the texture
      * atlas */
-    public static boolean USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS = false;
-    private static final boolean USE_TEXTURE_ATLAS = false;
+    public static boolean USE_VERTEX_ARRAY = true;
     private static final TextureAtlas.TextureHandle whiteTexture = TextureAtlas.addImage(new Image(Color.V(1.0f)));
     /**
      * 
@@ -112,26 +109,31 @@ public final class RenderingStream
         return retval;
     }
 
-    private static TextureAtlas.TextureHandle[]
-        expandArray(final TextureAtlas.TextureHandle[] array, final int newSize)
-    {
-        TextureAtlas.TextureHandle[] retval = new TextureAtlas.TextureHandle[newSize];
-        System.arraycopy(array, 0, retval, 0, array.length);
-        return retval;
-    }
-
-    private float[] vertexArray = null;
-    private float[] colorArray = null;
-    private float[] texCoordArray = null;
-    private float[] transformedTexCoordArray = null;
-    private TextureAtlas.TextureHandle[] textureArray = new TextureAtlas.TextureHandle[0];
-    private int trianglesUsed = 0;
+    // private static TextureAtlas.TextureHandle[]
+    // expandArray(final TextureAtlas.TextureHandle[] array, final int newSize)
+    // {
+    // TextureAtlas.TextureHandle[] retval = new
+    // TextureAtlas.TextureHandle[newSize];
+    // System.arraycopy(array, 0, retval, 0, array.length);
+    // return retval;
+    // }
+    private final float[][] vertexArray = new float[hashPrime][];
+    private final float[][] colorArray = new float[hashPrime][];
+    private final float[][] texCoordArray = new float[hashPrime][];
+    private final float[][] transformedTexCoordArray = new float[hashPrime][];
+    private static final int hashPrime = 8191;
+    private final TextureAtlas.TextureHandle[] textureArray = new TextureAtlas.TextureHandle[hashPrime];
+    private final int[] trianglesUsed = new int[hashPrime];
+    private final int[] trianglesAllocated = new int[hashPrime];
     private MatrixNode matrixStack = null;
     private int trianglePoint = -1;
+    private TextureAtlas.TextureHandle currentTexture = null;
+    private int currentTextureHash;
 
     public RenderingStream clear()
     {
-        this.trianglesUsed = 0;
+        for(int i = 0; i < hashPrime; i++)
+            this.trianglesUsed[i] = 0;
         this.next = null;
         while(this.matrixStack != null)
         {
@@ -142,6 +144,7 @@ public final class RenderingStream
         this.matrixStack = allocMatrix();
         this.matrixStack.next = null;
         this.trianglePoint = -1;
+        this.currentTexture = null;
         return this;
     }
 
@@ -150,7 +153,8 @@ public final class RenderingStream
 	 */
     private RenderingStream()
     {
-        this.trianglesUsed = 0;
+        for(int i = 0; i < hashPrime; i++)
+            this.trianglesUsed[i] = 0;
         this.next = null;
         this.matrixStack = allocMatrix();
         this.matrixStack.next = null;
@@ -160,26 +164,41 @@ public final class RenderingStream
     public RenderingStream
         beginTriangle(final TextureAtlas.TextureHandle texture)
     {
+        TextureAtlas.TextureHandle testTexture = texture;
+        if(testTexture == NO_TEXTURE)
+            testTexture = whiteTexture;
+        if(this.currentTexture != testTexture)
+        {
+            this.currentTexture = testTexture;
+            this.currentTextureHash = this.currentTexture.hashCode()
+                    % hashPrime;
+            if(this.currentTextureHash < 0)
+                this.currentTextureHash += hashPrime;
+            if(this.textureArray[this.currentTextureHash] != null
+                    && this.textureArray[this.currentTextureHash] != this.currentTexture)
+                throw new RuntimeException("RenderingStream texture hash collision : "
+                        + this.currentTexture.hashCode()
+                        + " collides with "
+                        + this.textureArray[this.currentTextureHash].hashCode());
+            this.textureArray[this.currentTextureHash] = this.currentTexture;
+        }
         if(this.trianglePoint >= 0)
             throw new IllegalStateException("beginTriangle called twice without endTriangle call in between");
         this.trianglePoint = 0;
-        if(this.trianglesUsed >= this.textureArray.length)
+        if(this.trianglesUsed[this.currentTextureHash] >= this.trianglesAllocated[this.currentTextureHash]
+                / (3 * 3))
         {
-            this.textureArray = expandArray(this.textureArray,
-                                            this.textureArray.length + 256);
-            this.vertexArray = expandArray(this.vertexArray,
-                                           this.textureArray.length * 3 * 3);
-            this.colorArray = expandArray(this.colorArray,
-                                          this.textureArray.length * 4 * 3);
-            this.texCoordArray = expandArray(this.texCoordArray,
-                                             this.textureArray.length * 2 * 3);
-            this.transformedTexCoordArray = expandArray(this.transformedTexCoordArray,
-                                                        this.textureArray.length * 2 * 3);
+            this.trianglesAllocated[this.currentTextureHash] += 256;
+            int newSize = this.trianglesAllocated[this.currentTextureHash];
+            this.vertexArray[this.currentTextureHash] = expandArray(this.vertexArray[this.currentTextureHash],
+                                                                    newSize * 3 * 3);
+            this.colorArray[this.currentTextureHash] = expandArray(this.colorArray[this.currentTextureHash],
+                                                                   newSize * 4 * 3);
+            this.texCoordArray[this.currentTextureHash] = expandArray(this.texCoordArray[this.currentTextureHash],
+                                                                      newSize * 2 * 3);
+            this.transformedTexCoordArray[this.currentTextureHash] = expandArray(this.transformedTexCoordArray[this.currentTextureHash],
+                                                                                 newSize * 2 * 3);
         }
-        if(texture == NO_TEXTURE)
-            this.textureArray[this.trianglesUsed] = whiteTexture;
-        else
-            this.textureArray[this.trianglesUsed] = texture;
         return this;
     }
 
@@ -192,7 +211,7 @@ public final class RenderingStream
             throw new IllegalStateException("endTriangle called without three vertex calls before");
         }
         this.trianglePoint = -1;
-        this.trianglesUsed++;
+        this.trianglesUsed[this.currentTextureHash]++;
         return this;
     }
 
@@ -217,19 +236,19 @@ public final class RenderingStream
                                                          x,
                                                          y,
                                                          z));
-        int vi = (this.trianglePoint + 3 * this.trianglesUsed) * 3;
-        int ci = (this.trianglePoint + 3 * this.trianglesUsed) * 4;
-        int ti = (this.trianglePoint + 3 * this.trianglesUsed) * 2;
+        int vi = (this.trianglePoint + 3 * this.trianglesUsed[this.currentTextureHash]) * 3;
+        int ci = (this.trianglePoint + 3 * this.trianglesUsed[this.currentTextureHash]) * 4;
+        int ti = (this.trianglePoint + 3 * this.trianglesUsed[this.currentTextureHash]) * 2;
         this.trianglePoint++;
-        this.colorArray[ci++] = r;
-        this.colorArray[ci++] = g;
-        this.colorArray[ci++] = b;
-        this.colorArray[ci] = a;
-        this.vertexArray[vi++] = p.getX();
-        this.vertexArray[vi++] = p.getY();
-        this.vertexArray[vi] = p.getZ();
-        this.texCoordArray[ti++] = u;
-        this.texCoordArray[ti] = v;
+        this.colorArray[this.currentTextureHash][ci++] = r;
+        this.colorArray[this.currentTextureHash][ci++] = g;
+        this.colorArray[this.currentTextureHash][ci++] = b;
+        this.colorArray[this.currentTextureHash][ci] = a;
+        this.vertexArray[this.currentTextureHash][vi++] = p.getX();
+        this.vertexArray[this.currentTextureHash][vi++] = p.getY();
+        this.vertexArray[this.currentTextureHash][vi] = p.getZ();
+        this.texCoordArray[this.currentTextureHash][ti++] = u;
+        this.texCoordArray[this.currentTextureHash][ti] = v;
         return this;
     }
 
@@ -384,23 +403,26 @@ public final class RenderingStream
         if(rs == null)
             throw new NullPointerException();
         assert rs != this;
-        for(int tri = 0, vi = 0, ci = 0, ti = 0; tri < rs.trianglesUsed; tri++)
+        for(int textureHash = 0; textureHash < hashPrime; textureHash++)
         {
-            beginTriangle(rs.textureArray[tri]);
-            for(int i = 0; i < 3; i++)
+            for(int tri = 0, vi = 0, ci = 0, ti = 0; tri < rs.trianglesUsed[textureHash]; tri++)
             {
-                float x = rs.vertexArray[vi++];
-                float y = rs.vertexArray[vi++];
-                float z = rs.vertexArray[vi++];
-                float u = rs.texCoordArray[ti++];
-                float v = rs.texCoordArray[ti++];
-                float r = rs.colorArray[ci++];
-                float g = rs.colorArray[ci++];
-                float b = rs.colorArray[ci++];
-                float a = rs.colorArray[ci++];
-                vertex(x, y, z, u, v, r, g, b, a);
+                beginTriangle(rs.textureArray[textureHash]);
+                for(int i = 0; i < 3; i++)
+                {
+                    float x = rs.vertexArray[textureHash][vi++];
+                    float y = rs.vertexArray[textureHash][vi++];
+                    float z = rs.vertexArray[textureHash][vi++];
+                    float u = rs.texCoordArray[textureHash][ti++];
+                    float v = rs.texCoordArray[textureHash][ti++];
+                    float r = rs.colorArray[textureHash][ci++];
+                    float g = rs.colorArray[textureHash][ci++];
+                    float b = rs.colorArray[textureHash][ci++];
+                    float a = rs.colorArray[textureHash][ci++];
+                    vertex(x, y, z, u, v, r, g, b, a);
+                }
+                endTriangle();
             }
-            endTriangle();
         }
         return this;
     }
@@ -422,325 +444,94 @@ public final class RenderingStream
     {
         if(this.trianglePoint != -1)
             throw new IllegalStateException("render called between beginTriangle and endTriangle");
-        if(this.trianglesUsed <= 0)
-            return this;
-        if(USE_VERTEX_ARRAY_AND_TEXTURE_ATLAS)
+        if(USE_VERTEX_ARRAY)
         {
-            this.vertexBuffer = checkBufferLength(this.vertexBuffer,
-                                                  this.vertexArray.length);
-            this.texCoordBuffer = checkBufferLength(this.texCoordBuffer,
-                                                    this.texCoordArray.length);
-            this.colorBuffer = checkBufferLength(this.colorBuffer,
-                                                 this.colorArray.length);
-            Image texImage = TextureAtlas.transformTextureCoords(this.texCoordArray,
-                                                                 this.textureArray,
-                                                                 this.trianglesUsed,
-                                                                 this.transformedTexCoordArray);
-            Main.opengl.glFinish();
             Main.opengl.glEnableClientState(Main.opengl.GL_COLOR_ARRAY());
             Main.opengl.glEnableClientState(Main.opengl.GL_TEXTURE_COORD_ARRAY());
             Main.opengl.glEnableClientState(Main.opengl.GL_VERTEX_ARRAY());
-            this.colorBuffer.clear();
-            this.colorBuffer.put(this.colorArray, 0, this.trianglesUsed * 4 * 3);
-            this.colorBuffer.flip();
-            this.texCoordBuffer.clear();
-            this.texCoordBuffer.put(this.transformedTexCoordArray,
-                                    0,
-                                    this.trianglesUsed * 2 * 3);
-            this.vertexBuffer.clear();
-            this.vertexBuffer.put(this.vertexArray,
-                                  0,
-                                  this.trianglesUsed * 3 * 3);
-            this.vertexBuffer.flip();
-            Main.opengl.glVertexPointer(this.vertexBuffer);
-            Main.opengl.glTexCoordPointer(this.texCoordBuffer);
-            Main.opengl.glColorPointer(this.colorBuffer);
-            texImage.selectTexture();
-            Main.opengl.glDrawArrays(Main.opengl.GL_TRIANGLES(),
+            for(int textureHash = 0; textureHash < hashPrime; textureHash++)
+            {
+                if(this.trianglesUsed[textureHash] <= 0)
+                    continue;
+                if(!this.textureArray[textureHash].getImage().isSelected())
+                {
+                    this.textureArray[textureHash].getImage().selectTexture();
+                }
+                this.vertexBuffer = checkBufferLength(this.vertexBuffer,
+                                                      this.vertexArray[textureHash].length);
+                this.vertexBuffer.clear();
+                this.vertexBuffer.put(this.vertexArray[textureHash],
+                                      0,
+                                      this.trianglesUsed[textureHash] * 3 * 3);
+                this.vertexBuffer.flip();
+                this.texCoordBuffer = checkBufferLength(this.texCoordBuffer,
+                                                        this.texCoordArray[textureHash].length);
+                this.texCoordBuffer.clear();
+                this.texCoordBuffer.put(this.texCoordArray[textureHash],
+                                        0,
+                                        this.trianglesUsed[textureHash] * 2 * 3);
+                this.texCoordBuffer.flip();
+                this.colorBuffer = checkBufferLength(this.colorBuffer,
+                                                     this.colorArray[textureHash].length);
+                this.colorBuffer.clear();
+                this.colorBuffer.put(this.colorArray[textureHash],
                                      0,
-                                     this.trianglesUsed * 3);
-            Main.opengl.glFinish();
+                                     this.trianglesUsed[textureHash] * 4 * 3);
+                this.colorBuffer.flip();
+                Main.opengl.glVertexPointer(this.vertexBuffer);
+                Main.opengl.glTexCoordPointer(this.texCoordBuffer);
+                Main.opengl.glColorPointer(this.colorBuffer);
+                Main.opengl.glDrawArrays(Main.opengl.GL_TRIANGLES(),
+                                         0,
+                                         this.trianglesUsed[textureHash] * 3);
+            }
             Main.opengl.glDisableClientState(Main.opengl.GL_COLOR_ARRAY());
             Main.opengl.glDisableClientState(Main.opengl.GL_TEXTURE_COORD_ARRAY());
             Main.opengl.glDisableClientState(Main.opengl.GL_VERTEX_ARRAY());
         }
-        else if(USE_TEXTURE_ATLAS)
-        {
-            Image texImage = TextureAtlas.transformTextureCoords(this.texCoordArray,
-                                                                 this.textureArray,
-                                                                 this.trianglesUsed,
-                                                                 this.transformedTexCoordArray);
-            texImage.selectTexture();
-            Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
-            int ti = 0, ci = 0, vi = 0;
-            for(int tri = 0; tri < this.trianglesUsed; tri++)
-            {
-                for(int vertex = 0; vertex < 3; vertex++)
-                {
-                    float r = this.colorArray[ci++];
-                    float g = this.colorArray[ci++];
-                    float b = this.colorArray[ci++];
-                    float a = this.colorArray[ci++];
-                    Main.opengl.glColor4f(r, g, b, a);
-                    float u = this.texCoordArray[ti++];
-                    float v = this.texCoordArray[ti++];
-                    Main.opengl.glTexCoord2f(u, v);
-                    float x = this.vertexArray[vi++];
-                    float y = this.vertexArray[vi++];
-                    float z = this.vertexArray[vi++];
-                    Main.opengl.glVertex3f(x, y, z);
-                }
-            }
-            Main.opengl.glEnd();
-        }
         else
         {
-            boolean insideBeginEnd = false;
-            int ti = 0, ci = 0, vi = 0;
-            for(int tri = 0; tri < this.trianglesUsed; tri++)
+            for(int textureHash = 0; textureHash < hashPrime; textureHash++)
             {
-                if(!this.textureArray[tri].getImage().isSelected())
+                boolean insideBeginEnd = false;
+                int ti = 0, ci = 0, vi = 0;
+                for(int tri = 0; tri < this.trianglesUsed[textureHash]; tri++)
                 {
-                    if(insideBeginEnd)
+                    if(!this.textureArray[textureHash].getImage().isSelected())
                     {
-                        Main.opengl.glEnd();
-                        insideBeginEnd = false;
+                        if(insideBeginEnd)
+                        {
+                            Main.opengl.glEnd();
+                            insideBeginEnd = false;
+                        }
+                        this.textureArray[textureHash].getImage()
+                                                      .selectTexture();
                     }
-                    this.textureArray[tri].getImage().selectTexture();
+                    if(!insideBeginEnd)
+                    {
+                        Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
+                        insideBeginEnd = true;
+                    }
+                    for(int vertex = 0; vertex < 3; vertex++)
+                    {
+                        float r = this.colorArray[textureHash][ci++];
+                        float g = this.colorArray[textureHash][ci++];
+                        float b = this.colorArray[textureHash][ci++];
+                        float a = this.colorArray[textureHash][ci++];
+                        Main.opengl.glColor4f(r, g, b, a);
+                        float u = this.texCoordArray[textureHash][ti++];
+                        float v = this.texCoordArray[textureHash][ti++];
+                        Main.opengl.glTexCoord2f(u, v);
+                        float x = this.vertexArray[textureHash][vi++];
+                        float y = this.vertexArray[textureHash][vi++];
+                        float z = this.vertexArray[textureHash][vi++];
+                        Main.opengl.glVertex3f(x, y, z);
+                    }
                 }
-                if(!insideBeginEnd)
-                {
-                    Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
-                    insideBeginEnd = true;
-                }
-                for(int vertex = 0; vertex < 3; vertex++)
-                {
-                    float r = this.colorArray[ci++];
-                    float g = this.colorArray[ci++];
-                    float b = this.colorArray[ci++];
-                    float a = this.colorArray[ci++];
-                    Main.opengl.glColor4f(r, g, b, a);
-                    float u = this.texCoordArray[ti++];
-                    float v = this.texCoordArray[ti++];
-                    Main.opengl.glTexCoord2f(u, v);
-                    float x = this.vertexArray[vi++];
-                    float y = this.vertexArray[vi++];
-                    float z = this.vertexArray[vi++];
-                    Main.opengl.glVertex3f(x, y, z);
-                }
+                if(insideBeginEnd)
+                    Main.opengl.glEnd();
             }
-            if(insideBeginEnd)
-                Main.opengl.glEnd();
         }
         return this;
-    }
-
-    private static final class SortPolygonNode
-    {
-        SortPolygonNode()
-        {
-        }
-
-        private static final Allocator<SortPolygonNode> allocator = new Allocator<RenderingStream.SortPolygonNode>()
-        {
-            @Override
-            protected SortPolygonNode allocateInternal()
-            {
-                return new SortPolygonNode();
-            }
-        };
-        public SortPolygonNode next;
-        public float x1, y1, z1, u1, v1, r1, g1, b1, a1;
-        public float x2, y2, z2, u2, v2, r2, g2, b2, a2;
-        public float x3, y3, z3, u3, v3, r3, g3, b3, a3;
-
-        private SortPolygonNode init(final SortPolygonNode next)
-        {
-            this.next = next;
-            return this;
-        }
-
-        public static SortPolygonNode allocate(final SortPolygonNode next)
-        {
-            return allocator.allocate().init(next);
-        }
-
-        public void free()
-        {
-            this.next = null;
-            allocator.free(this);
-        }
-    }
-
-    private static final class SortTextureNode
-    {
-        SortTextureNode()
-        {
-        }
-
-        private static final Allocator<SortTextureNode> allocator = new Allocator<RenderingStream.SortTextureNode>()
-        {
-            @Override
-            protected SortTextureNode allocateInternal()
-            {
-                return new SortTextureNode();
-            }
-        };
-        public SortTextureNode hashnext;
-        public SortTextureNode listnext;
-        public SortPolygonNode head;
-        public TextureAtlas.TextureHandle texture;
-        public int hash;
-
-        private SortTextureNode init()
-        {
-            this.head = null;
-            return this;
-        }
-
-        public static SortTextureNode allocate()
-        {
-            return allocator.allocate().init();
-        }
-
-        public void free()
-        {
-            this.hashnext = null;
-            this.listnext = null;
-            this.texture = null;
-            while(this.head != null)
-            {
-                SortPolygonNode freeMe = this.head;
-                this.head = this.head.next;
-                freeMe.free();
-            }
-        }
-    }
-
-    private static final int hashSize = 8192; // must be power of 2
-    private final SortTextureNode[] sortHashTable = new SortTextureNode[hashSize];
-    private SortTextureNode sortListHead = null;
-
-    private static int getHash(final TextureHandle texture)
-    {
-        return texture.hashCode() & (hashSize - 1);
-    }
-
-    private SortTextureNode findOrInsert(final TextureHandle texture)
-    {
-        int hash = getHash(texture);
-        SortTextureNode node = this.sortHashTable[hash], parent = null;
-        while(node != null)
-        {
-            if(node.texture.equals(texture))
-            {
-                if(parent != null)
-                {
-                    parent.hashnext = node.hashnext;
-                    node.hashnext = this.sortHashTable[hash];
-                    this.sortHashTable[hash] = node;
-                }
-                return node;
-            }
-        }
-        node = SortTextureNode.allocate();
-        node.hash = hash;
-        node.hashnext = this.sortHashTable[hash];
-        node.listnext = this.sortListHead;
-        this.sortHashTable[hash] = node;
-        this.sortListHead = node;
-        return node;
-    }
-
-    public void sortByTexture()
-    {
-        if(this.trianglePoint != -1)
-            throw new IllegalStateException("sortByTexture called between beginTriangle and endTriangle");
-        if(this.trianglesUsed <= 2)
-            return;
-        for(int tri = 0, ti = 0, ci = 0, vi = 0; tri < this.trianglesUsed; tri++)
-        {
-            SortTextureNode stn = findOrInsert(this.textureArray[tri]);
-            stn.texture = this.textureArray[tri];
-            stn.head = SortPolygonNode.allocate(stn.head);
-            SortPolygonNode p = stn.head;
-            p.r1 = this.colorArray[ci++];
-            p.g1 = this.colorArray[ci++];
-            p.b1 = this.colorArray[ci++];
-            p.a1 = this.colorArray[ci++];
-            p.u1 = this.texCoordArray[ti++];
-            p.v1 = this.texCoordArray[ti++];
-            p.x1 = this.vertexArray[vi++];
-            p.y1 = this.vertexArray[vi++];
-            p.z1 = this.vertexArray[vi++];
-            p.r2 = this.colorArray[ci++];
-            p.g2 = this.colorArray[ci++];
-            p.b2 = this.colorArray[ci++];
-            p.a2 = this.colorArray[ci++];
-            p.u2 = this.texCoordArray[ti++];
-            p.v2 = this.texCoordArray[ti++];
-            p.x2 = this.vertexArray[vi++];
-            p.y2 = this.vertexArray[vi++];
-            p.z2 = this.vertexArray[vi++];
-            p.r3 = this.colorArray[ci++];
-            p.g3 = this.colorArray[ci++];
-            p.b3 = this.colorArray[ci++];
-            p.a3 = this.colorArray[ci++];
-            p.u3 = this.texCoordArray[ti++];
-            p.v3 = this.texCoordArray[ti++];
-            p.x3 = this.vertexArray[vi++];
-            p.y3 = this.vertexArray[vi++];
-            p.z3 = this.vertexArray[vi++];
-        }
-        int tri = 0, ti = 0, ci = 0, vi = 0;
-        SortTextureNode stn = this.sortListHead;
-        this.sortListHead = null;
-        this.trianglesUsed = 0;
-        while(stn != null)
-        {
-            SortPolygonNode p = stn.head;
-            stn.head = null;
-            while(p != null)
-            {
-                this.colorArray[ci++] = p.r1;
-                this.colorArray[ci++] = p.g1;
-                this.colorArray[ci++] = p.b1;
-                this.colorArray[ci++] = p.a1;
-                this.texCoordArray[ti++] = p.u1;
-                this.texCoordArray[ti++] = p.v1;
-                this.vertexArray[vi++] = p.x1;
-                this.vertexArray[vi++] = p.y1;
-                this.vertexArray[vi++] = p.z1;
-                this.colorArray[ci++] = p.r2;
-                this.colorArray[ci++] = p.g2;
-                this.colorArray[ci++] = p.b2;
-                this.colorArray[ci++] = p.a2;
-                this.texCoordArray[ti++] = p.u2;
-                this.texCoordArray[ti++] = p.v2;
-                this.vertexArray[vi++] = p.x2;
-                this.vertexArray[vi++] = p.y2;
-                this.vertexArray[vi++] = p.z2;
-                this.colorArray[ci++] = p.r3;
-                this.colorArray[ci++] = p.g3;
-                this.colorArray[ci++] = p.b3;
-                this.colorArray[ci++] = p.a3;
-                this.texCoordArray[ti++] = p.u3;
-                this.texCoordArray[ti++] = p.v3;
-                this.vertexArray[vi++] = p.x3;
-                this.vertexArray[vi++] = p.y3;
-                this.vertexArray[vi++] = p.z3;
-                this.textureArray[tri++] = stn.texture;
-                this.trianglesUsed++;
-                SortPolygonNode freeMe = p;
-                p = p.next;
-                freeMe.next = null;
-                freeMe.free();
-            }
-            stn.texture = null;
-            SortTextureNode freeMe = stn;
-            this.sortHashTable[stn.hash] = null;
-            stn = stn.listnext;
-            freeMe.free();
-        }
     }
 }

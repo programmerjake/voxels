@@ -103,6 +103,8 @@ public class GeneratedChunk
                 * ((y - this.cy) + GeneratedChunk.size * (z - this.cz))];
     }
 
+    private EntityNode entityHead = null;
+
     public void free()
     {
         for(int i = 0; i < this.blocks.length; i++)
@@ -111,6 +113,57 @@ public class GeneratedChunk
                 this.blocks[i].free();
             this.blocks[i] = null;
         }
+        for(;;)
+        {
+            Entity e = takeEntity();
+            if(e == null)
+                break;
+            e.free();
+        }
         allocator.free(this);
+    }
+
+    private static final class EntityNode
+    {
+        public Entity e;
+        public EntityNode next;
+
+        public EntityNode()
+        {
+        }
+    }
+
+    private static final Allocator<EntityNode> entityNodeAllocator = new Allocator<EntityNode>()
+    {
+        @Override
+        protected EntityNode allocateInternal()
+        {
+            return new EntityNode();
+        }
+    };
+
+    public void addEntity(final Entity e)
+    {
+        if(e == null)
+            return;
+        EntityNode node = entityNodeAllocator.allocate();
+        node.next = this.entityHead;
+        node.e = e;
+        this.entityHead = node;
+    }
+
+    public Entity takeEntity()
+    {
+        Entity retval = null;
+        if(this.entityHead != null)
+        {
+            EntityNode freeMe = this.entityHead;
+            retval = this.entityHead.e;
+            this.entityHead = this.entityHead.next;
+            freeMe.e = null;
+            freeMe.next = null;
+            entityNodeAllocator.free(freeMe);
+        }
+        return retval;
     }
 }

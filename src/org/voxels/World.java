@@ -27,8 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voxels.BlockType.ToolType;
 import org.voxels.generate.*;
+import org.voxels.mobs.Mobs;
 
-//FIXME change move entity to move entities then remove them in separate loops so that Entity.move can find other entities 
 /** @author jacob */
 public final class World
 {
@@ -277,16 +277,11 @@ public final class World
             }
         };
         public static final int size = 4; // must be power of 2
-        public static final int generatedChunkSize = size; // must be power of 2
-                                                           // that is less than
-                                                           // or equal to
-                                                           // Chunk.size
-        public static final int generatedChunksPerChunk = Math.max(1, size
-                / generatedChunkSize);
+        public static final int generatedChunksPerChunk = 1;
         public int orgx, orgy, orgz;
-        private final boolean generated[] = new boolean[generatedChunksPerChunk
+        public final boolean generated[] = new boolean[generatedChunksPerChunk
                 * generatedChunksPerChunk * generatedChunksPerChunk];
-        private final Block[] blocks = new Block[size * size * size];
+        public final Block[] blocks = new Block[size * size * size];
         public Chunk next, listnext;
         public static final int drawPhaseCount = 2;
         public final long displayListValidTag[] = new long[drawPhaseCount];
@@ -315,6 +310,7 @@ public final class World
             retval.head = null;
             retval.tail = null;
             retval.fireCount = 0;
+            retval.drawsAnythingValidTag = -1;
             return retval;
         }
 
@@ -336,12 +332,6 @@ public final class World
             allocator.free(this);
         }
 
-        public Block getBlock(final int cx, final int cy, final int cz)
-        {
-            int index = cx + size * (cy + size * cz);
-            return this.blocks[index];
-        }
-
         public void setBlock(final int cx,
                              final int cy,
                              final int cz,
@@ -356,23 +346,6 @@ public final class World
                 this.fireCount++;
         }
 
-        public boolean isGenerated(final int cx_in,
-                                   final int cy_in,
-                                   final int cz_in)
-        {
-            int cx = cx_in;
-            int cy = cy_in;
-            int cz = cz_in;
-            cx -= this.orgx;
-            cy -= this.orgy;
-            cz -= this.orgz;
-            cx /= generatedChunkSize;
-            cy /= generatedChunkSize;
-            cz /= generatedChunkSize;
-            return this.generated[cx + generatedChunksPerChunk
-                    * (cy + generatedChunksPerChunk * cz)];
-        }
-
         public void setGenerated(final int cx_in,
                                  final int cy_in,
                                  final int cz_in,
@@ -384,9 +357,9 @@ public final class World
             cx -= this.orgx;
             cy -= this.orgy;
             cz -= this.orgz;
-            cx /= generatedChunkSize;
-            cy /= generatedChunkSize;
-            cz /= generatedChunkSize;
+            cx /= size;
+            cy /= size;
+            cz /= size;
             this.generated[cx + generatedChunksPerChunk
                     * (cy + generatedChunksPerChunk * cz)] = g;
         }
@@ -440,7 +413,8 @@ public final class World
         else
             this.entityTail = node;
         this.entityHead = node;
-        Chunk c = findOrInsert(getChunkX(x), getChunkY(y), getChunkZ(z));
+        Chunk c = findOrInsert(x & ~(Chunk.size - 1), y & ~(Chunk.size - 1), z
+                & ~(Chunk.size - 1));
         node.hashnext = c.head;
         node.hashprev = null;
         if(c.head != null)
@@ -466,7 +440,8 @@ public final class World
                 int x = (int)Math.floor(pos.getX());
                 int y = (int)Math.floor(pos.getY());
                 int z = (int)Math.floor(pos.getZ());
-                c = find(getChunkX(x), getChunkY(y), getChunkZ(z));
+                c = find(x & ~(Chunk.size - 1), y & ~(Chunk.size - 1), z
+                        & ~(Chunk.size - 1));
             }
             if(c != null)
             {
@@ -538,37 +513,6 @@ public final class World
     }
 
     private static final int EvalTypeCount = EvalType.Last.ordinal();
-
-    private static int getChunkX(final int v)
-    {
-        return v - (v & (Chunk.size - 1));
-    }
-
-    private static int getChunkY(final int v)
-    {
-        return v - (v & (Chunk.size - 1));
-    }
-
-    private static int getChunkZ(final int v)
-    {
-        return v - (v & (Chunk.size - 1));
-    }
-
-    private static int getGeneratedChunkX(final int v)
-    {
-        return v - (v & (Chunk.generatedChunkSize - 1));
-    }
-
-    private static int getGeneratedChunkY(final int v)
-    {
-        return v - (v & (Chunk.generatedChunkSize - 1));
-    }
-
-    private static int getGeneratedChunkZ(final int v)
-    {
-        return v - (v & (Chunk.generatedChunkSize - 1));
-    }
-
     private static final int WorldHashPrime = 22051;
 
     private static int hashPos(final int x, final int y, final int z)
@@ -760,7 +704,8 @@ public final class World
     {
         if(y < -Depth || y >= Height)
             return;
-        invalidateChunk(getChunkX(x), getChunkY(y), getChunkZ(z));
+        invalidateChunk(x & ~(Chunk.size - 1), y & ~(Chunk.size - 1), z
+                & ~(Chunk.size - 1));
         for(int i = 0; i < EvalType.values.length; i++)
         {
             EvalType et = EvalType.values[i];
@@ -889,29 +834,34 @@ public final class World
 
     private Chunk find(final int cx, final int cy, final int cz)
     {
+        Chunk retval = null;
         if(this.lastChunk != null && this.lastChunk.orgx == cx
                 && this.lastChunk.orgy == cy && this.lastChunk.orgz == cz)
-            return this.lastChunk;
-        int hash = hashChunkPos(cx, cy, cz);
-        Chunk lastNode = null;
-        Chunk node = this.hashTable[hash];
-        while(node != null)
+            retval = this.lastChunk;
+        else
         {
-            if(node.orgx == cx && node.orgy == cy && node.orgz == cz)
+            int hash = hashChunkPos(cx, cy, cz);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
             {
-                if(lastNode != null)
+                if(node.orgx == cx && node.orgy == cy && node.orgz == cz)
                 {
-                    lastNode.next = node.next;
-                    node.next = this.hashTable[hash];
-                    this.hashTable[hash] = node;
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
                 }
-                this.lastChunk = node;
-                return node;
+                lastNode = node;
+                node = node.next;
             }
-            lastNode = node;
-            node = node.next;
+            retval = node;
         }
-        return null;
+        return retval;
     }
 
     private Chunk chunksHead = null;
@@ -956,12 +906,47 @@ public final class World
 
     private boolean isGenerated(final int cx, final int cy, final int cz)
     {
-        Chunk c = find(getChunkX(getGeneratedChunkX(cx)),
-                       getChunkY(getGeneratedChunkY(cy)),
-                       getChunkZ(getGeneratedChunkZ(cz)));
+        int cx1 = cx & ~(Chunk.size - 1) & ~(Chunk.size - 1);
+        int cy1 = cy & ~(Chunk.size - 1) & ~(Chunk.size - 1);
+        int cz1 = cz & ~(Chunk.size - 1) & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx1
+                && this.lastChunk.orgy == cy1 && this.lastChunk.orgz == cz1)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx1, cy1, cz1);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx1 && node.orgy == cy1 && node.orgz == cz1)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        boolean generated;
         if(c == null)
-            return false;
-        return c.isGenerated(cx, cy, cz);
+            generated = false;
+        else
+            generated = c.generated[(cx - c.orgx)
+                    / Chunk.size
+                    + Chunk.generatedChunksPerChunk
+                    * ((cy - c.orgy) / Chunk.size + Chunk.generatedChunksPerChunk
+                            * ((cz - c.orgz) / Chunk.size))];
+        return generated;
     }
 
     private void setGenerated(final int cx,
@@ -969,9 +954,9 @@ public final class World
                               final int cz,
                               final boolean g)
     {
-        Chunk c = find(getChunkX(getGeneratedChunkX(cx)),
-                       getChunkY(getGeneratedChunkY(cy)),
-                       getChunkZ(getGeneratedChunkZ(cz)));
+        Chunk c = find(cx & ~(Chunk.size - 1) & ~(Chunk.size - 1), cy
+                & ~(Chunk.size - 1) & ~(Chunk.size - 1), cz & ~(Chunk.size - 1)
+                & ~(Chunk.size - 1));
         if(c == null)
             return;
         c.setGenerated(cx, cy, cz, g);
@@ -991,15 +976,40 @@ public final class World
      * @see #setBlock(int x, int y, int z, Block block) */
     public Block getBlock(final int x, final int y, final int z)
     {
-        int cx = getChunkX(x);
-        int cy = getChunkY(y);
-        int cz = getChunkZ(z);
-        Chunk c = find(cx, cy, cz);
-        if(c == null)
-            return null;
-        Block b = c.getBlock(x - cx, y - cy, z - cz);
-        if(b != null)
-            b.checkForBeingAllocated();
+        int cx = x & ~(Chunk.size - 1);
+        int cy = y & ~(Chunk.size - 1);
+        int cz = z & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx
+                && this.lastChunk.orgy == cy && this.lastChunk.orgz == cz)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx, cy, cz);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx && node.orgy == cy && node.orgz == cz)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        Block b = null;
+        if(c != null)
+            b = c.blocks[x - cx + Chunk.size * (y - cy + Chunk.size * (z - cz))];
         return b;
     }
 
@@ -1009,11 +1019,12 @@ public final class World
                                   final Block b)
     {
         b.checkForBeingAllocated();
-        int cx = getChunkX(x);
-        int cy = getChunkY(y);
-        int cz = getChunkZ(z);
+        int cx = x & ~(Chunk.size - 1);
+        int cy = y & ~(Chunk.size - 1);
+        int cz = z & ~(Chunk.size - 1);
         Chunk c = findOrInsert(cx, cy, cz);
-        Block oldb = c.getBlock(x - cx, y - cy, z - cz);
+        Block oldb = c.blocks[x - cx + Chunk.size
+                * (y - cy + Chunk.size * (z - cz))];
         if(oldb != null)
             oldb.isInWorld = false;
         c.setBlock(x - cx, y - cy, z - cz, b);
@@ -1028,7 +1039,47 @@ public final class World
             {
                 for(int dz = -1; dz <= 1; dz++)
                 {
-                    Block b = getBlock(x + dx, y + dy, z + dz);
+                    int x1 = x + dx;
+                    int y1 = y + dy;
+                    int z1 = z + dz;
+                    int cx = x1 & ~(Chunk.size - 1);
+                    int cy = y1 & ~(Chunk.size - 1);
+                    int cz = z1 & ~(Chunk.size - 1);
+                    Chunk retval = null;
+                    if(this.lastChunk != null && this.lastChunk.orgx == cx
+                            && this.lastChunk.orgy == cy
+                            && this.lastChunk.orgz == cz)
+                        retval = this.lastChunk;
+                    else
+                    {
+                        int hash = hashChunkPos(cx, cy, cz);
+                        Chunk lastNode = null;
+                        Chunk node = this.hashTable[hash];
+                        while(node != null)
+                        {
+                            if(node.orgx == cx && node.orgy == cy
+                                    && node.orgz == cz)
+                            {
+                                if(lastNode != null)
+                                {
+                                    lastNode.next = node.next;
+                                    node.next = this.hashTable[hash];
+                                    this.hashTable[hash] = node;
+                                }
+                                this.lastChunk = node;
+                                break;
+                            }
+                            lastNode = node;
+                            node = node.next;
+                        }
+                        retval = node;
+                    }
+                    Chunk c = retval;
+                    Block b1 = null;
+                    if(c != null)
+                        b1 = c.blocks[x1 - cx + Chunk.size
+                                * (y1 - cy + Chunk.size * (z1 - cz))];
+                    Block b = b1;
                     if(b == null)
                         continue;
                     b.setLightingArray(null,
@@ -1048,17 +1099,17 @@ public final class World
         assert c.cx % GeneratedChunk.size == 0;
         assert c.cy % GeneratedChunk.size == 0;
         assert c.cz % GeneratedChunk.size == 0;
-        for(int cx = c.cx; cx < c.cx + GeneratedChunk.size; cx += Chunk.generatedChunkSize)
+        for(int cx = c.cx; cx < c.cx + GeneratedChunk.size; cx += Chunk.size)
         {
-            for(int cy = c.cy; cy < c.cy + GeneratedChunk.size; cy += Chunk.generatedChunkSize)
+            for(int cy = c.cy; cy < c.cy + GeneratedChunk.size; cy += Chunk.size)
             {
-                for(int cz = c.cz; cz < c.cz + GeneratedChunk.size; cz += Chunk.generatedChunkSize)
+                for(int cz = c.cz; cz < c.cz + GeneratedChunk.size; cz += Chunk.size)
                 {
-                    for(int x = cx; x < cx + Chunk.generatedChunkSize; x++)
+                    for(int x = cx; x < cx + Chunk.size; x++)
                     {
-                        for(int y = cy; y < cy + Chunk.generatedChunkSize; y++)
+                        for(int y = cy; y < cy + Chunk.size; y++)
                         {
-                            for(int z = cz; z < cz + Chunk.generatedChunkSize; z++)
+                            for(int z = cz; z < cz + Chunk.size; z++)
                             {
                                 Block temp = getBlock(x, y, z);
                                 // TODO finish
@@ -1077,6 +1128,13 @@ public final class World
                     setGenerated(cx, cy, cz, true);
                 }
             }
+        }
+        for(;;)
+        {
+            Entity e = c.takeEntity();
+            if(e == null)
+                break;
+            insertEntity(e);
         }
         c.free();
     }
@@ -1107,6 +1165,14 @@ public final class World
             b.setLighting(0, 0, 0);
         if(oldb == null || oldb.getEmitLight() != b.getEmitLight())
             b.resetLighting();
+        if(oldb != null && oldb.getLightingArrayAnyway() != null)
+        {
+            int[] oldL = oldb.getLightingArrayAnyway();
+            int[] l = Block.allocateLightingArray();
+            for(int i = 0; i < l.length; i++)
+                l[i] = oldL[i];
+            b.setLightingArray(l, this.sunlightFactor, this.displayListValidTag);
+        }
         internalSetBlock(x, y, z, b);
         resetLightingArrays(x, y, z);
         for(int dx = -2; dx <= 2; dx++)
@@ -1149,11 +1215,45 @@ public final class World
      * @see #getBlock(int x, int y, int z) */
     public Block getBlockEval(final int x, final int y, final int z)
     {
-        if(!isGenerated(getGeneratedChunkX(x),
-                        getGeneratedChunkY(y),
-                        getGeneratedChunkZ(z)))
+        int cx = x & ~(Chunk.size - 1);
+        int cy = y & ~(Chunk.size - 1);
+        int cz = z & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx
+                && this.lastChunk.orgy == cy && this.lastChunk.orgz == cz)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx, cy, cz);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx && node.orgy == cy && node.orgz == cz)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        if(c == null)
             return null;
-        return getBlock(x, y, z);
+        boolean generated = c.generated[0];
+        if(!generated)
+            return null;
+        Block b = c.blocks[x - cx + Chunk.size
+                * (y - cy + Chunk.size * (z - cz))];
+        return b;
     }
 
     private int GetSunlight(final int x, final int y, final int z)
@@ -1461,6 +1561,8 @@ public final class World
                              final int cz,
                              final float distance)
     {
+        if(cy < -World.Depth)
+            return;
         for(int i = 0; i < chunkGeneratorCount; i++)
         {
             if(this.chunkGenerator[i].busy.get()
@@ -1489,9 +1591,9 @@ public final class World
      *            the z coordinate */
     public void flagGenerate(final int x, final int y, final int z)
     {
-        int cx = x - (x & (Chunk.generatedChunkSize - 1));
-        int cy = y - (y & (Chunk.generatedChunkSize - 1));
-        int cz = z - (z & (Chunk.generatedChunkSize - 1));
+        int cx = x - (x & (Chunk.size - 1));
+        int cy = y - (y & (Chunk.size - 1));
+        int cz = z - (z & (Chunk.size - 1));
         if(isGenerated(cx, cy, cz))
             return;
         this.genChunkX = cx;
@@ -1565,23 +1667,25 @@ public final class World
 
     private static Matrix drawChunk_t1 = Matrix.allocate();
 
-    private void drawChunk(final RenderingStream rs,
-                           final int cx,
-                           final int cy,
-                           final int cz,
-                           final int drawPhase)
+    private boolean drawChunk(final RenderingStream rs[],
+                              final int cx,
+                              final int cy,
+                              final int cz)
     {
         Chunk pnode = find(cx, cy, cz);
         if(pnode == null)
-            return;
-        if(drawPhase == 0)
+            return false;
+        Chunk cnx = find(cx - Chunk.size, cy, cz);
+        Chunk cny = find(cx, cy - Chunk.size, cz);
+        Chunk cnz = find(cx, cy, cz - Chunk.size);
+        Chunk cpx = find(cx + Chunk.size, cy, cz);
+        Chunk cpy = find(cx, cy + Chunk.size, cz);
+        Chunk cpz = find(cx, cy, cz + Chunk.size);
+        EntityNode e = pnode.head;
+        while(e != null)
         {
-            EntityNode e = pnode.head;
-            while(e != null)
-            {
-                e.e.draw(rs, Matrix.IDENTITY);
-                e = e.hashnext;
-            }
+            e.e.draw(rs[0], Matrix.IDENTITY);
+            e = e.hashnext;
         }
         if(pnode.drawsAnythingValidTag != this.displayListValidTag)
         {
@@ -1592,7 +1696,8 @@ public final class World
                 {
                     for(int z = 0; z < Chunk.size; z++)
                     {
-                        Block b = pnode.getBlock(x, y, z);
+                        Block b = pnode.blocks[x + Chunk.size
+                                * (y + Chunk.size * z)];
                         if(b == null)
                             continue;
                         if(b.drawsAnything(x + cx, y + cy, z + cz))
@@ -1614,21 +1719,162 @@ public final class World
                 {
                     for(int z = 0; z < Chunk.size; z++)
                     {
-                        Block b = pnode.getBlock(x, y, z);
-                        if(b == null)
+                        int index = x + Chunk.size * (y + Chunk.size * z);
+                        Block b = pnode.blocks[index];
+                        if(b == null
+                                || b.getType().drawType == BlockDrawType.BDTNone)
                             continue;
-                        if(b.isTranslucent() && drawPhase != 1)
+                        boolean skip = false;
+                        Block nx, px, ny, py, nz, pz;
+                        if(x <= 0)
+                            nx = cnx != null ? cnx.blocks[index
+                                    + (Chunk.size - 1)] : null;
+                        else
+                            nx = pnode.blocks[index - 1];
+                        if(x >= Chunk.size - 1)
+                            px = cpx != null ? cpx.blocks[index
+                                    + (1 - Chunk.size)] : null;
+                        else
+                            px = pnode.blocks[index + 1];
+                        if(y <= 0)
+                            ny = cny != null ? cny.blocks[index
+                                    + (Chunk.size * Chunk.size - Chunk.size)]
+                                    : null;
+                        else
+                            ny = pnode.blocks[index - Chunk.size];
+                        if(y >= Chunk.size - 1)
+                            py = cpy != null ? cpy.blocks[index
+                                    + (Chunk.size - Chunk.size * Chunk.size)]
+                                    : null;
+                        else
+                            py = pnode.blocks[index + Chunk.size];
+                        if(z <= 0)
+                            nz = cnz != null ? cnz.blocks[index
+                                    + (Chunk.size * Chunk.size * Chunk.size - Chunk.size
+                                            * Chunk.size)]
+                                    : null;
+                        else
+                            nz = pnode.blocks[index - Chunk.size * Chunk.size];
+                        if(z >= Chunk.size - 1)
+                            pz = cpz != null ? cpz.blocks[index
+                                    + (Chunk.size * Chunk.size - Chunk.size
+                                            * Chunk.size * Chunk.size)] : null;
+                        else
+                            pz = pnode.blocks[index + Chunk.size * Chunk.size];
+                        switch(b.getType().drawType)
+                        {
+                        case BDTNone:
+                            break;
+                        case BDTButton:
+                        case BDTItem:
+                        case BDTRail:
+                        case BDTSim3D:
+                        case BDTSolidAllSides:
+                        case BDTTool:
+                        case BDTTorch:
+                            break;
+                        case BDTCustom:
+                            if(b.getType() == BlockType.BTLeaves)
+                            {
+                                if(!Main.FancyGraphics)
+                                {
+                                    skip = true;
+                                    if(nx != null
+                                            && !nx.isOpaque()
+                                            && nx.getType() != BlockType.BTLeaves)
+                                    {
+                                        skip = false;
+                                        break;
+                                    }
+                                    if(ny != null
+                                            && !ny.isOpaque()
+                                            && ny.getType() != BlockType.BTLeaves)
+                                    {
+                                        skip = false;
+                                        break;
+                                    }
+                                    if(nz != null
+                                            && !nz.isOpaque()
+                                            && nz.getType() != BlockType.BTLeaves)
+                                    {
+                                        skip = false;
+                                        break;
+                                    }
+                                    if(px != null
+                                            && !px.isOpaque()
+                                            && px.getType() != BlockType.BTLeaves)
+                                    {
+                                        skip = false;
+                                        break;
+                                    }
+                                    if(py != null
+                                            && !py.isOpaque()
+                                            && py.getType() != BlockType.BTLeaves)
+                                    {
+                                        skip = false;
+                                        break;
+                                    }
+                                    if(pz != null
+                                            && !pz.isOpaque()
+                                            && pz.getType() != BlockType.BTLeaves)
+                                    {
+                                        skip = false;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                            break;
+                        case BDTLiquid:
+                            skip = b.skipDrawFluid(nx, px, ny, py, nz, pz);
+                            break;
+                        case BDTSolid:
+                            skip = true;
+                            if(nx != null && !nx.isOpaque())
+                            {
+                                skip = false;
+                                break;
+                            }
+                            if(ny != null && !ny.isOpaque())
+                            {
+                                skip = false;
+                                break;
+                            }
+                            if(nz != null && !nz.isOpaque())
+                            {
+                                skip = false;
+                                break;
+                            }
+                            if(px != null && !px.isOpaque())
+                            {
+                                skip = false;
+                                break;
+                            }
+                            if(py != null && !py.isOpaque())
+                            {
+                                skip = false;
+                                break;
+                            }
+                            if(pz != null && !pz.isOpaque())
+                            {
+                                skip = false;
+                                break;
+                            }
+                            break;
+                        }
+                        if(skip)
                             continue;
-                        if(!b.isTranslucent() && drawPhase != 0)
-                            continue;
-                        getLightingArray(x + cx, y + cy, z + cz);
-                        b = pnode.getBlock(x, y, z);
-                        b.draw(rs, Matrix.setToTranslate(World.drawChunk_t1, x
-                                + cx, y + cy, z + cz));
+                        int drawPhase = b.isTranslucent() ? 1 : 0;
+                        b.draw(rs[drawPhase],
+                               Matrix.setToTranslate(World.drawChunk_t1,
+                                                     x + cx,
+                                                     y + cy,
+                                                     z + cz));
                     }
                 }
             }
         }
+        return pnode.drawsAnything;
     }
 
     private static List<Vector> makeStars()
@@ -1785,25 +2031,27 @@ public final class World
             starRenderingStream.render();
             RenderingStream.free(starRenderingStream);
         }
+        int chunkDrawCount = 0;
         Main.opengl.glClear(Main.opengl.GL_DEPTH_BUFFER_BIT());
         for(int i = 0; i < Chunk.drawPhaseCount; i++)
             rs[i].setMatrix(worldToCamera);
-        int minDrawX = getChunkX(cameraX - viewDist);
-        int maxDrawX = getChunkX(cameraX + viewDist);
-        int minDrawY = getChunkY(cameraY - viewDist);
-        int maxDrawY = getChunkY(cameraY + viewDist);
-        int minDrawZ = getChunkZ(cameraZ - viewDist);
-        int maxDrawZ = getChunkZ(cameraZ + viewDist);
-        for(int cx = getChunkX(Math.round(cameraX - viewDist * chunkGenScale)); cx <= getChunkX(Math.round(cameraX
-                + viewDist * chunkGenScale)); cx += Chunk.size)
+        int minDrawX = cameraX - viewDist & ~(Chunk.size - 1);
+        int maxDrawX = cameraX + viewDist & ~(Chunk.size - 1);
+        int minDrawY = cameraY - viewDist & ~(Chunk.size - 1);
+        int maxDrawY = cameraY + viewDist & ~(Chunk.size - 1);
+        int minDrawZ = cameraZ - viewDist & ~(Chunk.size - 1);
+        int maxDrawZ = cameraZ + viewDist & ~(Chunk.size - 1);
+        for(int cx = Math.round(cameraX - viewDist * chunkGenScale)
+                & ~(Chunk.size - 1); cx <= (Math.round(cameraX + viewDist
+                * chunkGenScale) & ~(Chunk.size - 1)); cx += Chunk.size)
         {
-            for(int cy = getChunkY(Math.round(cameraY - viewDist
-                    * chunkGenScale)); cy <= getChunkY(Math.round(cameraY
-                    + viewDist * chunkGenScale)); cy += Chunk.size)
+            for(int cy = Math.round(cameraY - viewDist * chunkGenScale)
+                    & ~(Chunk.size - 1); cy <= (Math.round(cameraY + viewDist
+                    * chunkGenScale) & ~(Chunk.size - 1)); cy += Chunk.size)
             {
-                for(int cz = getChunkZ(Math.round(cameraZ - viewDist
-                        * chunkGenScale)); cz <= getChunkZ(Math.round(cameraZ
-                        + viewDist * chunkGenScale)); cz += Chunk.size)
+                for(int cz = Math.round(cameraZ - viewDist * chunkGenScale)
+                        & ~(Chunk.size - 1); cz <= (Math.round(cameraZ
+                        + viewDist * chunkGenScale) & ~(Chunk.size - 1)); cz += Chunk.size)
                 {
                     boolean isVisible = false;
                     if(chunkVisible(cx, cy, cz, worldToCamera))
@@ -1813,29 +2061,27 @@ public final class World
                                 && cy <= maxDrawY && cz >= minDrawZ
                                 && cz <= maxDrawZ)
                         {
-                            for(int drawPhase = 0; drawPhase < Chunk.drawPhaseCount; drawPhase++)
-                            {
-                                drawChunk(rs[drawPhase], cx, cy, cz, drawPhase);
-                            }
+                            if(drawChunk(rs, cx, cy, cz))
+                                chunkDrawCount++;
                         }
                     }
                     Chunk c = find(cx, cy, cz);
                     if(c == null)
                     {
-                        for(int gcx = cx; gcx < cx + Chunk.size; gcx += Chunk.generatedChunkSize)
+                        for(int gcx = cx; gcx < cx + Chunk.size; gcx += Chunk.size)
                         {
-                            for(int gcy = cy; gcy < cy + Chunk.size; gcy += Chunk.generatedChunkSize)
+                            for(int gcy = cy; gcy < cy + Chunk.size; gcy += Chunk.size)
                             {
-                                for(int gcz = cz; gcz < cz + Chunk.size; gcz += Chunk.generatedChunkSize)
+                                for(int gcz = cz; gcz < cz + Chunk.size; gcz += Chunk.size)
                                 {
                                     Vector chunkCenter = World.draw_chunkCenter.set(gcx
-                                                                                            + Chunk.generatedChunkSize
+                                                                                            + Chunk.size
                                                                                             / 2.0f,
                                                                                     gcy
-                                                                                            + Chunk.generatedChunkSize
+                                                                                            + Chunk.size
                                                                                             / 2.0f,
                                                                                     gcz
-                                                                                            + Chunk.generatedChunkSize
+                                                                                            + Chunk.size
                                                                                             / 2.0f);
                                     float distance = chunkCenter.subAndSet(cameraPos)
                                                                 .abs();
@@ -1853,22 +2099,22 @@ public final class World
                                 && Math.abs(cameraZ - cz) < 20
                                 && c.fireCount > 0)
                             Main.needFireBurnAudio = true;
-                        for(int gcx = cx; gcx < cx + Chunk.size; gcx += Chunk.generatedChunkSize)
+                        for(int gcx = cx; gcx < cx + Chunk.size; gcx += Chunk.size)
                         {
-                            for(int gcy = cy; gcy < cy + Chunk.size; gcy += Chunk.generatedChunkSize)
+                            for(int gcy = cy; gcy < cy + Chunk.size; gcy += Chunk.size)
                             {
-                                for(int gcz = cz; gcz < cz + Chunk.size; gcz += Chunk.generatedChunkSize)
+                                for(int gcz = cz; gcz < cz + Chunk.size; gcz += Chunk.size)
                                 {
                                     if(!isGenerated(gcx, gcy, gcz))
                                     {
                                         Vector chunkCenter = World.draw_chunkCenter.set(gcx
-                                                                                                + Chunk.generatedChunkSize
+                                                                                                + Chunk.size
                                                                                                 / 2.0f,
                                                                                         gcy
-                                                                                                + Chunk.generatedChunkSize
+                                                                                                + Chunk.size
                                                                                                 / 2.0f,
                                                                                         gcz
-                                                                                                + Chunk.generatedChunkSize
+                                                                                                + Chunk.size
                                                                                                 / 2.0f);
                                         float distance = chunkCenter.subAndSet(cameraPos)
                                                                     .abs();
@@ -1877,14 +2123,12 @@ public final class World
                                         addGenChunk(gcx, gcy, gcz, distance);
                                         continue;
                                     }
-                                    for(int x = gcx; x < gcx
-                                            + Chunk.generatedChunkSize; x++)
+                                    for(int x = gcx; x < gcx + Chunk.size; x++)
                                     {
-                                        for(int y = gcy; y < gcy
-                                                + Chunk.generatedChunkSize; y++)
+                                        for(int y = gcy; y < gcy + Chunk.size; y++)
                                         {
                                             for(int z = gcz; z < gcz
-                                                    + Chunk.generatedChunkSize; z++)
+                                                    + Chunk.size; z++)
                                             {
                                                 Block b = getBlock(x, y, z);
                                                 if(b != null
@@ -1902,6 +2146,8 @@ public final class World
                 }
             }
         }
+        if(Main.DEBUG)
+            Main.addToFrameText("Chunk Draw Count : " + chunkDrawCount + "\n");
         for(int drawPhase = 0; drawPhase < Chunk.drawPhaseCount; drawPhase++)
         {
             // TODO finish
@@ -1983,17 +2229,12 @@ public final class World
         0, 0, 0, 0, 0, 0, 0, 0
     };
 
-    int[] getLightingArray(final int bx, final int by, final int bz)
+    private int[] makeLightingArray(final int bx,
+                                    final int by,
+                                    final int bz,
+                                    final Block b)
     {
-        Block b = getBlock(bx, by, bz);
-        if(b == null)
-        {
-            return getLightingArray_empty;
-        }
-        if(b.getLightingArray(this.sunlightFactor, this.displayListValidTag) != null)
-            return b.getLightingArray(this.sunlightFactor,
-                                      this.displayListValidTag);
-        int l[] = this.getLightingArray_l;
+        int[] l = this.getLightingArray_l;
         boolean o[] = this.getLightingArray_o;
         for(int dx = 0; dx < 3; dx++)
         {
@@ -2091,10 +2332,60 @@ public final class World
         return fl;
     }
 
-    static float getLighting(final float x,
-                             final float y,
-                             final float z,
-                             final int l[])
+    int[] getLightingArray(final int bx, final int by, final int bz)
+    {
+        int cx1 = bx & ~(Chunk.size - 1);
+        int cy1 = by & ~(Chunk.size - 1);
+        int cz1 = bz & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx1
+                && this.lastChunk.orgy == cy1 && this.lastChunk.orgz == cz1)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx1, cy1, cz1);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx1 && node.orgy == cy1 && node.orgz == cz1)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        Block b1 = null;
+        if(c != null)
+            b1 = c.blocks[bx - cx1 + Chunk.size
+                    * (by - cy1 + Chunk.size * (bz - cz1))];
+        Block b = b1;
+        int[] l = getLightingArray_empty;
+        if(b != null)
+        {
+            l = b.getLightingArray(this.sunlightFactor,
+                                   this.displayListValidTag);
+            if(l == null)
+                l = makeLightingArray(bx, by, bz, b);
+        }
+        return l;
+    }
+
+    @SuppressWarnings("unused")
+    private static float getLighting(final float x,
+                                     final float y,
+                                     final float z,
+                                     final int l[])
     {
         float nx = 1 - x, ny = 1 - y, nz = 1 - z;
         float l00 = nz * l[0 + 2 * (0 + 2 * 0)] + z * l[0 + 2 * (0 + 2 * 1)];
@@ -2106,38 +2397,268 @@ public final class World
         return (nx * l0 + x * l1) / 15.0f;
     }
 
-    float getLighting(final float x_in,
-                      final float y_in,
-                      final float z_in,
-                      final int bx,
-                      final int by,
-                      final int bz)
+    private static final boolean skipLighting = false;
+
+    public float getLighting(final float x_in,
+                             final float y_in,
+                             final float z_in,
+                             final int bx,
+                             final int by,
+                             final int bz)
     {
-        int l[] = getLightingArray(bx, by, bz);
+        if(skipLighting)
+            return 1;
+        int cx1 = bx & ~(Chunk.size - 1);
+        int cy1 = by & ~(Chunk.size - 1);
+        int cz1 = bz & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx1
+                && this.lastChunk.orgy == cy1 && this.lastChunk.orgz == cz1)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx1, cy1, cz1);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx1 && node.orgy == cy1 && node.orgz == cz1)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        Block b1 = null;
+        if(c != null)
+            b1 = c.blocks[bx - cx1 + Chunk.size
+                    * (by - cy1 + Chunk.size * (bz - cz1))];
+        Block b = b1;
+        int[] l2 = getLightingArray_empty;
+        if(b != null)
+        {
+            l2 = b.getLightingArray(this.sunlightFactor,
+                                    this.displayListValidTag);
+            if(l2 == null)
+                l2 = makeLightingArray(bx, by, bz, b);
+        }
+        int l[] = l2;
         float x = x_in - bx;
         float y = y_in - by;
         float z = z_in - bz;
-        return getLighting(x, y, z, l);
+        float nx = 1 - x, ny = 1 - y, nz = 1 - z;
+        float l00 = nz * l[0 + 2 * (0 + 2 * 0)] + z * l[0 + 2 * (0 + 2 * 1)];
+        float l10 = nz * l[1 + 2 * (0 + 2 * 0)] + z * l[1 + 2 * (0 + 2 * 1)];
+        float l01 = nz * l[0 + 2 * (1 + 2 * 0)] + z * l[0 + 2 * (1 + 2 * 1)];
+        float l11 = nz * l[1 + 2 * (1 + 2 * 0)] + z * l[1 + 2 * (1 + 2 * 1)];
+        float l0 = ny * l00 + y * l01;
+        float l1 = ny * l10 + y * l11;
+        return (nx * l0 + x * l1) / 15.0f;
     }
 
     float getLighting(final Vector p, final int bx, final int by, final int bz)
     {
-        return getLighting(p.getX(), p.getY(), p.getZ(), bx, by, bz);
+        if(skipLighting)
+            return 1;
+        int cx1 = bx & ~(Chunk.size - 1);
+        int cy1 = by & ~(Chunk.size - 1);
+        int cz1 = bz & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx1
+                && this.lastChunk.orgy == cy1 && this.lastChunk.orgz == cz1)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx1, cy1, cz1);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx1 && node.orgy == cy1 && node.orgz == cz1)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        Block b1 = null;
+        if(c != null)
+            b1 = c.blocks[bx - cx1 + Chunk.size
+                    * (by - cy1 + Chunk.size * (bz - cz1))];
+        Block b = b1;
+        int[] l2 = getLightingArray_empty;
+        if(b != null)
+        {
+            l2 = b.getLightingArray(this.sunlightFactor,
+                                    this.displayListValidTag);
+            if(l2 == null)
+                l2 = makeLightingArray(bx, by, bz, b);
+        }
+        int l[] = l2;
+        float x = p.getX() - bx;
+        float y = p.getY() - by;
+        float z = p.getZ() - bz;
+        float nx = 1 - x, ny = 1 - y, nz = 1 - z;
+        float l00 = nz * l[0 + 2 * (0 + 2 * 0)] + z * l[0 + 2 * (0 + 2 * 1)];
+        float l10 = nz * l[1 + 2 * (0 + 2 * 0)] + z * l[1 + 2 * (0 + 2 * 1)];
+        float l01 = nz * l[0 + 2 * (1 + 2 * 0)] + z * l[0 + 2 * (1 + 2 * 1)];
+        float l11 = nz * l[1 + 2 * (1 + 2 * 0)] + z * l[1 + 2 * (1 + 2 * 1)];
+        float l0 = ny * l00 + y * l01;
+        float l1 = ny * l10 + y * l11;
+        return (nx * l0 + x * l1) / 15.0f;
     }
 
-    float getLighting(final float x, final float y, final float z)
+    public float getLighting(final float x, final float y, final float z)
     {
-        return getLighting(x,
-                           y,
-                           z,
-                           (int)Math.floor(x),
-                           (int)Math.floor(y),
-                           (int)Math.floor(z));
+        if(skipLighting)
+            return 1;
+        int bx = (int)Math.floor(x);
+        int by = (int)Math.floor(y);
+        int bz = (int)Math.floor(z);
+        int cx1 = bx & ~(Chunk.size - 1);
+        int cy1 = by & ~(Chunk.size - 1);
+        int cz1 = bz & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx1
+                && this.lastChunk.orgy == cy1 && this.lastChunk.orgz == cz1)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx1, cy1, cz1);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx1 && node.orgy == cy1 && node.orgz == cz1)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        Block b1 = null;
+        if(c != null)
+            b1 = c.blocks[bx - cx1 + Chunk.size
+                    * (by - cy1 + Chunk.size * (bz - cz1))];
+        Block b = b1;
+        int[] l2 = getLightingArray_empty;
+        if(b != null)
+        {
+            l2 = b.getLightingArray(this.sunlightFactor,
+                                    this.displayListValidTag);
+            if(l2 == null)
+                l2 = makeLightingArray(bx, by, bz, b);
+        }
+        int l[] = l2;
+        float x1 = x - bx;
+        float y1 = y - by;
+        float z1 = z - bz;
+        float nx = 1 - x1, ny = 1 - y1, nz = 1 - z1;
+        float l00 = nz * l[0 + 2 * (0 + 2 * 0)] + z1 * l[0 + 2 * (0 + 2 * 1)];
+        float l10 = nz * l[1 + 2 * (0 + 2 * 0)] + z1 * l[1 + 2 * (0 + 2 * 1)];
+        float l01 = nz * l[0 + 2 * (1 + 2 * 0)] + z1 * l[0 + 2 * (1 + 2 * 1)];
+        float l11 = nz * l[1 + 2 * (1 + 2 * 0)] + z1 * l[1 + 2 * (1 + 2 * 1)];
+        float l0 = ny * l00 + y1 * l01;
+        float l1 = ny * l10 + y1 * l11;
+        return (nx * l0 + x1 * l1) / 15.0f;
     }
 
     float getLighting(final Vector p)
     {
-        return getLighting(p.getX(), p.getY(), p.getZ());
+        if(skipLighting)
+            return 1;
+        float x = p.getX();
+        float y = p.getY();
+        float z = p.getZ();
+        int bx = (int)Math.floor(x);
+        int by = (int)Math.floor(y);
+        int bz = (int)Math.floor(z);
+        int cx1 = bx & ~(Chunk.size - 1);
+        int cy1 = by & ~(Chunk.size - 1);
+        int cz1 = bz & ~(Chunk.size - 1);
+        Chunk retval = null;
+        if(this.lastChunk != null && this.lastChunk.orgx == cx1
+                && this.lastChunk.orgy == cy1 && this.lastChunk.orgz == cz1)
+            retval = this.lastChunk;
+        else
+        {
+            int hash = hashChunkPos(cx1, cy1, cz1);
+            Chunk lastNode = null;
+            Chunk node = this.hashTable[hash];
+            while(node != null)
+            {
+                if(node.orgx == cx1 && node.orgy == cy1 && node.orgz == cz1)
+                {
+                    if(lastNode != null)
+                    {
+                        lastNode.next = node.next;
+                        node.next = this.hashTable[hash];
+                        this.hashTable[hash] = node;
+                    }
+                    this.lastChunk = node;
+                    break;
+                }
+                lastNode = node;
+                node = node.next;
+            }
+            retval = node;
+        }
+        Chunk c = retval;
+        Block b1 = null;
+        if(c != null)
+            b1 = c.blocks[bx - cx1 + Chunk.size
+                    * (by - cy1 + Chunk.size * (bz - cz1))];
+        Block b = b1;
+        int[] l2 = getLightingArray_empty;
+        if(b != null)
+        {
+            l2 = b.getLightingArray(this.sunlightFactor,
+                                    this.displayListValidTag);
+            if(l2 == null)
+                l2 = makeLightingArray(bx, by, bz, b);
+        }
+        int l[] = l2;
+        float x1 = x - bx;
+        float y1 = y - by;
+        float z1 = z - bz;
+        float nx = 1 - x1, ny = 1 - y1, nz = 1 - z1;
+        float l00 = nz * l[0 + 2 * (0 + 2 * 0)] + z1 * l[0 + 2 * (0 + 2 * 1)];
+        float l10 = nz * l[1 + 2 * (0 + 2 * 0)] + z1 * l[1 + 2 * (0 + 2 * 1)];
+        float l01 = nz * l[0 + 2 * (1 + 2 * 0)] + z1 * l[0 + 2 * (1 + 2 * 1)];
+        float l11 = nz * l[1 + 2 * (1 + 2 * 0)] + z1 * l[1 + 2 * (1 + 2 * 1)];
+        float l0 = ny * l00 + y1 * l01;
+        float l1 = ny * l10 + y1 * l11;
+        return (nx * l0 + x1 * l1) / 15.0f;
     }
 
     /** set the seed for this world<br/>
@@ -2194,7 +2715,7 @@ public final class World
                 this.newChunk = this.landGenerator.genChunk(this.cx,
                                                             this.cy,
                                                             this.cz,
-                                                            Chunk.generatedChunkSize
+                                                            Chunk.size
                                                                     * generatedChunkScale);
                 this.generated = true;
                 synchronized(this.busyCount)
@@ -2207,7 +2728,7 @@ public final class World
         }
     }
 
-    public static final int generatedChunkSize = Chunk.generatedChunkSize
+    public static final int generatedChunkSize = Chunk.size
             * generatedChunkScale;
     private static final int chunkGeneratorCount = 5;
     private final AtomicInteger chunkGeneratorBusyCount = new AtomicInteger(0);
@@ -2249,6 +2770,7 @@ public final class World
     /** generate chunks */
     public void generateChunks()
     {
+        boolean addedAnyChunks = false;
         for(int i = 0; i < chunkGeneratorCount; i++)
         {
             if(this.chunkGenerator[i].busy.get())
@@ -2258,6 +2780,7 @@ public final class World
                 addGeneratedChunk(this.chunkGenerator[i].newChunk);
                 this.chunkGenerator[i].generated = false;
                 this.chunkGenerator[i].newChunk = null;
+                addedAnyChunks = true;
             }
             if(this.genChunkDistance < 0)
                 return;
@@ -2266,8 +2789,7 @@ public final class World
                 this.genChunkDistance = -1;
                 return;
             }
-            final int generateSize = Chunk.generatedChunkSize
-                    * generatedChunkScale;
+            final int generateSize = Chunk.size * generatedChunkScale;
             this.chunkGenerator[i].cx = this.genChunkX
                     - (this.genChunkX & (generateSize - 1));
             this.chunkGenerator[i].cy = this.genChunkY
@@ -2295,6 +2817,8 @@ public final class World
             }
             this.genChunkDistance = -1;
         }
+        if(addedAnyChunks)
+            updateLight();
     }
 
     /** insert a new entity into this world
@@ -2426,7 +2950,8 @@ public final class World
             node.next.prev = node.prev;
         node.next = null;
         node.prev = null;
-        Chunk c = find(getChunkX(x), getChunkY(y), getChunkZ(z));
+        Chunk c = find(x & ~(Chunk.size - 1), y & ~(Chunk.size - 1), z
+                & ~(Chunk.size - 1));
         if(c == null)
             return;
         if(node.hashprev == null)
@@ -2448,15 +2973,18 @@ public final class World
     private void explodeEntities(final Vector pos, final float strength)
     {
         final int maxRadius = (int)Math.ceil(strength * 2);
-        final int minChunkX = getChunkX((int)Math.floor(pos.getX()) - maxRadius);
-        final int maxChunkX = getChunkX((int)Math.ceil(pos.getX()) + maxRadius
-                + Chunk.size - 1);
-        final int minChunkY = getChunkY((int)Math.floor(pos.getY()) - maxRadius);
-        final int maxChunkY = getChunkY((int)Math.ceil(pos.getY()) + maxRadius
-                + Chunk.size - 1);
-        final int minChunkZ = getChunkZ((int)Math.floor(pos.getZ()) - maxRadius);
-        final int maxChunkZ = getChunkZ((int)Math.ceil(pos.getZ()) + maxRadius
-                + Chunk.size - 1);
+        final int minChunkX = (int)Math.floor(pos.getX()) - maxRadius
+                & ~(Chunk.size - 1);
+        final int maxChunkX = (int)Math.ceil(pos.getX()) + maxRadius
+                + Chunk.size - 1 & ~(Chunk.size - 1);
+        final int minChunkY = (int)Math.floor(pos.getY()) - maxRadius
+                & ~(Chunk.size - 1);
+        final int maxChunkY = (int)Math.ceil(pos.getY()) + maxRadius
+                + Chunk.size - 1 & ~(Chunk.size - 1);
+        final int minChunkZ = (int)Math.floor(pos.getZ()) - maxRadius
+                & ~(Chunk.size - 1);
+        final int maxChunkZ = (int)Math.ceil(pos.getZ()) + maxRadius
+                + Chunk.size - 1 & ~(Chunk.size - 1);
         EntityNode head = null;
         for(int cx = minChunkX; cx <= maxChunkX; cx += Chunk.size)
         {
@@ -2670,12 +3198,38 @@ public final class World
         }
     }
 
+    private void runGenerateMob(final int bx, final int by, final int bz)
+    {
+        int canGenerateCount = 0;
+        for(int index = 0; index < Mobs.getMobCount(); index++)
+        {
+            if(Mobs.getMob(index).canGenerateMob(bx, by, bz, false))
+                canGenerateCount++;
+        }
+        if(canGenerateCount <= 0)
+            return;
+        int which = (int)Math.floor(fRand(0, canGenerateCount));
+        for(int index = 0; index < Mobs.getMobCount(); index++)
+        {
+            if(Mobs.getMob(index).canGenerateMob(bx, by, bz, false))
+            {
+                if(which <= 0)
+                {
+                    Mobs.getMob(index).generateMob(bx, by, bz, false);
+                    return;
+                }
+                which--;
+            }
+        }
+    }
+
     private void runRandomMove()
     {
         if(this.chunkCount == 0)
             return;
-        int count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size * 3
-                / 16f / 16f / 16f * this.chunkCount + fRand(0, 1) % 1f);
+        int count = (int)Math.floor((Chunk.size * Chunk.size * Chunk.size * 3
+                / 16f / 16f / 16f * this.chunkCount)
+                * 20f * (float)Main.getFrameDuration() + fRand(0, 1) % 1f);
         for(int i = 0; i < count; i++)
         {
             int hash = (int)Math.floor(fRand(0, WorldHashPrime))
@@ -2715,6 +3269,41 @@ public final class World
                 }
             }
         }
+        count = (int)Math.floor(Chunk.size * Chunk.size * Chunk.size / 16f
+                / 256f / 16f * 1.5f * this.chunkCount * 20f
+                * (float)Main.getFrameDuration() + fRand(0, 1) % 1f);
+        if(Main.DEBUG)
+            Main.addToFrameText("mob gen count : " + count + "\n");
+        for(int i = 0; i < count; i++)
+        {
+            int hash = (int)Math.floor(fRand(0, WorldHashPrime))
+                    % WorldHashPrime;
+            while(this.hashTable[hash] == null)
+            {
+                hash++;
+                hash %= WorldHashPrime;
+            }
+            int bucketSize = 0;
+            for(Chunk node = this.hashTable[hash]; node != null; node = node.next)
+                bucketSize++;
+            int index = (int)Math.floor(fRand(0, bucketSize));
+            if(index >= bucketSize)
+                index = bucketSize - 1;
+            for(Chunk node = this.hashTable[hash]; node != null; node = node.next)
+            {
+                if(index-- <= 0)
+                {
+                    int x = node.orgx
+                            + (int)Math.floor(fRand(0.0f, Chunk.size));
+                    int y = node.orgy
+                            + (int)Math.floor(fRand(0.0f, Chunk.size));
+                    int z = node.orgz
+                            + (int)Math.floor(fRand(0.0f, Chunk.size));
+                    runGenerateMob(x, y, z);
+                    break;
+                }
+            }
+        }
     }
 
     private void clearCurTime()
@@ -2730,6 +3319,7 @@ public final class World
     {
         this.curTime += Main.getFrameDuration();
         final float dayDuration = 20.0f * 60.0f;
+        float oldTimeOfDay = this.timeOfDay;
         setTimeOfDay(this.timeOfDay + (float)Main.getFrameDuration()
                 / dayDuration * ((Main.DEBUG && useFastTime) ? 20 : 1));
         addParticles();
@@ -2740,6 +3330,7 @@ public final class World
         generateAllTrees();
         runAllExplosions();
         updateLight();
+        handleBackgroundMusic(oldTimeOfDay, getTimeOfDay());
     }
 
     /** @return the current game time */
@@ -2875,9 +3466,9 @@ public final class World
         int iz = (int)Math.floor(pos.getZ());
         int previx = 0, previy = 0, previz = 0;
         int cx, cy, cz;
-        cx = getChunkX(ix);
-        cy = getChunkY(iy);
-        cz = getChunkZ(iz);
+        cx = ix & ~(Chunk.size - 1);
+        cy = iy & ~(Chunk.size - 1);
+        cz = iz & ~(Chunk.size - 1);
         int lastcx = 0x80000000, lastcy = 0, lastcz = 0;
         boolean hasprev = false;
         int lasthit = -1;
@@ -2959,9 +3550,9 @@ public final class World
                                                   iy,
                                                   iz);
         Entity hitEntity = null;
-        cx = getChunkX(ix);
-        cy = getChunkY(iy);
-        cz = getChunkZ(iz);
+        cx = ix & ~(Chunk.size - 1);
+        cy = iy & ~(Chunk.size - 1);
+        cz = iz & ~(Chunk.size - 1);
         if(cx != lastcx || cy != lastcy || cz != lastcz)
         {
             lastcx = cx;
@@ -3103,9 +3694,9 @@ public final class World
                                                       ix,
                                                       iy,
                                                       iz);
-            cx = getChunkX(ix);
-            cy = getChunkY(iy);
-            cz = getChunkZ(iz);
+            cx = ix & ~(Chunk.size - 1);
+            cy = iy & ~(Chunk.size - 1);
+            cz = iz & ~(Chunk.size - 1);
             if(cx != lastcx || cy != lastcy || cz != lastcz)
             {
                 lastcx = cx;
@@ -3332,7 +3923,7 @@ public final class World
                                                                   this.treeGenerateListHead);
     }
 
-    private static final int fileVersion = 3;
+    private static final int fileVersion = 4;
 
     /** write to a <code>DataOutput</code>
      * 
@@ -3368,6 +3959,7 @@ public final class World
                 o.writeInt(c.orgx);
                 o.writeInt(c.orgy);
                 o.writeInt(c.orgz);
+                o.writeInt(Chunk.size);
                 for(int x = 0; x < Chunk.size; x++)
                 {
                     Main.setProgress(x);
@@ -3375,7 +3967,7 @@ public final class World
                     {
                         for(int z = 0; z < Chunk.size; z++)
                         {
-                            c.getBlock(x, y, z).write(o);
+                            c.blocks[x + Chunk.size * (y + Chunk.size * z)].write(o);
                         }
                     }
                 }
@@ -3473,8 +4065,132 @@ public final class World
     public static int read(final DataInput i) throws IOException
     {
         int v = i.readInt();
-        readVer3(i, v);
+        readVer4(i, v);
         return v;
+    }
+
+    private static void
+        readVer4(final DataInput i, final int v) throws IOException
+    {
+        if(v != 4)
+        {
+            readVer3(i, v);
+            return;
+        }
+        int seed = i.readInt();
+        clear(seed);
+        world.setLandGeneratorSettings(Rand.Settings.read(i), true);
+        randSeed = i.readLong();
+        float timeOfDay = i.readFloat();
+        if(Float.isInfinite(timeOfDay) || Float.isNaN(timeOfDay)
+                || timeOfDay < 0 || timeOfDay >= 1)
+            throw new IOException("time of day is out of range");
+        world.setTimeOfDay(timeOfDay);
+        int chunkcount = i.readInt();
+        if(chunkcount < 0)
+            throw new IOException("chunk count out of range");
+        if(chunkcount > 0)
+        {
+            Main.pushProgress(0, 0.9f);
+            Main.pushProgress(0, 1.0f / chunkcount);
+            int progress = 0;
+            while(chunkcount-- > 0)
+            {
+                int cx = i.readInt();
+                int cy = i.readInt();
+                int cz = i.readInt();
+                int chunkSize = i.readInt();
+                if(chunkSize != Chunk.size)
+                    throw new IOException("chunk size not valid");
+                if(cx != (cx & ~(Chunk.size - 1))
+                        || cy != (cy & ~(Chunk.size - 1))
+                        || cz != (cz & ~(Chunk.size - 1)))
+                    throw new IOException("chunk origin not valid");
+                Main.pushProgress(progress++, 1.0f / Chunk.size);
+                for(int x = cx; x < cx + Chunk.size; x++)
+                {
+                    for(int y = cy; y < cy + Chunk.size; y++)
+                    {
+                        for(int z = cz; z < cz + Chunk.size; z++)
+                        {
+                            world.internalSetBlock(x, y, z, Block.read(i));
+                        }
+                    }
+                    Main.setProgress(x);
+                }
+                world.setGenerated(cx, cy, cz, true);
+                Main.popProgress();
+            }
+            Main.popProgress();
+            Main.popProgress();
+        }
+        int entitycount = i.readInt();
+        if(entitycount < 0)
+            throw new IOException("entity count out of range");
+        if(entitycount > 0)
+        {
+            Main.pushProgress(0.9f, 0.05f);
+            int progress = 0;
+            while(entitycount-- > 0)
+            {
+                world.insertEntity(Entity.read(i));
+                Main.setProgress(progress++);
+            }
+            Main.popProgress();
+        }
+        int evalTypeCount = i.readUnsignedShort();
+        if(evalTypeCount > EvalTypeCount)
+            throw new IOException("EvalTypeCount is too big");
+        Main.pushProgress(0.95f, 0.05f);
+        Main.pushProgress(0, 1.0f / (evalTypeCount + 1));
+        for(int evalTypei = 0; evalTypei < evalTypeCount; evalTypei++)
+        {
+            EvalType evalType = EvalType.values[evalTypei];
+            int evalNodeCount = i.readInt();
+            if(evalNodeCount < 0)
+                throw new IOException("invalid eval node count");
+            if(evalNodeCount > 0)
+            {
+                Main.pushProgress(evalTypei, 1.0f / evalNodeCount);
+                int progress = 0;
+                while(evalNodeCount-- > 0)
+                {
+                    int x = i.readInt();
+                    int y = i.readInt();
+                    int z = i.readInt();
+                    boolean hasBlock = i.readBoolean();
+                    if(hasBlock)
+                        world.insertEvalNode(evalType, x, y, z, Block.read(i));
+                    else
+                        world.insertEvalNode(evalType, x, y, z);
+                    Main.setProgress(progress++);
+                }
+                Main.popProgress();
+            }
+        }
+        int timedInvalidateCount = i.readInt();
+        if(timedInvalidateCount < 0)
+            throw new IOException("invalid timed invalidate count");
+        if(timedInvalidateCount > 0)
+        {
+            Main.pushProgress(evalTypeCount, 1.0f / timedInvalidateCount);
+            int progress = 0;
+            while(timedInvalidateCount-- > 0)
+            {
+                int x = i.readInt();
+                int y = i.readInt();
+                int z = i.readInt();
+                double timeLeft = i.readDouble();
+                if(Double.isNaN(timeLeft) || Double.isInfinite(timeLeft)
+                        || timeLeft < 0)
+                    throw new IOException("invalid timed invalidate time left");
+                world.addTimedInvalidate(x, y, z, timeLeft);
+                Main.setProgress(progress++);
+            }
+            Main.popProgress();
+        }
+        Main.popProgress();
+        Main.popProgress();
     }
 
     private static void
@@ -3516,8 +4232,9 @@ public final class World
                 int cx = i.readInt();
                 int cy = i.readInt();
                 int cz = i.readInt();
-                if(cx != getChunkX(cx) || cy != getChunkY(cy)
-                        || cz != getChunkZ(cz))
+                if(cx != (cx & ~(Chunk.size - 1))
+                        || cy != (cy & ~(Chunk.size - 1))
+                        || cz != (cz & ~(Chunk.size - 1)))
                     throw new IOException("chunk origin not valid");
                 Main.pushProgress(progress++, 1.0f / Chunk.size);
                 for(int x = cx; x < cx + Chunk.size; x++)
@@ -3635,8 +4352,9 @@ public final class World
                 int cx = i.readInt();
                 int cy = i.readInt();
                 int cz = i.readInt();
-                if(cx != getChunkX(cx) || cy != getChunkY(cy)
-                        || cz != getChunkZ(cz))
+                if(cx != (cx & ~(Chunk.size - 1))
+                        || cy != (cy & ~(Chunk.size - 1))
+                        || cz != (cz & ~(Chunk.size - 1)))
                     throw new IOException("chunk origin not valid");
                 Main.pushProgress(progress++, 1.0f / Chunk.size);
                 for(int x = cx; x < cx + Chunk.size; x++)
@@ -3746,8 +4464,8 @@ public final class World
             int cx = i.readInt();
             int cy = i.readInt();
             int cz = i.readInt();
-            if(cx != getChunkX(cx) || cy != getChunkY(cy)
-                    || cz != getChunkZ(cz))
+            if(cx != (cx & ~(Chunk.size - 1)) || cy != (cy & ~(Chunk.size - 1))
+                    || cz != (cz & ~(Chunk.size - 1)))
                 throw new IOException("chunk origin not valid");
             for(int x = cx; x < cx + Chunk.size; x++)
             {
@@ -4316,12 +5034,12 @@ public final class World
                                         final float maxz)
     {
         EntityIterator.ListNode head = null;
-        int mincx = getChunkX((int)Math.floor(minx));
-        int maxcx = getChunkX((int)Math.floor(maxx));
-        int mincy = getChunkY((int)Math.floor(miny));
-        int maxcy = getChunkY((int)Math.floor(maxy));
-        int mincz = getChunkZ((int)Math.floor(minz));
-        int maxcz = getChunkZ((int)Math.floor(maxz));
+        int mincx = (int)Math.floor(minx) & ~(Chunk.size - 1);
+        int maxcx = (int)Math.floor(maxx) & ~(Chunk.size - 1);
+        int mincy = (int)Math.floor(miny) & ~(Chunk.size - 1);
+        int maxcy = (int)Math.floor(maxy) & ~(Chunk.size - 1);
+        int mincz = (int)Math.floor(minz) & ~(Chunk.size - 1);
+        int maxcz = (int)Math.floor(maxz) & ~(Chunk.size - 1);
         for(int cx = mincx; cx <= maxcx; cx += Chunk.size)
         {
             for(int cy = mincy; cy <= maxcy; cy += Chunk.size)
@@ -4356,5 +5074,47 @@ public final class World
                                              final int bz)
     {
         return getEntityList(bx, bx + 1, by, by + 1, bz, bz + 1);
+    }
+
+    public boolean canSlimeGenerate(final int x, final int z)
+    {
+        return this.landGenerator.canSlimeGenerate(x, z);
+    }
+
+    private void handleBackgroundMusic(final float oldTimeOfDay_in,
+                                       final float newTimeOfDay)
+    {
+        float oldTimeOfDay = oldTimeOfDay_in;
+        if(newTimeOfDay < oldTimeOfDay)
+            oldTimeOfDay -= 1;
+        final int playCount = 4;
+        for(int i = 0; i < playCount; i++)
+        {
+            float t = (float)i / playCount;
+            if(oldTimeOfDay < t && newTimeOfDay >= t)
+            {
+                Main.playBackgroundMusic(getAutomaticSound());
+                break;
+            }
+        }
+    }
+
+    private int getAutomaticSound()
+    {
+        Player p = players.front();
+        float y = 0;
+        if(p != null)
+            y = p.getPosition().getY();
+        if(getTimeOfDay() >= 0.2f && getTimeOfDay() <= 0.6f)
+        {
+            if(y >= -8)
+                return 0;
+            return 4;
+        }
+        if(getTimeOfDay() > 0.5f)
+            return 3;
+        if(y >= -8)
+            return 2;
+        return 1;
     }
 }

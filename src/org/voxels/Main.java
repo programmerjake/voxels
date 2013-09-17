@@ -474,6 +474,11 @@ public final class Main
 
     private static void generateGame()
     {
+        if(backgroundAudioIndex != -1)
+        {
+            stop(backgroundAudio[backgroundAudioIndex]);
+            backgroundAudioIndex = -1;
+        }
         saveFile = null;
         World.clear();
         world.setLandGeneratorSettings(makeLandGeneratorSettings(), false);
@@ -499,7 +504,6 @@ public final class Main
         boolean done = false;
         while(!done)
         {
-            updateBackgroundMusic();
             setFullscreen(isFullscreen);
             menu.draw();
             platform.update();
@@ -548,7 +552,6 @@ public final class Main
             if(platform.isCloseRequested())
                 done = true;
         }
-        updateBackgroundMusic();
         while(true)
             if(!mouse.nextEvent())
                 break;
@@ -871,84 +874,6 @@ public final class Main
      */
     public static boolean isVSyncEnabled = true;
 
-    private static void runBackgroundMusicMenu()
-    {
-        runMenu(new MenuScreen(Color.V(0.75f))
-        {
-            @Override
-            protected void drawBackground(final Matrix tform)
-            {
-                drawTextBackground("Background Music", tform);
-            }
-
-            {
-                for(int i = 0; i < backgroundAudioCount; i++)
-                {
-                    final int index = i;
-                    add(new OptionMenuItem("Song #" + (index + 1),
-                                           Color.RGB(0f, 0f, 0f),
-                                           getBackgroundColor(),
-                                           Color.RGB(0f, 0f, 0f),
-                                           Color.RGB(0.0f, 0.0f, 1.0f),
-                                           this)
-                    {
-                        @Override
-                        public void pick()
-                        {
-                            Main.runBackgroundMusicIndex = index;
-                        }
-
-                        @Override
-                        public boolean isPicked()
-                        {
-                            return Main.runBackgroundMusicIndex == index;
-                        }
-                    });
-                }
-                add(new OptionMenuItem("No Background Music",
-                                       Color.RGB(0f, 0f, 0f),
-                                       getBackgroundColor(),
-                                       Color.RGB(0f, 0f, 0f),
-                                       Color.RGB(0.0f, 0.0f, 1.0f),
-                                       this)
-                {
-                    @Override
-                    public void pick()
-                    {
-                        Main.runBackgroundMusicIndex = -1;
-                    }
-
-                    @Override
-                    public boolean isPicked()
-                    {
-                        return Main.runBackgroundMusicIndex == -1;
-                    }
-                });
-                add(new SpacerMenuItem(Color.V(0), this));
-                add(new TextMenuItem("Return To Options",
-                                     Color.RGB(0.0f, 0.0f, 0.0f),
-                                     getBackgroundColor(),
-                                     Color.RGB(0.0f, 0.0f, 0.0f),
-                                     Color.RGB(0.0f, 0.0f, 1.0f),
-                                     this)
-                {
-                    @Override
-                    public void onMouseOver(final float mouseX,
-                                            final float mouseY)
-                    {
-                        select();
-                    }
-
-                    @Override
-                    public void onClick(final float mouseX, final float mouseY)
-                    {
-                        this.container.close();
-                    }
-                });
-            }
-        });
-    }
-
     @SuppressWarnings("synthetic-access")
     private static void runOptionsMenu()
     {
@@ -1204,24 +1129,28 @@ public final class Main
                     }
                 });
                 add(new SpacerMenuItem(Color.V(0), this));
-                add(new TextMenuItem("Change Background Music...",
-                                     Color.RGB(0.0f, 0.0f, 0.0f),
-                                     getBackgroundColor(),
-                                     Color.RGB(0.0f, 0.0f, 0.0f),
-                                     Color.RGB(0.0f, 0.0f, 1.0f),
-                                     this)
+                add(new CheckMenuItem("Background Music",
+                                      Color.RGB(0.0f, 0.0f, 0.0f),
+                                      getBackgroundColor(),
+                                      Color.RGB(0.0f, 0.0f, 0.0f),
+                                      Color.RGB(0.0f, 0.0f, 1.0f),
+                                      this)
                 {
                     @Override
-                    public void onClick(final float mouseX, final float mouseY)
+                    public boolean isChecked()
                     {
-                        runBackgroundMusicMenu();
+                        return useBackgroundMusic;
                     }
 
                     @Override
-                    public void onMouseOver(final float mouseX,
-                                            final float mouseY)
+                    public void setChecked(final boolean checked)
                     {
-                        select();
+                        useBackgroundMusic = checked;
+                        if(backgroundAudioIndex != -1)
+                        {
+                            stop(backgroundAudio[backgroundAudioIndex]);
+                            backgroundAudioIndex = -1;
+                        }
                     }
                 });
                 add(new SpacerMenuItem(Color.V(0), this));
@@ -1423,7 +1352,7 @@ public final class Main
         else
         {
             if(fuseBurnAudioPlaying)
-                stoploop(fuseBurnAudio);
+                stop(fuseBurnAudio);
             fuseBurnAudioPlaying = false;
         }
         needFuseBurnAudio = false;
@@ -1436,38 +1365,22 @@ public final class Main
         else
         {
             if(fireBurnAudioPlaying)
-                stoploop(fireBurnAudio);
+                stop(fireBurnAudio);
             fireBurnAudioPlaying = false;
         }
         needFireBurnAudio = false;
-        updateBackgroundMusic();
-    }
-
-    public static void updateBackgroundMusic()
-    {
-        if(backgroundAudioIndex != -1
-                && backgroundAudio[backgroundAudioIndex] != null
-                && backgroundAudio[backgroundAudioIndex].isPlaying()
-                && runBackgroundMusicIndex != backgroundAudioIndex)
-            stoploop(backgroundAudio[backgroundAudioIndex]);
-        backgroundAudioIndex = runBackgroundMusicIndex;
-        if(backgroundAudioIndex != -1
-                && backgroundAudio[backgroundAudioIndex] != null
-                && !backgroundAudio[backgroundAudioIndex].isPlaying())
-            playloop(backgroundAudio[backgroundAudioIndex]);
     }
 
     public static void stopAllSound()
     {
         if(fuseBurnAudioPlaying)
-            stoploop(fuseBurnAudio);
+            stop(fuseBurnAudio);
         fuseBurnAudioPlaying = false;
         if(fireBurnAudioPlaying)
-            stoploop(fireBurnAudio);
+            stop(fireBurnAudio);
         fireBurnAudioPlaying = false;
     }
 
-    public static int runBackgroundMusicIndex = 0;// TODO finish
     public static boolean needPause = false;
 
     /** @param args
@@ -1486,11 +1399,6 @@ public final class Main
         curTime = Timer();
         init();
         curTime = Timer();
-        if(runBackgroundMusicIndex != -1)
-        {
-            backgroundAudioIndex = runBackgroundMusicIndex;
-            playloop(backgroundAudio[backgroundAudioIndex]);
-        }
         runMainMenu();
         if(!didLoad)
         {
@@ -1793,6 +1701,11 @@ public final class Main
         {
             if(!getLoadFile())
                 return false;
+            if(backgroundAudioIndex != -1)
+            {
+                stop(backgroundAudio[backgroundAudioIndex]);
+                backgroundAudioIndex = -1;
+            }
             showProgressDialog("Loading...");
             InputStream fis = null;
             boolean needHide = true;
@@ -1901,7 +1814,7 @@ public final class Main
             a.play(1.0f, true);
     }
 
-    public static void stoploop(final Audio a)
+    public static void stop(final Audio a)
     {
         if(a != null)
             a.stop();
@@ -1918,10 +1831,24 @@ public final class Main
     static final int backgroundAudioCount = 5;
     static final Audio[] backgroundAudio = new Audio[backgroundAudioCount];
     static int backgroundAudioIndex = -1;
+    static boolean useBackgroundMusic = true;
     static
     {
         for(int i = 0; i < backgroundAudioCount; i++)
             backgroundAudio[i] = loadAudio(i == 0 ? "background.ogg"
                     : "background" + (i + 1) + ".ogg", true);
+    }
+
+    public static void playBackgroundMusic(final int index)
+    {
+        if(backgroundAudioIndex != -1)
+            stop(backgroundAudio[backgroundAudioIndex]);
+        if(!useBackgroundMusic)
+            return;
+        if(index >= 0 && index < backgroundAudioCount)
+        {
+            play(backgroundAudio[index]);
+            backgroundAudioIndex = index;
+        }
     }
 }

@@ -21,6 +21,8 @@ import java.util.Random;
 
 import org.voxels.*;
 import org.voxels.generate.Plant.PlantType;
+import org.voxels.mobs.MobType;
+import org.voxels.mobs.Mobs;
 
 /** Land generator
  * 
@@ -422,12 +424,14 @@ public final class Rand
         BiomeTemperature,
         BiomeRainfall,
         BiomeHeight,
-        Vect/*
-             * Vect
-             * must
-             * be
-             * last
-             */
+        Vect,
+        Vect2,
+        Vect3,
+        Vect4,
+        Vect5,
+        Vect6,
+        Slime,
+        Mob
     }
 
     private static class Node
@@ -739,6 +743,15 @@ public final class Rand
             {
                 return true;
             }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                if(t.getName().equals("Squid"))
+                    return 0.001f;
+                // TODO Auto-generated method stub
+                return 0;
+            }
         },
         ExtremeHills
         {
@@ -836,6 +849,15 @@ public final class Rand
             public boolean isWaterBiome()
             {
                 return false;
+            }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                if(t.getName().equals("Sheep"))
+                    return 0.001f;
+                // TODO Auto-generated method stub
+                return 0;
             }
         },
         Taiga
@@ -945,6 +967,15 @@ public final class Rand
             {
                 return false;
             }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                if(t.getName().equals("Sheep"))
+                    return 0.001f;
+                // TODO Auto-generated method stub
+                return 0;
+            }
         },
         Tundra
         {
@@ -1037,6 +1068,13 @@ public final class Rand
             public boolean isWaterBiome()
             {
                 return false;
+            }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                // TODO Auto-generated method stub
+                return 0;
             }
         },
         Forest
@@ -1135,6 +1173,15 @@ public final class Rand
             {
                 return false;
             }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                if(t.getName().equals("Sheep"))
+                    return 0.002f;
+                // TODO Auto-generated method stub
+                return 0;
+            }
         },
         Desert
         {
@@ -1230,6 +1277,13 @@ public final class Rand
             {
                 return false;
             }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                // TODO Auto-generated method stub
+                return 0;
+            }
         },
         Plains
         {
@@ -1324,6 +1378,15 @@ public final class Rand
             public boolean isWaterBiome()
             {
                 return false;
+            }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                if(t.getName().equals("Sheep"))
+                    return 0.001f;
+                // TODO Auto-generated method stub
+                return 0;
             }
         },
         Jungle
@@ -1422,6 +1485,13 @@ public final class Rand
             {
                 return false;
             }
+
+            @Override
+            public float getMobProb(final MobType t)
+            {
+                // TODO Auto-generated method stub
+                return 0;
+            }
         },
         ;
         public abstract float getRainfall();
@@ -1455,6 +1525,8 @@ public final class Rand
         public abstract float getHeightExponent();
 
         public abstract boolean isWaterBiome();
+
+        public abstract float getMobProb(MobType t);
     }
 
     private static final class BiomeFactorsChunk
@@ -1861,6 +1933,20 @@ public final class Rand
             for(int i = 0; i < factors.length; i++)
             {
                 retval += factors[i] * Biome.values[i].getRainfall();
+            }
+        }
+        return Math.max(Math.min(retval, 1.0f), 0.0f);
+    }
+
+    private float getBiomeMobProb(final int x, final int z, final MobType t)
+    {
+        float retval = 0.0f;
+        synchronized(getBiomeFactorsSynchronizeObject(x, z))
+        {
+            float[] factors = getBiomeFactors(x, z);
+            for(int i = 0; i < factors.length; i++)
+            {
+                retval += factors[i] * Biome.values[i].getMobProb(t);
             }
         }
         return Math.max(Math.min(retval, 1.0f), 0.0f);
@@ -2487,7 +2573,7 @@ public final class Rand
 
     private static final int caveMaxSize = 80;
 
-    void fillCaveChunk(final CaveChunk cc)
+    private void fillCaveChunk(final CaveChunk cc)
     {
         // final float caveProb = 2.0f;
         final float caveProb = 10.0f;
@@ -3331,7 +3417,29 @@ public final class Rand
                     else if(y == rockHeight)
                         block = getBiomeSurfaceBlock(x, z);
                     else if(y <= WaterHeight)
+                    {
+                        MobType squid = null;
+                        for(int i = 0; i < Mobs.getMobCount(); i++)
+                        {
+                            if(Mobs.getMob(i).getName().equals("Squid"))
+                            {
+                                squid = Mobs.getMob(i);
+                                break;
+                            }
+                        }
+                        if(squid != null)
+                        {
+                            if(getBiomeMobProb(x, z, squid)
+                                    + genRand(x, 1000 + y, z, RandClass.Mob) >= 1)
+                            {
+                                generatedChunk.addEntity(Entity.NewMob(x,
+                                                                       y,
+                                                                       z,
+                                                                       squid));
+                            }
+                        }
                         block = Block.NewStationaryWater();
+                    }
                     else
                     {
                         Block tb = getTreeBlockKind(x, y, z);
@@ -3346,14 +3454,33 @@ public final class Rand
                                 tb2.free();
                                 tb2 = null;
                             }
-                            if((tb2 != null || (y == rockHeight + 1 && !isInCave(x,
-                                                                                 y - 1,
-                                                                                 z)))
-                                    && getBiomeSnow(x, z) > 0.5f)
+                            if(tb2 != null
+                                    || (y == rockHeight + 1 && !isInCave(x,
+                                                                         y - 1,
+                                                                         z)))
                             {
-                                if(tb != null)
-                                    tb.free();
-                                tb = Block.NewSnow(1);
+                                if(getBiomeSnow(x, z) > 0.5f)
+                                {
+                                    if(tb != null)
+                                        tb.free();
+                                    tb = Block.NewSnow(1);
+                                }
+                                for(int mobIndex = 0; mobIndex < Mobs.getMobCount(); mobIndex++)
+                                {
+                                    if(getBiomeMobProb(x,
+                                                       z,
+                                                       Mobs.getMob(mobIndex))
+                                            + genRand(x,
+                                                      mobIndex,
+                                                      z,
+                                                      RandClass.Mob) >= 1)
+                                    {
+                                        generatedChunk.addEntity(Entity.NewMob(x,
+                                                                               y,
+                                                                               z,
+                                                                               Mobs.getMob(mobIndex)));
+                                    }
+                                }
                             }
                             if(tb2 != null)
                                 tb2.free();
@@ -3365,5 +3492,10 @@ public final class Rand
             }
         }
         return generatedChunk;
+    }
+
+    public boolean canSlimeGenerate(final int x, final int z)
+    {
+        return genRand(x & ~0xF, 0, z & ~0xF, RandClass.Slime) < 0.1f;
     }
 }

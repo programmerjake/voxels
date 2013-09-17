@@ -21,6 +21,7 @@ import java.util.*;
 
 import org.voxels.generate.Tree;
 import org.voxels.generate.Tree.TreeType;
+import org.voxels.mobs.Mobs;
 
 /** @author jacob */
 public enum BlockType
@@ -4416,7 +4417,7 @@ public enum BlockType
         }
     },
     /** farmland */
-    BTFarmland(92, false, BlockDrawType.BDTCustom,
+    BTFarmland(92, true, BlockDrawType.BDTCustom,
             new TextureAtlas.TextureHandle[]
             {
                 TextureAtlas.addImage(new Image("farmland.png")),
@@ -6232,8 +6233,60 @@ public enum BlockType
             return 0;
         }
     },
+    /** mob spawner */
+    BTMobSpawner(128, false, BlockDrawType.BDTCustom,
+            new TextureAtlas.TextureHandle[]
+            {
+                TextureAtlas.addImage(new Image("mobspawner.png"))
+            })
+    {
+        @Override
+        public Block make(final int orientation)
+        {
+            return Block.NewMobSpawner(Mobs.getMobFromName("Sheep"));
+        }
+
+        @Override
+        public int getLight()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean isDoubleSided()
+        {
+            return true;
+        }
+
+        @Override
+        public boolean isParticleGenerate()
+        {
+            return false;
+        }
+
+        @Override
+        public BlockType getSmeltResult()
+        {
+            return BTEmpty;
+        }
+
+        @Override
+        public int getBurnTime()
+        {
+            return 0;
+        }
+
+        @Override
+        protected void addToCreativeModeBlockList(final List<Block> list)
+        {
+            for(int i = 0; i < Mobs.getMobCount(); i++)
+            {
+                list.add(Block.NewMobSpawner(Mobs.getMob(i)));
+            }
+        }
+    },
     /** last block value, used to get <code>BlockType.Count</code> */
-    BTLast(128, false, BlockDrawType.BDTNone, null)
+    BTLast(129, false, BlockDrawType.BDTNone, null)
     {
         @Override
         public Block make(final int orientation)
@@ -6700,15 +6753,8 @@ public enum BlockType
         case BTStickyPiston:
         case BTPistonHead:
         case BTStickyPistonHead:
-            return 0;
         case BTSlime:
-            if(y < 30 - World.Depth)
-                return 5;
-            return 0;
         case BTGunpowder:
-            if(y > 20 - World.Depth)
-                return 5;
-            return 0;
         case BTTNT:
             return 0;
         case BTBlazeRod:
@@ -6751,9 +6797,7 @@ public enum BlockType
         case BTGoldHoe:
         case BTDiamondHoe:
         case BTCocoa:
-            return 0;
         case BTInkSac:
-            return 2;
         case BTRoseRed:
         case BTCactusGreen:
         case BTPurpleDye:
@@ -6767,11 +6811,8 @@ public enum BlockType
         case BTMagentaDye:
         case BTOrangeDye:
         case BTBoneMeal:
-            return 0;
         case BTBone:
-            return 1;
         case BTWool:
-            return 0;
         case BTBed:
         case BTBedFoot:
         case BTFire:
@@ -6786,6 +6827,7 @@ public enum BlockType
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return 0;
         }
         return 0;
@@ -6953,6 +6995,7 @@ public enum BlockType
         case BTDetectorRail:
         case BTActivatorRail:
         case BTPoweredRail:
+        case BTMobSpawner:
             return false;
         }
         return false;
@@ -7122,6 +7165,7 @@ public enum BlockType
         case BTCactus:
         case BTFarmland:
         case BTWool:
+        case BTMobSpawner:
             return true;
         }
         return false;
@@ -7291,6 +7335,7 @@ public enum BlockType
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTMobSpawner:
             return true;
         }
         return false;
@@ -7441,6 +7486,7 @@ public enum BlockType
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTMobSpawner:
             return false;
         }
         return false;
@@ -7576,6 +7622,7 @@ public enum BlockType
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return true;
         case BTLeaves:
         case BTBedrock:
@@ -7766,6 +7813,7 @@ public enum BlockType
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return true;
         }
         return false;
@@ -7919,6 +7967,7 @@ public enum BlockType
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return false;
         }
         return false;
@@ -8097,6 +8146,7 @@ public enum BlockType
         case BTDetectorRail:
         case BTActivatorRail:
         case BTPoweredRail:
+        case BTMobSpawner:
             return Replaceability.CanNotGrow;
         case BTCactus:
             if(replacingBlock == BTWood)
@@ -8412,6 +8462,8 @@ public enum BlockType
         case BTActivatorRail:
         case BTPoweredRail:
             return 3.5f;
+        case BTMobSpawner:
+            return 25f;
         }
         return 1e10f;
     }
@@ -8675,6 +8727,7 @@ public enum BlockType
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return Flammability.NotFlammable;
         case BTLeaves:
         case BTPlank:

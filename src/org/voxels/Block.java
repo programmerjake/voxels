@@ -28,6 +28,8 @@ import org.voxels.BlockType.ToolType;
 import org.voxels.TextureAtlas.TextureHandle;
 import org.voxels.generate.Tree;
 import org.voxels.generate.Tree.TreeType;
+import org.voxels.mobs.MobType;
+import org.voxels.mobs.Mobs;
 
 /** block<BR/>
  * not thread safe
@@ -55,6 +57,7 @@ public class Block implements GameObject, Allocatable
         public int orientation;
         public double runTime;
         public BlockType.DyeColor dyeColor;
+        public String str;
 
         public void init()
         {
@@ -69,6 +72,7 @@ public class Block implements GameObject, Allocatable
             this.orientation = -1;
             this.runTime = -1.0;
             this.dyeColor = DyeColor.None;
+            this.str = "";
         }
 
         public Data()
@@ -99,6 +103,7 @@ public class Block implements GameObject, Allocatable
             this.runTime = rt.runTime;
             this.step = rt.step;
             this.dyeColor = rt.dyeColor;
+            this.str = rt.str;
         }
 
         private static final int[] arraySizes = new int[]
@@ -304,7 +309,16 @@ public class Block implements GameObject, Allocatable
         this.sunlight = rt.sunlight;
         this.scatteredSunlight = rt.scatteredSunlight;
         this.light = rt.light;
-        this.lighting = null;
+        this.curDisplayListValidTag = rt.curDisplayListValidTag;
+        this.curSunlightFactor = rt.curSunlightFactor;
+        if(rt.lighting == null)
+            this.lighting = null;
+        else
+        {
+            this.lighting = allocateLightingArray();
+            for(int i = 0; i < this.lighting.length; i++)
+                this.lighting[i] = rt.lighting[i];
+        }
         this.isFree = false;
     }
 
@@ -1420,9 +1434,18 @@ public class Block implements GameObject, Allocatable
         return allocate(BlockType.BTMineCartWithTNT);
     }
 
+    public static Block NewMobSpawner(final MobType mobType)
+    {
+        Block retval = allocate(BlockType.BTMobSpawner);
+        retval.data.str = mobType.getName();
+        retval.data.step = (int)Math.floor(World.fRand(100, 399));
+        return retval;
+    }
+
     private static Vector drawFace_t1 = Vector.allocate();
     private static Vector drawFace_t2 = Vector.allocate();
 
+    @SuppressWarnings("unused")
     private static RenderingStream drawFace(final RenderingStream rs,
                                             final TextureHandle texture,
                                             final Vector p1,
@@ -1460,7 +1483,7 @@ public class Block implements GameObject, Allocatable
             c3 = c1;
             c4 = c1;
         }
-        else if(isEntity)
+        else if(isEntity || USE_LIGHTING_OFFSET)
         {
             c1 = 0.8f + 0.2f * normal.dot(Vector.Y);
             if(c1 > 1)
@@ -1470,10 +1493,10 @@ public class Block implements GameObject, Allocatable
             c2 = c1;
             c3 = c1;
             c4 = c1;
-            c1 *= world.getLighting(p1);
-            c2 *= world.getLighting(p2);
-            c3 *= world.getLighting(p3);
-            c4 *= world.getLighting(p4);
+            c1 *= getWorldLighting(p1, normal, isEntity, bx, by, bz);
+            c2 *= getWorldLighting(p2, normal, isEntity, bx, by, bz);
+            c3 *= getWorldLighting(p3, normal, isEntity, bx, by, bz);
+            c4 *= getWorldLighting(p4, normal, isEntity, bx, by, bz);
         }
         else
         {
@@ -1526,6 +1549,27 @@ public class Block implements GameObject, Allocatable
     }
 
     private static final boolean USE_SHADING = true;
+    private static final boolean USE_LIGHTING_OFFSET = true;
+
+    private static float getWorldLighting(final Vector p,
+                                          final Vector normal,
+                                          final boolean isEntity,
+                                          final int bx,
+                                          final int by,
+                                          final int bz)
+    {
+        if(!USE_LIGHTING_OFFSET || isEntity)
+            return world.getLighting(p);
+        Vector offsetedP = Vector.allocate(normal)
+                                 .mulAndSet(0.04f)
+                                 .addAndSet(p)
+                                 .subAndSet(bx + 0.5f, by + 0.5f, bz + 0.5f)
+                                 .mulAndSet(0.98f)
+                                 .addAndSet(bx + 0.5f, by + 0.5f, bz + 0.5f);
+        float retval = world.getLighting(offsetedP);
+        offsetedP.free();
+        return retval;
+    }
 
     @SuppressWarnings("unused")
     private static RenderingStream
@@ -1562,7 +1606,7 @@ public class Block implements GameObject, Allocatable
             c2 = c1;
             c3 = c1;
         }
-        else if(isEntity)
+        else if(isEntity || USE_LIGHTING_OFFSET)
         {
             c1 = 0.8f + 0.2f * normal.dot(Vector.Y);
             if(c1 > 1)
@@ -1571,9 +1615,9 @@ public class Block implements GameObject, Allocatable
                 c1 = 1;
             c2 = c1;
             c3 = c1;
-            c1 *= world.getLighting(p1);
-            c2 *= world.getLighting(p2);
-            c3 *= world.getLighting(p3);
+            c1 *= getWorldLighting(p1, normal, isEntity, bx, by, bz);
+            c2 *= getWorldLighting(p2, normal, isEntity, bx, by, bz);
+            c3 *= getWorldLighting(p3, normal, isEntity, bx, by, bz);
         }
         else
         {
@@ -1615,6 +1659,7 @@ public class Block implements GameObject, Allocatable
         return rs;
     }
 
+    @SuppressWarnings("unused")
     private static RenderingStream drawFace(final RenderingStream rs,
                                             final TextureHandle texture,
                                             final Vector p1,
@@ -1655,7 +1700,7 @@ public class Block implements GameObject, Allocatable
             c3 = c1;
             c4 = c1;
         }
-        else if(isEntity)
+        else if(isEntity || USE_LIGHTING_OFFSET)
         {
             c1 = 0.8f + 0.2f * normal.dot(Vector.Y);
             if(c1 > 1)
@@ -1665,10 +1710,10 @@ public class Block implements GameObject, Allocatable
             c2 = c1;
             c3 = c1;
             c4 = c1;
-            c1 *= world.getLighting(p1);
-            c2 *= world.getLighting(p2);
-            c3 *= world.getLighting(p3);
-            c4 *= world.getLighting(p4);
+            c1 *= getWorldLighting(p1, normal, isEntity, bx, by, bz);
+            c2 *= getWorldLighting(p2, normal, isEntity, bx, by, bz);
+            c3 *= getWorldLighting(p3, normal, isEntity, bx, by, bz);
+            c4 *= getWorldLighting(p4, normal, isEntity, bx, by, bz);
         }
         else
         {
@@ -1723,6 +1768,7 @@ public class Block implements GameObject, Allocatable
         return rs;
     }
 
+    @SuppressWarnings("unused")
     private static RenderingStream
         drawFace(final RenderingStream rs,
                  final TextureAtlas.TextureHandle texture,
@@ -1760,7 +1806,7 @@ public class Block implements GameObject, Allocatable
             c2 = c1;
             c3 = c1;
         }
-        else if(isEntity)
+        else if(isEntity || USE_LIGHTING_OFFSET)
         {
             c1 = 0.8f + 0.2f * normal.dot(Vector.Y);
             if(c1 > 1)
@@ -1769,9 +1815,9 @@ public class Block implements GameObject, Allocatable
                 c1 = 1;
             c2 = c1;
             c3 = c1;
-            c1 *= world.getLighting(p1);
-            c2 *= world.getLighting(p2);
-            c3 *= world.getLighting(p3);
+            c1 *= getWorldLighting(p1, normal, isEntity, bx, by, bz);
+            c2 *= getWorldLighting(p2, normal, isEntity, bx, by, bz);
+            c3 *= getWorldLighting(p3, normal, isEntity, bx, by, bz);
         }
         else
         {
@@ -4089,7 +4135,6 @@ public class Block implements GameObject, Allocatable
                     g = world.getBiomeFoliageColorG(bx, bz);
                     b = world.getBiomeFoliageColorB(bx, bz);
                 }
-                // TODO finish
                 if(Main.FancyGraphics)
                 {
                     int drawMask = 0;
@@ -5484,6 +5529,91 @@ public class Block implements GameObject, Allocatable
                 }
                 break;
             }
+            case BTMobSpawner:
+            {
+                if(isAsItem)
+                {
+                    drawBlockAsItem(rs, blockToWorld, this.type.textures[0]);
+                    Matrix tform = Matrix.setToTranslate(draw_t1, 0, 0, 0)
+                                         .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                         (float)Text.sizeW("W")
+                                                                                 / Text.sizeW(this.data.str)))
+                                         .concatAndSet(blockToWorld);
+                    Text.draw(rs, tform, Color.RGB(0, 255, 0), this.data.str);
+                    break;
+                }
+                int drawMask;
+                if(isAsItem || isEntity)
+                {
+                    drawMask = 0x3F;
+                }
+                else
+                {
+                    Block nx = world.getBlock(bx - 1, by, bz);
+                    Block px = world.getBlock(bx + 1, by, bz);
+                    Block ny = world.getBlock(bx, by - 1, bz);
+                    Block py = world.getBlock(bx, by + 1, bz);
+                    Block nz = world.getBlock(bx, by, bz - 1);
+                    Block pz = world.getBlock(bx, by, bz + 1);
+                    drawMask = 0;
+                    if(nx != null && !nx.isOpaque())
+                        drawMask |= DMaskNX;
+                    if(px != null && !px.isOpaque())
+                        drawMask |= DMaskPX;
+                    if(ny != null && !ny.isOpaque())
+                        drawMask |= DMaskNY;
+                    if(py != null && !py.isOpaque())
+                        drawMask |= DMaskPY;
+                    if(nz != null && !nz.isOpaque())
+                        drawMask |= DMaskNZ;
+                    if(pz != null && !pz.isOpaque())
+                        drawMask |= DMaskPZ;
+                }
+                if(drawMask != 0)
+                {
+                    internalDraw(rs,
+                                 drawMask,
+                                 Matrix.IDENTITY,
+                                 blockToWorld,
+                                 bx,
+                                 by,
+                                 bz,
+                                 this.type.textures[0],
+                                 false,
+                                 isEntity,
+                                 isAsItem);
+                    rs.pushMatrixStack();
+                    rs.concatMatrix(blockToWorld);
+                    rs.concatMatrix(Matrix.setToTranslate(draw_t1,
+                                                          0.5f,
+                                                          0.5f,
+                                                          0.5f));
+                    rs.concatMatrix(Matrix.setToRotateY(draw_t1,
+                                                        world.getCurTime()
+                                                                * Math.PI * 2));
+                    rs.concatMatrix(Matrix.setToRotateZ(draw_t1, Math.PI / 4));
+                    rs.concatMatrix(Matrix.setToRotateX(draw_t1, Math.PI / 6));
+                    rs.concatMatrix(Matrix.setToTranslate(draw_t1, -0.5f, 0, 0));
+                    Matrix tform = Matrix.setToTranslate(draw_t1, 0, -0.5f, 0)
+                                         .concatAndSet(Matrix.setToScale(draw_t2,
+                                                                         (float)Text.sizeW("W")
+                                                                                 / Text.sizeW(this.data.str)));
+                    Text.draw(rs, tform, Color.RGB(0, 255, 0), this.data.str);
+                    tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                             -0.5f,
+                                                             0,
+                                                             0));
+                    tform.concatAndSet(Matrix.setToRotateY(draw_t2, Math.PI));
+                    tform.concatAndSet(Matrix.setToTranslate(draw_t2,
+                                                             0.5f,
+                                                             0,
+                                                             0));
+                    Text.draw(rs, tform, Color.RGB(0, 255, 0), this.data.str);
+                    rs.popMatrixStack();
+                    // TODO finish
+                }
+                break;
+            }
             default:
                 break;
             }
@@ -5853,6 +5983,12 @@ public class Block implements GameObject, Allocatable
         {
             newSunlight = 0;
         }
+        else if(this.type == BlockType.BTMobSpawner)
+        {
+            newSunlight = 0;
+            newScatteredSunlight = 0;
+            newLight = 0;
+        }
         else if(this.type == BlockType.BTPiston
                 || this.type == BlockType.BTStickyPiston)
         {
@@ -5883,8 +6019,7 @@ public class Block implements GameObject, Allocatable
         this.light = newLight;
         if(changed)
         {
-            freeLightingArray(this.lighting);
-            this.lighting = null;
+            this.curDisplayListValidTag = -1;
         }
         return changed;
     }
@@ -5982,6 +6117,11 @@ public class Block implements GameObject, Allocatable
         return this.lighting;
     }
 
+    public int[] getLightingArrayAnyway()
+    {
+        return this.lighting;
+    }
+
     /** sets the lighting array <BR/>
      * not thread safe
      * 
@@ -6000,6 +6140,12 @@ public class Block implements GameObject, Allocatable
     {
         if(lighting != null && lighting.length != 8)
             throw new IllegalArgumentException("new lighting array is wrong length");
+        if(lighting == null)
+        {
+            this.curSunlightFactor = -1;
+            this.curDisplayListValidTag = -1;
+            return;
+        }
         freeLightingArray(this.lighting);
         this.lighting = lighting;
         this.curSunlightFactor = sunlightFactor;
@@ -6359,6 +6505,12 @@ public class Block implements GameObject, Allocatable
         case BTLava:
         {
             // TODO finish adding fire particles
+            return;
+        }
+        case BTMobSpawner:
+        {
+            // TODO finish adding particles
+            return;
         }
         }
     }
@@ -7046,6 +7198,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return null;
         }
         return null;
@@ -7171,6 +7324,31 @@ public class Block implements GameObject, Allocatable
             }
             world.invalidate(bx, by, bz);
         }
+    }
+
+    private int mobSpawnerRun(final int bx, final int by, final int bz)
+    {
+        MobType mob = Mobs.getMobFromName(this.data.str);
+        int genCount = 0;
+        for(int i = 0; i < 4; i++)
+        {
+            int dx = (int)Math.floor(World.fRand(-8, 8 + 1));
+            int dy = (int)Math.floor(World.fRand(-1, 1 + 1));
+            int dz = (int)Math.floor(World.fRand(-8, 8 + 1));
+            int x = bx + dx;
+            int y = by + dy;
+            int z = bz + dz;
+            if(mob.canGenerateMob(x, y, z, true))
+            {
+                mob.generateMobDrops(x, y, z);
+                genCount++;
+                if(genCount >= 4)
+                    break;
+            }
+        }
+        if(genCount == 0)
+            return 0;
+        return (int)Math.floor(World.fRand(200, 399));
     }
 
     /** called to evaluate random moves
@@ -7544,6 +7722,10 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
             return null;
+        case BTMobSpawner:
+        {
+            return null;
+        }
         }
         return null;
     }
@@ -8175,6 +8357,17 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
             return null;
+        case BTMobSpawner:
+        {
+            int step = this.data.step;
+            if(step-- <= 0)
+            {
+                step = mobSpawnerRun(bx, by, bz);
+            }
+            Block retval = dup();
+            retval.data.step = step;
+            return retval;
+        }
         }
         return null;
     }
@@ -8667,6 +8860,7 @@ public class Block implements GameObject, Allocatable
         case BTDetectorRail:
         case BTActivatorRail:
         case BTPoweredRail:
+        case BTMobSpawner:
             world.insertEntity(Entity.NewBlock(onDispenseAndFree_t1.set(dir)
                                                                    .mulAndSet(-(0.5f - 0.25f + 0.05f))
                                                                    .addAndSet(destX + 0.5f,
@@ -8998,6 +9192,7 @@ public class Block implements GameObject, Allocatable
         case BTLever:
             return PushType.DropAsEntity;
         case BTObsidian:
+        case BTMobSpawner:
             return PushType.NonPushable;
         case BTPiston:
         case BTStickyPiston:
@@ -9415,6 +9610,8 @@ public class Block implements GameObject, Allocatable
                                                  0.5f + by,
                                                  0.5f + bz),
                                       minecartMakeContainedBlock());
+        case BTMobSpawner:
+            return null;
         }
         return retval;
     }
@@ -9795,6 +9992,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return 1;
         case BTBed:
         case BTBedFoot:
@@ -10198,6 +10396,7 @@ public class Block implements GameObject, Allocatable
         }
         case BTFlint:
         case BTFlintAndSteel:
+        case BTMobSpawner:
             return 0;
         case BTRail:
         case BTDetectorRail:
@@ -10505,6 +10704,7 @@ public class Block implements GameObject, Allocatable
         case BTBedFoot:
         case BTFire:
         case BTMineCart:
+        case BTMobSpawner:
             draw(rs, blockToWorld, true, false);
             return rs;
         case BTStick:
@@ -10760,6 +10960,38 @@ public class Block implements GameObject, Allocatable
         return rs;
     }
 
+    private RenderingStream drawBlockAsItem(final RenderingStream rs,
+                                            final Matrix blockToWorld,
+                                            final TextureHandle texture)
+    {
+        Matrix tform = Matrix.setToTranslate(drawBlockAsItem_t1,
+                                             -0.5f,
+                                             -0.5f,
+                                             -0.5f)
+                             .concatAndSet(Matrix.setToRotateY(drawBlockAsItem_t2,
+                                                               -Math.PI / 4))
+                             .concatAndSet(Matrix.setToRotateX(drawBlockAsItem_t2,
+                                                               Math.PI / 6))
+                             .concatAndSet(Matrix.setToScale(drawBlockAsItem_t2,
+                                                             0.8f / SQRT_3,
+                                                             0.8f / SQRT_3,
+                                                             0.1f / SQRT_3))
+                             .concatAndSet(Matrix.setToTranslate(drawBlockAsItem_t2,
+                                                                 0.5f,
+                                                                 0.5f,
+                                                                 0.1f))
+                             .concatAndSet(blockToWorld);
+        drawImgAsBlock(rs,
+                       tform,
+                       texture,
+                       this.type.isDoubleSided(),
+                       isGlowing(),
+                       1,
+                       1,
+                       1);
+        return rs;
+    }
+
     private static Matrix drawAsItem_t1 = Matrix.allocate();
     private static Matrix drawAsItem_t2 = Matrix.allocate();
     private static Block drawAsItem_lever = NewLever(false, 1);
@@ -10866,6 +11098,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
         {
             draw(rs, blockToWorld, false, true);
             return rs;
@@ -12498,6 +12731,7 @@ public class Block implements GameObject, Allocatable
         case BTWool:
         case BTBed:
         case BTBedFoot:
+        case BTMobSpawner:
             return solidAdjustPlayerPosition(position, getHeight(), distLimit);
         case BTBlazeRod:
         case BTBlazePowder:
@@ -12725,6 +12959,7 @@ public class Block implements GameObject, Allocatable
         case BTDetectorRail:
         case BTActivatorRail:
         case BTPoweredRail:
+        case BTMobSpawner:
             return true;
         }
         return false;
@@ -13369,6 +13604,7 @@ public class Block implements GameObject, Allocatable
             return;
         }
         case BTFire:
+        case BTMobSpawner:
             return;
         case BTGravel:
         {
@@ -13612,6 +13848,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return REDSTONE_POWER_NONE;
         }
         return REDSTONE_POWER_NONE;
@@ -13811,6 +14048,7 @@ public class Block implements GameObject, Allocatable
         case BTDropper:
         case BTWool:
         case BTPlank:
+        case BTMobSpawner:
             return true;
         }
         return false;
@@ -14165,6 +14403,7 @@ public class Block implements GameObject, Allocatable
         case BTFarmland:
         case BTWool:
         case BTPlank:
+        case BTMobSpawner:
             return true;
         }
         return true;
@@ -14499,6 +14738,12 @@ public class Block implements GameObject, Allocatable
         case BTWool:
         {
             this.data.dyeColor.write(o);
+            return;
+        }
+        case BTMobSpawner:
+        {
+            Mobs.write(Mobs.getMobFromName(this.data.str), o);
+            o.writeShort(this.data.step);
             return;
         }
         }
@@ -14937,6 +15182,12 @@ public class Block implements GameObject, Allocatable
                 throw new IOException("minecart orientation is out of range");
             return;
         }
+        case BTMobSpawner:
+        {
+            this.data.str = Mobs.read(i).getName();
+            this.data.step = i.readShort();
+            return;
+        }
         }
     }
 
@@ -15215,6 +15466,9 @@ public class Block implements GameObject, Allocatable
             return true;
         case BTWool:
             return this.data.dyeColor == rt.data.dyeColor;
+        case BTMobSpawner:
+            return this.data.str.equals(rt.data.str)
+                    && this.data.step == rt.data.step;
         }
         throw new UnsupportedOperationException();
     }
@@ -15426,6 +15680,9 @@ public class Block implements GameObject, Allocatable
             return hash;
         case BTWool:
             return hash + 129347 * this.data.dyeColor.hashCode();
+        case BTMobSpawner:
+            return hash + 3728973 * this.data.str.hashCode() + 123479
+                    * this.data.step;
         }
         throw new UnsupportedOperationException();
     }
@@ -15484,6 +15741,8 @@ public class Block implements GameObject, Allocatable
         case BTBed:
         case BTBedFoot:
             return NewBedFoot(forwardorientation);
+        case BTMobSpawner:
+            return NewMobSpawner(Mobs.getMobFromName(this.data.str));
         default:
             return this.type.make(orientation, vieworientation);
         }
@@ -15544,6 +15803,35 @@ public class Block implements GameObject, Allocatable
         if(drawMask != 0)
             return true;
         return false;
+    }
+
+    public boolean skipDrawFluid(final Block nx,
+                                 final Block px,
+                                 final Block ny,
+                                 final Block py,
+                                 final Block nz,
+                                 final Block pz)
+    {
+        if(Math.abs(this.data.intdata) < 7)
+            return false;
+        if(nx != null && !nx.isOpaque()
+                && (nx.type != this.type || Math.abs(nx.data.intdata) < 7))
+            return false;
+        if(ny != null && !ny.isOpaque()
+                && (ny.type != this.type || Math.abs(ny.data.intdata) < 7))
+            return false;
+        if(nz != null && !nz.isOpaque()
+                && (nz.type != this.type || Math.abs(nz.data.intdata) < 7))
+            return false;
+        if(px != null && !px.isOpaque()
+                && (px.type != this.type || Math.abs(px.data.intdata) < 7))
+            return false;
+        if(py != null && !py.isOpaque() && py.type != this.type)
+            return false;
+        if(pz != null && !pz.isOpaque()
+                && (pz.type != this.type || Math.abs(pz.data.intdata) < 7))
+            return false;
+        return true;
     }
 
     /** @param bx
@@ -16005,6 +16293,7 @@ public class Block implements GameObject, Allocatable
         case BTStickyPistonHead:
             return retval.init(0.5f, true, true);
         case BTRedstoneBlock:
+        case BTMobSpawner:
             if(toolType == ToolType.Pickaxe)
             {
                 switch(toolLevel)
@@ -16548,6 +16837,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return -1;
         }
         return -1;
@@ -16783,6 +17073,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return false;
         case BTChest:
         case BTDispenser:
@@ -16935,6 +17226,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return false;
         case BTChest:
         {
@@ -17585,6 +17877,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return null;
         case BTChest:
             return ChestItemIterator.allocate(this);
@@ -17767,6 +18060,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return -1;
         case BTChest:
         {
@@ -17970,6 +18264,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return null;
         case BTChest:
         {
@@ -18224,6 +18519,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             return null;
         case BTChest:
         {
@@ -18572,6 +18868,7 @@ public class Block implements GameObject, Allocatable
         case BTMineCartWithChest:
         case BTMineCartWithHopper:
         case BTMineCartWithTNT:
+        case BTMobSpawner:
             break;
         }
         return false;
@@ -19341,6 +19638,8 @@ public class Block implements GameObject, Allocatable
             railPlace(bx, by, bz);
             break;
         }
+        case BTMobSpawner:
+            break;
         }
     }
 

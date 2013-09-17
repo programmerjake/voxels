@@ -24,8 +24,7 @@ import java.util.*;
 /** @author jacob */
 public final class Text
 {
-    private static Image font = new Image("font.png");
-    private static TextureAtlas.TextureHandle fontTexture = TextureAtlas.addImage(font);
+    private static final TextureAtlas.TextureHandle fontTexture = TextureAtlas.addImage(new Image("font.png"));
     private static final int fontW = 8, fontH = 8;
 
     private static boolean getCharPixel(final int x_in,
@@ -39,7 +38,7 @@ public final class Text
             c &= 0xFF;
             x += fontW * (c % 16);
             y += fontH * (c / 16);
-            Color clr = font.getPixel(x, y);
+            Color clr = fontTexture.getImage().getPixel(x, y);
             if(GetRValue(clr) >= 128 && GetAValue(clr) < 64)
                 return true;
         }
@@ -304,13 +303,22 @@ public final class Text
      *            the text color
      * @param str
      *            the text to draw */
+    @SuppressWarnings("unused")
     public static void draw(final Matrix tform,
                             final Color clr,
                             final String str)
     {
+        if(true)
+        {
+            RenderingStream.free(draw(RenderingStream.allocate(),
+                                      tform,
+                                      clr,
+                                      str).render());
+            return;
+        }
         if(str.length() < 1)
             return;
-        font.selectTexture();
+        fontTexture.getImage().selectTexture();
         glColor(clr);
         Main.opengl.glBegin(Main.opengl.GL_TRIANGLES());
         final float du = 1.0f / 16.0f, dv = 1.0f / 16.0f;
@@ -371,8 +379,10 @@ public final class Text
                                        final Color clr,
                                        final String str)
     {
-        if(str.length() < 1)
+        if(str.length() <= 0)
             return rs;
+        final Color c = clr.dup();
+        c.a = (byte)0xFF;
         final float du = 1.0f / 16.0f, dv = 1.0f / 16.0f;
         float x = 0.0f, y = 0.0f;
         for(int i = 0; i < str.length(); i++)
@@ -388,20 +398,14 @@ public final class Text
             u = ch % 16 / 16.0f;
             v = 1.0f - (ch / 16 + 1) / 16.0f;
             rs.beginTriangle(fontTexture);
-            rs.vertex(tform.apply(draw_t1, 0 + x, 0 + y, 0), u, v, clr);
-            rs.vertex(tform.apply(draw_t1, 1 + x, 0 + y, 0), u + du, v, clr);
-            rs.vertex(tform.apply(draw_t1, 1 + x, 1 + y, 0),
-                      u + du,
-                      v + dv,
-                      clr);
+            rs.vertex(tform.apply(draw_t1, 0 + x, 0 + y, 0), u, v, c);
+            rs.vertex(tform.apply(draw_t1, 1 + x, 0 + y, 0), u + du, v, c);
+            rs.vertex(tform.apply(draw_t1, 1 + x, 1 + y, 0), u + du, v + dv, c);
             rs.endTriangle();
             rs.beginTriangle(fontTexture);
-            rs.vertex(tform.apply(draw_t1, 1 + x, 1 + y, 0),
-                      u + du,
-                      v + dv,
-                      clr);
-            rs.vertex(tform.apply(draw_t1, 0 + x, 1 + y, 0), u, v + dv, clr);
-            rs.vertex(tform.apply(draw_t1, 0 + x, 0 + y, 0), u, v, clr);
+            rs.vertex(tform.apply(draw_t1, 1 + x, 1 + y, 0), u + du, v + dv, c);
+            rs.vertex(tform.apply(draw_t1, 0 + x, 1 + y, 0), u, v + dv, c);
+            rs.vertex(tform.apply(draw_t1, 0 + x, 0 + y, 0), u, v, c);
             rs.endTriangle();
             x += 1.0f;
         }

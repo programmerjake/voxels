@@ -16,7 +16,7 @@
  */
 package org.voxels;
 
-enum BlockDrawType
+public enum BlockDrawType
 {
     BDTNone,
     BDTSolid,

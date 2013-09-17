@@ -43,6 +43,8 @@ public enum EntityType
     ApplyBoneMealOrPutBackInContainer,
     /** mine cart */
     MineCart,
+    /** mob */
+    Mob,
     /** used to get <code>EntityType.count</code> */
     Last;
     /** the number of valid entity types */

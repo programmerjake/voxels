@@ -186,15 +186,28 @@ public class TextureAtlas
         }
     }
 
+    public static class InvalidImageException extends RuntimeException
+    {
+        private static final long serialVersionUID = 3437288951152771039L;
+
+        public InvalidImageException()
+        {
+            super("invalid image");
+        }
+    }
+
     /** add an image to the global texture atlas
      * 
      * @param image
      *            the image to add
-     * @return the texture handle or null */
-    public static TextureHandle addImage(final Image image)
+     * @return the texture handle
+     * @throws InvalidImageException
+     *             the invalid image exception */
+    public static TextureHandle
+        addImage(final Image image) throws InvalidImageException
     {
         if(image == null || !image.isValid())
-            return null;
+            throw new InvalidImageException();
         Image img = Image.unmodifiable(image);
         synchronized(syncObject)
         {

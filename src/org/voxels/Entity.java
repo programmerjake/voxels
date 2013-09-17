@@ -24,6 +24,8 @@ import java.io.*;
 
 import org.voxels.TextureAtlas.TextureHandle;
 import org.voxels.World.BlockHitDescriptor;
+import org.voxels.mobs.MobType;
+import org.voxels.mobs.Mobs;
 
 /** @author jacob */
 public class Entity implements GameObject
@@ -145,6 +147,7 @@ public class Entity implements GameObject
         private static Data freePoolHead = null;
         public String ridingPlayerName = null;
         public Vector cornerVelocity = null;
+        public MobType mobType = null;
         public boolean wasOverOnActivatorRail = false;
 
         public static Data allocate()
@@ -265,6 +268,9 @@ public class Entity implements GameObject
             retval.data.cornerVelocity = Vector.allocate(rt.data.cornerVelocity);
             retval.data.wasOverOnActivatorRail = rt.data.wasOverOnActivatorRail;
             retval.data.frame = rt.data.frame;
+            break;
+        case Mob:
+            retval.data.mobType = rt.data.mobType;
             break;
         }
         return retval;
@@ -565,6 +571,8 @@ public class Entity implements GameObject
             b.free();
             return rs;
         }
+        case Mob:
+            return rs;
         }
         return rs;
     }
@@ -1674,6 +1682,16 @@ public class Entity implements GameObject
             }
             return;
         }
+        case Mob:
+        {
+            int x = Math.round(this.position.getX());
+            int y = Math.round(this.position.getY());
+            int z = Math.round(this.position.getZ());
+            if(this.data.mobType != null)
+                this.data.mobType.generateMobDrops(x, y, z);
+            clear();
+            return;
+        }
         }
     }
 
@@ -1823,6 +1841,11 @@ public class Entity implements GameObject
                 }
             }
             // TODO finish
+            break;
+        }
+        case Mob:
+        {
+            break;
         }
         }
     }
@@ -1974,6 +1997,8 @@ public class Entity implements GameObject
             minecartPush(dir);
             break;
         }
+        case Mob:
+            break;
         }
     }
 
@@ -2129,6 +2154,18 @@ public class Entity implements GameObject
     {
         Entity retval = allocate(position, EntityType.RemoveBlockIfEqual);
         retval.data.block = b.dup();
+        return retval;
+    }
+
+    public static Entity NewMob(final int bx,
+                                final int by,
+                                final int bz,
+                                final MobType mobType)
+    {
+        Vector pos = Vector.allocate(bx, by, bz);
+        Entity retval = allocate(pos, EntityType.Mob);
+        pos.free();
+        retval.data.mobType = mobType;
         return retval;
     }
 
@@ -2345,6 +2382,29 @@ public class Entity implements GameObject
             this.data.wasOverOnActivatorRail = i.readBoolean();
             return;
         }
+        case Mob:
+        {
+            int length = i.readInt();
+            if(length < 0)
+                throw new IOException("mob name length out of range");
+            StringBuilder sb = new StringBuilder(length);
+            for(int index = 0; index < length; index++)
+                sb.append(i.readChar());
+            String str = sb.toString();
+            this.data.mobType = null;
+            for(int index = 0; index < Mobs.getMobCount(); index++)
+            {
+                MobType mob = Mobs.getMob(index);
+                if(mob.getName().equals(str))
+                {
+                    this.data.mobType = mob;
+                    break;
+                }
+            }
+            if(this.data.mobType == null)
+                throw new IOException("invalid mob name");
+            return;
+        }
         }
     }
 
@@ -2472,6 +2532,14 @@ public class Entity implements GameObject
             o.writeBoolean(this.data.wasOverOnActivatorRail);
             break;
         }
+        case Mob:
+        {
+            String name = this.data.mobType.getName();
+            o.writeInt(name.length());
+            for(int index = 0; index < name.length(); index++)
+                o.writeChar(name.charAt(index));
+            break;
+        }
         }
     }
 
@@ -2571,6 +2639,8 @@ public class Entity implements GameObject
             Vector origin2 = mat.apply(rayHitEntity_t2, origin);
             return Block.minecartRayIntersects(origin2, dir2, this.data.block);
         }
+        case Mob:
+            break;
         }
         return -1;
     }
@@ -2606,6 +2676,8 @@ public class Entity implements GameObject
             this.data.existduration -= punchTime;
             break;
         }
+        case Mob:
+            break;
         }
     }
 
@@ -2648,6 +2720,8 @@ public class Entity implements GameObject
             minecartOnSetPosition();
             break;
         }
+        case Mob:
+            break;
         }
     }
 
