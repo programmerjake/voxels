@@ -9,7 +9,7 @@ licensed under gpl (in COPYING.txt)
 
 third-party libraries
 
-lwjgl : lwjgl.jar native/*
-jogg/jorbis : jogg.jar jorbis.jar
-slick-util : slick-util.jar
+lwjgl : lwjgl.jar native/*<br/>
+jogg/jorbis : jogg.jar jorbis.jar<br/>
+slick-util : slick-util.jar<br/>
 pngdecoder : pngdecoder.jar
