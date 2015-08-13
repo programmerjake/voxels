@@ -1,6 +1,8 @@
 voxels
 ======
 
+This is an old version. For the latest version see [Voxels 0.7](https://github.com/programmerjake/voxels-0.7).
+
 a minecraft-like game
 
 licensed under gpl (in COPYING.txt)
